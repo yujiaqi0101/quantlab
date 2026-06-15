@@ -63,3 +63,11 @@ htmlcov/
 # Secrets (just in case)
 .env
 .env.local
+
+# Node / Frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Storage (runtime data)
+storage/

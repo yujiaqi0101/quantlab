@@ -80,6 +80,8 @@ from .api import (
     validate_strategy_params,
     create_strategy,
 )
+# V4.6 Factor Strategy
+from .factor_strategy import FactorStrategy, MultiFactorStrategy
 
 
 __all__ = [
@@ -116,4 +118,7 @@ __all__ = [
     "get_strategy_source",
     "validate_strategy_params",
     "create_strategy",
+    # V4.6
+    "FactorStrategy",
+    "MultiFactorStrategy",
 ]

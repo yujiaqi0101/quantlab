@@ -1,0 +1,84 @@
+/* ── QuantLab Studio — Global Styles ── */
+
+:root {
+  --q-bg-primary: #0a0e17;
+  --q-bg-secondary: #0d1117;
+  --q-bg-tertiary: #161b22;
+  --q-border: #1b2332;
+  --q-text-primary: #e6edf3;
+  --q-text-secondary: #8b949e;
+  --q-text-muted: #484f58;
+  --q-accent: #58a6ff;
+  --q-accent-dim: #1f6feb;
+  --q-green: #3fb950;
+  --q-red: #f85149;
+  --q-yellow: #d29922;
+  --q-purple: #bc8cff;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 14px;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  background: var(--q-bg-primary);
+  color: var(--q-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+
+#app {
+  height: 100vh;
+  width: 100vw;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #21262d;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #30363d;
+}
+
+/* ── Element Plus Dark Overrides ── */
+.el-menu {
+  border-right: none !important;
+}
+
+.el-menu--collapse {
+  width: 64px !important;
+}
+
+.el-aside {
+  overflow: hidden !important;
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Selection ── */
+::selection {
+  background: rgba(88, 166, 255, 0.3);
+  color: #e6edf3;
+}
