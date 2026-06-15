@@ -18,6 +18,10 @@ V3.4 多策略多账户矩阵：
     AllocationEngine / Rules  策略×账户分配
     OrderRouter               订单路由
     PortfolioSupervisor       总调度器
+
+V4.0 Application Layer 基础设施：
+    TaskManager               异步任务中心
+    get_task_manager          全局单例
 """
 
 from .state_store import (
@@ -72,6 +76,13 @@ from .supervisor import (
     PortfolioSupervisor,
 )
 
+# V4.0
+from .task_manager import (
+    TaskManager,
+    get_task_manager,
+    set_task_manager,
+)
+
 
 __all__ = [
     # V3.3
@@ -99,4 +110,8 @@ __all__ = [
     "RuntimeStats",
     "StrategyRegistry",
     "PortfolioSupervisor",
+    # V4.0
+    "TaskManager",
+    "get_task_manager",
+    "set_task_manager",
 ]

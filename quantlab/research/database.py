@@ -49,19 +49,25 @@ def default_db_path() -> str:
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS experiments (
-    id           TEXT PRIMARY KEY,
-    name         TEXT NOT NULL,
-    strategy     TEXT NOT NULL,
-    params_json  TEXT NOT NULL,
-    created_at   TEXT NOT NULL,
-    tag          TEXT DEFAULT '',
-    note         TEXT DEFAULT ''
+    id              TEXT PRIMARY KEY,
+    name            TEXT NOT NULL,
+    strategy        TEXT NOT NULL,
+    params_json     TEXT NOT NULL,
+    created_at      TEXT NOT NULL,
+    tag             TEXT DEFAULT '',
+    note            TEXT DEFAULT '',
+    dataset_id      TEXT DEFAULT '',
+    dataset_version TEXT DEFAULT '',
+    tags_json       TEXT DEFAULT '[]',
+    strategy_version TEXT DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_experiments_strategy
     ON experiments(strategy);
 CREATE INDEX IF NOT EXISTS idx_experiments_created
     ON experiments(created_at);
+CREATE INDEX IF NOT EXISTS idx_experiments_dataset
+    ON experiments(dataset_id);
 
 CREATE TABLE IF NOT EXISTS results (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,

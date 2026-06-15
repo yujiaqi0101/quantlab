@@ -75,8 +75,10 @@ class ExperimentRepository:
                 """
                 INSERT OR REPLACE INTO experiments
                 (id, name, strategy, params_json,
-                 created_at, tag, note)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                 created_at, tag, note,
+                 dataset_id, dataset_version,
+                 tags_json, strategy_version)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     record.id,
@@ -86,6 +88,13 @@ class ExperimentRepository:
                     record.created_at,
                     record.tag,
                     record.note,
+                    getattr(record, "dataset_id", ""),
+                    getattr(record, "dataset_version", ""),
+                    json.dumps(
+                        getattr(record, "tags", []),
+                        ensure_ascii=False,
+                    ),
+                    getattr(record, "strategy_version", ""),
                 ),
             )
 
@@ -234,6 +243,8 @@ class ExperimentRepository:
                     e.id, e.name, e.strategy,
                     e.params_json, e.created_at,
                     e.tag, e.note,
+                    e.dataset_id, e.dataset_version,
+                    e.tags_json, e.strategy_version,
                     r.final_equity, r.total_return,
                     r.sharpe, r.max_drawdown,
                     r.trade_count, r.win_rate,
@@ -263,6 +274,12 @@ class ExperimentRepository:
             )
         except Exception:
             d["extras"] = {}
+        try:
+            d["tags"] = json.loads(
+                d.pop("tags_json", "[]")
+            )
+        except Exception:
+            d["tags"] = []
         return d
 
     def list_all(
@@ -278,6 +295,8 @@ class ExperimentRepository:
                     e.id, e.name, e.strategy,
                     e.params_json, e.created_at,
                     e.tag, e.note,
+                    e.dataset_id, e.dataset_version,
+                    e.tags_json, e.strategy_version,
                     r.final_equity, r.total_return,
                     r.sharpe, r.max_drawdown,
                     r.trade_count, r.win_rate,
@@ -321,6 +340,8 @@ class ExperimentRepository:
             float
         ] = None,
         tag: Optional[str] = None,
+        dataset_id: Optional[str] = None,
+        tags_any: Optional[List[str]] = None,
         limit: int = 100,
     ) -> pd.DataFrame:
 
@@ -343,6 +364,17 @@ class ExperimentRepository:
         if tag is not None:
             where.append("e.tag = ?")
             params.append(tag)
+        if dataset_id is not None:
+            where.append("e.dataset_id = ?")
+            params.append(dataset_id)
+        if tags_any is not None:
+            # JSON 数组包含任意一个标签
+            # SQLite: tags_json LIKE '%"tag"%'
+            or_clauses = []
+            for t in tags_any:
+                or_clauses.append("e.tags_json LIKE ?")
+                params.append(f'%"{t}"%')
+            where.append("(" + " OR ".join(or_clauses) + ")")
         if sharpe_min is not None:
             where.append(
                 "r.sharpe >= ?"
@@ -370,6 +402,8 @@ class ExperimentRepository:
                 e.id, e.name, e.strategy,
                 e.params_json, e.created_at,
                 e.tag, e.note,
+                e.dataset_id, e.dataset_version,
+                e.tags_json, e.strategy_version,
                 r.final_equity, r.total_return,
                 r.sharpe, r.max_drawdown,
                 r.trade_count, r.win_rate,

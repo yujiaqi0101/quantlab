@@ -19,6 +19,13 @@ from .datasource import (
     CSVMultiSource,
 )
 
+# V4.0 Application Layer：高层数据集加载器
+from .dataset_loader import (
+    DataLoader,
+    get_data_loader,
+    set_data_loader,
+)
+
 
 __all__ = [
     "StrategyContext",
@@ -27,4 +34,8 @@ __all__ = [
     "DataSource",
     "CSVSingleSource",
     "CSVMultiSource",
+    # V4.0
+    "DataLoader",
+    "get_data_loader",
+    "set_data_loader",
 ]
