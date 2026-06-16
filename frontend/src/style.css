@@ -1,19 +1,60 @@
-/* ── QuantLab Studio — Global Styles ── */
+/* ── QuantLab Studio — Global Styles (Light/Dark Theme) ── */
 
-:root {
+/* Dark theme variables (default) */
+:root,
+html.dark {
   --q-bg-primary: #0a0e17;
   --q-bg-secondary: #0d1117;
   --q-bg-tertiary: #161b22;
   --q-border: #1b2332;
+  --q-border-strong: #30363d;
   --q-text-primary: #e6edf3;
   --q-text-secondary: #8b949e;
   --q-text-muted: #484f58;
   --q-accent: #58a6ff;
   --q-accent-dim: #1f6feb;
+  --q-accent-soft: rgba(88, 166, 255, 0.15);
   --q-green: #3fb950;
   --q-red: #f85149;
   --q-yellow: #d29922;
   --q-purple: #bc8cff;
+  --q-tooltip-bg: #161b22;
+  --q-input-bg: #161b22;
+  --q-input-border: #1b2332;
+  --q-row-hover: #161b22;
+  --q-table-bg: #0d1117;
+  --q-scrollbar: #21262d;
+  --q-scrollbar-hover: #30363d;
+
+  color-scheme: dark;
+}
+
+/* Light theme variables */
+html.light {
+  --q-bg-primary: #f6f8fa;
+  --q-bg-secondary: #ffffff;
+  --q-bg-tertiary: #f6f8fa;
+  --q-border: #d0d7de;
+  --q-border-strong: #afb8c1;
+  --q-text-primary: #1f2328;
+  --q-text-secondary: #656d76;
+  --q-text-muted: #8c959f;
+  --q-accent: #0969da;
+  --q-accent-dim: #218bff;
+  --q-accent-soft: rgba(9, 105, 218, 0.12);
+  --q-green: #1a7f37;
+  --q-red: #cf222e;
+  --q-yellow: #9a6700;
+  --q-purple: #8250df;
+  --q-tooltip-bg: #ffffff;
+  --q-input-bg: #f6f8fa;
+  --q-input-border: #d0d7de;
+  --q-row-hover: #eef1f4;
+  --q-table-bg: #ffffff;
+  --q-scrollbar: #d0d7de;
+  --q-scrollbar-hover: #afb8c1;
+
+  color-scheme: light;
 }
 
 * {
@@ -26,10 +67,6 @@ html {
   font-size: 14px;
 }
 
-html.dark {
-  color-scheme: dark;
-}
-
 body {
   font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   background: var(--q-bg-primary);
@@ -37,6 +74,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow: hidden;
+  transition: background 0.2s, color 0.2s;
 }
 
 #app {
@@ -55,15 +93,15 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #21262d;
+  background: var(--q-scrollbar);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #30363d;
+  background: var(--q-scrollbar-hover);
 }
 
-/* ── Element Plus Dark Overrides ── */
+/* ── Element Plus Menu (dark/light both work) ── */
 .el-menu {
   border-right: none !important;
 }
@@ -77,8 +115,36 @@ body {
   transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Light theme Element Plus adjustments */
+html.light .el-menu-item.is-active {
+  background-color: rgba(9, 105, 218, 0.1) !important;
+  color: var(--q-accent) !important;
+}
+
+html.light .el-menu-item:hover {
+  background-color: var(--q-row-hover) !important;
+}
+
+html.light .el-table {
+  --el-table-bg-color: var(--q-table-bg);
+  --el-table-tr-bg-color: var(--q-table-bg);
+  --el-table-row-hover-bg-color: var(--q-row-hover);
+  --el-table-text-color: var(--q-text-primary);
+  --el-table-border-color: var(--q-border);
+  --el-table-header-text-color: var(--q-text-secondary);
+}
+
+html.light .el-input__wrapper {
+  background: var(--q-input-bg) !important;
+  box-shadow: 0 0 0 1px var(--q-input-border) !important;
+}
+
+html.light .el-input__inner {
+  color: var(--q-text-primary) !important;
+}
+
 /* ── Selection ── */
 ::selection {
-  background: rgba(88, 166, 255, 0.3);
-  color: #e6edf3;
+  background: var(--q-accent-soft);
+  color: var(--q-text-primary);
 }

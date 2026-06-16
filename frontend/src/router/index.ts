@@ -5,13 +5,25 @@ const routes = [
   {
     path: '/',
     component: MainLayout,
-    redirect: '/strategies',
+    redirect: '/studio',
     children: [
+      {
+        path: 'studio',
+        name: 'Studio',
+        component: () => import('@/views/studio/ResearchStudio.vue'),
+        meta: { title: 'Research Dashboard', icon: 'DataLine' },
+      },
       {
         path: 'strategies',
         name: 'Strategies',
         component: () => import('@/views/strategies/StrategyList.vue'),
         meta: { title: 'Strategies', icon: 'Odometer' },
+      },
+      {
+        path: 'strategy-builder',
+        name: 'StrategyBuilder',
+        component: () => import('@/views/strategies/StrategyBuilder.vue'),
+        meta: { title: 'Strategy Builder', icon: 'SetUp' },
       },
       {
         path: 'strategies/:id',
@@ -48,6 +60,36 @@ const routes = [
         name: 'ExperimentDetail',
         component: () => import('@/views/experiments/ExperimentDetail.vue'),
         meta: { title: 'Experiment Detail', icon: 'Files' },
+      },
+      {
+        path: 'compare',
+        name: 'Compare',
+        component: () => import('@/views/compare/ExperimentCompare.vue'),
+        meta: { title: 'Compare Experiments', icon: 'TrendCharts' },
+      },
+      {
+        path: 'leaderboard',
+        name: 'Leaderboard',
+        component: () => import('@/views/leaderboard/LeaderboardPage.vue'),
+        meta: { title: 'Leaderboard', icon: 'Trophy' },
+      },
+      {
+        path: 'factors',
+        name: 'Factors',
+        component: () => import('@/views/factors/FactorStudio.vue'),
+        meta: { title: 'Factor Studio', icon: 'Histogram' },
+      },
+      {
+        path: 'signals',
+        name: 'Signals',
+        component: () => import('@/views/signals/SignalWorkspace.vue'),
+        meta: { title: 'Signal Research', icon: 'Switch' },
+      },
+      {
+        path: 'research',
+        name: 'ResearchLab',
+        component: () => import('@/views/research/ResearchLab.vue'),
+        meta: { title: 'Research Lab', icon: 'Cpu' },
       },
     ],
   },

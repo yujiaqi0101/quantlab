@@ -7,6 +7,38 @@
     </div>
 
     <div class="topbar-right">
+      <!-- Workspace preset switcher (only on Studio) -->
+      <el-select
+        v-if="isStudio"
+        :model-value="wsStore.activeId"
+        @change="onPresetChange"
+        class="preset-select"
+        size="small"
+      >
+        <el-option
+          v-for="p in wsStore.presets"
+          :key="p.id"
+          :label="p.name"
+          :value="p.id"
+        >
+          <div class="preset-option">
+            <span class="preset-name">{{ p.name }}</span>
+            <span class="preset-desc">{{ p.description }}</span>
+          </div>
+        </el-option>
+      </el-select>
+
+      <!-- Theme switcher -->
+      <el-tooltip :content="appStore.theme === 'dark' ? 'Switch to Light' : 'Switch to Dark'" placement="bottom">
+        <div class="theme-toggle" @click="onToggleTheme">
+          <el-icon :size="16">
+            <Moon v-if="appStore.theme === 'dark'" />
+            <Sunny v-else />
+          </el-icon>
+        </div>
+      </el-tooltip>
+
+      <!-- System status -->
       <div class="topbar-status">
         <span class="status-dot" />
         <span class="status-text">System Online</span>
@@ -16,9 +48,25 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useAppStore } from '@/stores/app'
+import { useWorkspaceStore } from '@/stores/workspace'
+import { Moon, Sunny } from '@element-plus/icons-vue'
 
 const route = useRoute()
+const appStore = useAppStore()
+const wsStore = useWorkspaceStore()
+
+const isStudio = computed(() => route.path === '/' || route.path === '/studio')
+
+function onToggleTheme() {
+  appStore.toggleTheme()
+}
+
+function onPresetChange(id: string) {
+  wsStore.setActive(id)
+}
 </script>
 
 <style scoped>
@@ -39,26 +87,75 @@ const route = useRoute()
 .topbar-title {
   font-size: 15px;
   font-weight: 600;
-  color: #e6edf3;
+  color: var(--q-text-primary);
   letter-spacing: -0.2px;
 }
 
 .topbar-divider {
   width: 1px;
   height: 16px;
-  background: #21262d;
+  background: var(--q-border);
 }
 
 .topbar-subtitle {
   font-size: 13px;
-  color: #484f58;
+  color: var(--q-text-muted);
   font-weight: 400;
 }
 
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
+}
+
+.preset-select {
+  width: 140px;
+}
+
+.preset-select :deep(.el-input__wrapper) {
+  background: var(--q-input-bg);
+  box-shadow: 0 0 0 1px var(--q-input-border);
+}
+
+.preset-select :deep(.el-input__inner) {
+  color: var(--q-text-primary);
+  font-size: 12px;
+}
+
+.preset-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 0;
+}
+
+.preset-name {
+  font-size: 13px;
+  color: var(--q-text-primary);
+  font-weight: 500;
+}
+
+.preset-desc {
+  font-size: 11px;
+  color: var(--q-text-muted);
+}
+
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--q-text-secondary);
+  transition: background 0.2s, color 0.2s;
+}
+
+.theme-toggle:hover {
+  background: var(--q-bg-tertiary);
+  color: var(--q-text-primary);
 }
 
 .topbar-status {
@@ -66,8 +163,8 @@ const route = useRoute()
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  background: #0d1117;
-  border: 1px solid #1b2332;
+  background: var(--q-bg-secondary);
+  border: 1px solid var(--q-border);
   border-radius: 4px;
 }
 
@@ -75,12 +172,12 @@ const route = useRoute()
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #3fb950;
-  box-shadow: 0 0 6px #3fb950;
+  background: var(--q-green);
+  box-shadow: 0 0 6px var(--q-green);
 }
 
 .status-text {
   font-size: 12px;
-  color: #8b949e;
+  color: var(--q-text-secondary);
 }
 </style>

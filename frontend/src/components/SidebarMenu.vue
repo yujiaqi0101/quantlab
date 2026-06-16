@@ -1,5 +1,5 @@
 <template>
-  <div class="sidebar-logo" @click="$router.push('/')">
+  <div class="sidebar-logo" @click="$router.push('/studio')">
     <span class="logo-icon">Q</span>
     <span v-if="!collapsed" class="logo-text">QuantLab</span>
   </div>
@@ -10,28 +10,58 @@
     :collapse-transition="false"
     router
     class="sidebar-menu"
-    background-color="#0d1117"
-    text-color="#8b949e"
+    :background-color="menuBg"
+    :text-color="menuText"
     active-text-color="#58a6ff"
   >
-    <el-menu-item index="/strategies">
-      <el-icon><Odometer /></el-icon>
-      <template #title>Strategies</template>
-    </el-menu-item>
-
-    <el-menu-item index="/datasets">
-      <el-icon><Coin /></el-icon>
-      <template #title>Datasets</template>
-    </el-menu-item>
-
-    <el-menu-item index="/backtests">
+    <el-menu-item index="/studio">
       <el-icon><DataLine /></el-icon>
-      <template #title>Backtests</template>
+      <template #title>Dashboard</template>
     </el-menu-item>
 
     <el-menu-item index="/experiments">
       <el-icon><Files /></el-icon>
       <template #title>Experiments</template>
+    </el-menu-item>
+
+    <el-menu-item index="/factors">
+      <el-icon><Histogram /></el-icon>
+      <template #title>Factors</template>
+    </el-menu-item>
+
+    <el-menu-item index="/signals">
+      <el-icon><Switch /></el-icon>
+      <template #title>Signals</template>
+    </el-menu-item>
+
+    <el-menu-item index="/research">
+      <el-icon><Cpu /></el-icon>
+      <template #title>Research Lab</template>
+    </el-menu-item>
+
+    <el-menu-item index="/compare">
+      <el-icon><TrendCharts /></el-icon>
+      <template #title>Compare</template>
+    </el-menu-item>
+
+    <el-menu-item index="/leaderboard">
+      <el-icon><Trophy /></el-icon>
+      <template #title>Leaderboard</template>
+    </el-menu-item>
+
+    <el-menu-item index="/strategies">
+      <el-icon><Odometer /></el-icon>
+      <template #title>Strategies</template>
+    </el-menu-item>
+
+    <el-menu-item index="/strategy-builder">
+      <el-icon><SetUp /></el-icon>
+      <template #title>Builder</template>
+    </el-menu-item>
+
+    <el-menu-item index="/datasets">
+      <el-icon><Coin /></el-icon>
+      <template #title>Datasets</template>
     </el-menu-item>
   </el-menu>
 
@@ -47,13 +77,24 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'
-import { Odometer, Coin, DataLine, Files, Fold, Expand } from '@element-plus/icons-vue'
+import { Odometer, Coin, DataLine, Files, Fold, Expand, TrendCharts, Trophy, Histogram, Switch, Cpu, SetUp } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const appStore = useAppStore()
 
-const activeRoute = computed(() => route.path)
+const activeRoute = computed(() => {
+  if (route.path === '/' || route.path === '/studio') return '/studio'
+  if (route.path.startsWith('/experiments')) return '/experiments'
+  if (route.path.startsWith('/factors')) return '/factors'
+  if (route.path.startsWith('/signals')) return '/signals'
+  if (route.path.startsWith('/research')) return '/research'
+  if (route.path.startsWith('/strategy-builder')) return '/strategy-builder'
+  return route.path
+})
 const collapsed = computed(() => appStore.sidebarCollapsed)
+
+const menuBg = computed(() => (appStore.theme === 'dark' ? '#0d1117' : '#ffffff'))
+const menuText = computed(() => (appStore.theme === 'dark' ? '#8b949e' : '#656d76'))
 </script>
 
 <style scoped>
@@ -63,7 +104,7 @@ const collapsed = computed(() => appStore.sidebarCollapsed)
   gap: 10px;
   padding: 16px 20px;
   cursor: pointer;
-  border-bottom: 1px solid #1b2332;
+  border-bottom: 1px solid var(--q-border);
   height: 52px;
   box-sizing: border-box;
 }
@@ -85,7 +126,7 @@ const collapsed = computed(() => appStore.sidebarCollapsed)
 .logo-text {
   font-size: 16px;
   font-weight: 700;
-  color: #e6edf3;
+  color: var(--q-text-primary);
   letter-spacing: -0.3px;
   white-space: nowrap;
 }
@@ -103,12 +144,17 @@ const collapsed = computed(() => appStore.sidebarCollapsed)
 }
 
 .sidebar-menu .el-menu-item:hover {
-  background-color: #161b22 !important;
+  background-color: var(--q-bg-tertiary) !important;
 }
 
 .sidebar-menu .el-menu-item.is-active {
   background-color: #1f2937 !important;
   color: #58a6ff !important;
+}
+
+html.light .sidebar-menu .el-menu-item.is-active {
+  background-color: rgba(9, 105, 218, 0.1) !important;
+  color: var(--q-accent) !important;
 }
 
 .sidebar-toggle {
@@ -120,11 +166,11 @@ const collapsed = computed(() => appStore.sidebarCollapsed)
   justify-content: center;
   padding: 12px;
   cursor: pointer;
-  color: #484f58;
+  color: var(--q-text-muted);
   transition: color 0.2s;
 }
 
 .sidebar-toggle:hover {
-  color: #8b949e;
+  color: var(--q-text-secondary);
 }
 </style>

@@ -34,12 +34,12 @@ const sidebarCollapsed = computed(() => appStore.sidebarCollapsed)
 .studio-layout {
   height: 100vh;
   overflow: hidden;
-  background: #0a0e17;
+  background: var(--q-bg-primary);
 }
 
 .studio-aside {
-  background: #0d1117;
-  border-right: 1px solid #1b2332;
+  background: var(--q-bg-secondary);
+  border-right: 1px solid var(--q-border);
   transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
 }
@@ -51,15 +51,15 @@ const sidebarCollapsed = computed(() => appStore.sidebarCollapsed)
 }
 
 .studio-header {
-  background: #0d1117;
-  border-bottom: 1px solid #1b2332;
+  background: var(--q-bg-secondary);
+  border-bottom: 1px solid var(--q-border);
   padding: 0 20px;
   display: flex;
   align-items: center;
 }
 
 .studio-main {
-  background: #0a0e17;
+  background: var(--q-bg-primary);
   overflow-y: auto;
   padding: 24px;
 }
