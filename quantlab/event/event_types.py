@@ -105,3 +105,79 @@ EVENT_TYPES = (
     OrderEvent,
     FillEvent,
 )
+
+
+# ================================================================
+# V2.0 Research Events — 研究流程事件
+#
+# 目的：让系统知道下一步该做什么
+# 例如：FactorCreated → 自动提示创建 Signal
+#       BacktestFinished → 自动检查是否加入 Candidate
+# ================================================================
+
+
+@dataclass(slots=True)
+class FactorCreatedEvent(Event):
+    """因子创建完成"""
+    type: str = "FACTOR_CREATED"
+    factor_name: str = ""
+    category: str = ""
+
+
+@dataclass(slots=True)
+class SignalCreatedEvent(Event):
+    """信号创建完成"""
+    type: str = "SIGNAL_CREATED"
+    signal_name: str = ""
+    factor_name: str = ""
+    signal_type: str = ""  # threshold / crossover / composite
+
+
+@dataclass(slots=True)
+class StrategyCreatedEvent(Event):
+    """策略创建完成"""
+    type: str = "STRATEGY_CREATED"
+    strategy_id: str = ""
+    strategy_name: str = ""
+    from_builder: bool = False  # 是否来自 Strategy Builder
+
+
+@dataclass(slots=True)
+class BacktestFinishedEvent(Event):
+    """回测完成"""
+    type: str = "BACKTEST_FINISHED"
+    experiment_id: str = ""
+    strategy_id: str = ""
+    sharpe: float = 0.0
+    max_drawdown: float = 0.0
+    total_return: float = 0.0
+
+
+@dataclass(slots=True)
+class SweepFinishedEvent(Event):
+    """参数扫描完成"""
+    type: str = "SWEEP_FINISHED"
+    sweep_id: str = ""
+    strategy_id: str = ""
+    total_combos: int = 0
+    best_sharpe: float = 0.0
+
+
+@dataclass(slots=True)
+class CandidateGeneratedEvent(Event):
+    """候选策略生成"""
+    type: str = "CANDIDATE_GENERATED"
+    strategy_id: str = ""
+    experiment_id: str = ""
+    sharpe: float = 0.0
+    max_drawdown: float = 0.0
+
+
+RESEARCH_EVENT_TYPES = (
+    FactorCreatedEvent,
+    SignalCreatedEvent,
+    StrategyCreatedEvent,
+    BacktestFinishedEvent,
+    SweepFinishedEvent,
+    CandidateGeneratedEvent,
+)
