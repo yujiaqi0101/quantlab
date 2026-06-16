@@ -19,6 +19,10 @@ export interface ExperimentInfo {
   source: string
   params: Record<string, any>
   tags_json?: string
+  status?: 'normal' | 'candidate' | 'production' | 'paper_trading'
+  folder?: string
+  favorite?: number
+  parent_id?: string
 }
 
 export interface EquityData {
@@ -125,5 +129,147 @@ export async function removeExperimentTag(id: string, tag: string): Promise<stri
 
 export async function getAvailableTags(): Promise<Record<string, string>> {
   const resp = await http.get<Record<string, string>>('/experiments/tags/list')
+  return resp.data
+}
+
+// ---- Status / Favorite / Folder ----
+
+export async function setExperimentStatus(id: string, status: string): Promise<{ status: string }> {
+  const resp = await http.put<{ status: string }>(`/experiments/${id}/status`, { status })
+  return resp.data
+}
+
+export async function setExperimentFavorite(id: string, favorite: boolean): Promise<{ favorite: boolean }> {
+  const resp = await http.put<{ favorite: boolean }>(`/experiments/${id}/favorite`, { favorite })
+  return resp.data
+}
+
+export async function setExperimentFolder(id: string, folder: string): Promise<{ folder: string }> {
+  const resp = await http.put<{ folder: string }>(`/experiments/${id}/folder`, { folder })
+  return resp.data
+}
+
+export async function listFolders(): Promise<string[]> {
+  const resp = await http.get<string[]>('/experiments/folders/list')
+  return resp.data
+}
+
+export interface AnalyticsData {
+  drawdown_curve: number[]
+  monthly_returns: Record<string, Record<string, number>>
+  annual_returns: Record<string, number>
+  rolling_sharpe: number[]
+  rolling_drawdown: number[]
+  rolling_volatility: number[]
+  rolling_start_index: number
+  extended_metrics: {
+    sortino?: number
+    calmar?: number
+    volatility?: number
+    profit_factor?: number
+  }
+  pnl_distribution: {
+    counts: number[]
+    edges: number[]
+  }
+  holding_stats: {
+    avg_days: number
+    max_days: number
+    min_days: number
+    median_days: number
+  }
+  top_winners: TradeInfo[]
+  top_losers: TradeInfo[]
+}
+
+export async function getExperimentAnalytics(id: string): Promise<AnalyticsData> {
+  const resp = await http.get<AnalyticsData>(`/experiments/${id}/analytics`)
+  return resp.data
+}
+
+// ---- Rank / Leaderboard ----
+
+export interface RankItem {
+  rank: number
+  id: string
+  name: string
+  strategy: string
+  sharpe: number
+  total_return: number
+  max_drawdown: number
+  win_rate: number
+  trade_count: number
+  final_equity: number
+  created_at: string
+  status?: string
+  folder?: string
+  favorite?: number
+}
+
+export async function getLeaderboard(
+  metric: string = 'sharpe',
+  top: number = 20,
+  strategy?: string,
+): Promise<RankItem[]> {
+  const resp = await http.get<RankItem[]>('/experiments/rank', {
+    params: { metric, top, strategy },
+  })
+  return resp.data
+}
+
+// ---- Research Journal ----
+
+export interface LineageNode {
+  id: string
+  name: string
+  strategy: string
+  params: Record<string, any>
+  created_at: string
+  parent_id: string
+  status: string
+  children?: LineageNode[]
+}
+
+export interface LineageData {
+  experiment_id: string
+  ancestors: LineageNode[]
+  children: LineageNode[]
+  siblings: LineageNode[]
+  family: LineageNode
+}
+
+export interface ActivityItem {
+  id: number
+  experiment_id: string
+  action: string
+  detail: string
+  created_at: string
+  name?: string
+  strategy?: string
+  status?: string
+}
+
+export async function setExperimentNote(id: string, note: string): Promise<{ note: string }> {
+  const resp = await http.put<{ note: string }>(`/experiments/${id}/note`, { note })
+  return resp.data
+}
+
+export async function setExperimentParent(id: string, parentId: string): Promise<{ parent_id: string }> {
+  const resp = await http.put<{ parent_id: string }>(`/experiments/${id}/parent`, { parent_id: parentId })
+  return resp.data
+}
+
+export async function getExperimentLineage(id: string): Promise<LineageData> {
+  const resp = await http.get<LineageData>(`/experiments/${id}/lineage`)
+  return resp.data
+}
+
+export async function getExperimentActivity(id: string, limit: number = 50): Promise<ActivityItem[]> {
+  const resp = await http.get<ActivityItem[]>(`/experiments/${id}/activity`, { params: { limit } })
+  return resp.data
+}
+
+export async function getGlobalTimeline(limit: number = 50): Promise<ActivityItem[]> {
+  const resp = await http.get<ActivityItem[]>('/experiments/timeline/global', { params: { limit } })
   return resp.data
 }

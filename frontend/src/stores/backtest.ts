@@ -5,7 +5,6 @@ import {
   getTask,
   type BacktestSubmitRequest,
   type BacktestResponse,
-  type TaskInfo,
 } from '@/api/backtest'
 
 export const useBacktestStore = defineStore('backtest', () => {

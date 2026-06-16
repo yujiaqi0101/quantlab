@@ -1,6 +1,4 @@
 import { http } from './http'
-import type { StrategyInfo, StrategyParam } from './strategy'
-import type { DatasetInfo } from './dataset'
 
 export interface BacktestSubmitRequest {
   strategy: string
