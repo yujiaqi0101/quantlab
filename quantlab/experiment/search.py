@@ -138,6 +138,7 @@ class ExperimentSearch:
                 e.tag, e.note,
                 e.dataset_id, e.dataset_version,
                 e.tags_json, e.strategy_version,
+                e.status, e.folder, e.favorite,
                 r.sharpe, r.total_return,
                 r.max_drawdown, r.trade_count,
                 r.win_rate, r.final_equity
@@ -206,6 +207,7 @@ class ExperimentSearch:
                 e.params_json, e.created_at,
                 e.dataset_id, e.dataset_version,
                 e.tags_json, e.strategy_version,
+                e.status, e.folder, e.favorite,
                 r.sharpe, r.total_return,
                 r.max_drawdown, r.trade_count,
                 r.win_rate, r.final_equity

@@ -22,6 +22,10 @@ from .datasets import router as datasets_router
 from .backtests import router as backtests_router
 from .tasks import router as tasks_router
 from .experiments import router as experiments_router
+from .factors import router as factors_router
+from .signals import router as signals_router
+from .research import router as research_router
+from .strategy_builder import router as strategy_builder_router
 
 
 # ---- App 创建 ----
@@ -46,6 +50,10 @@ app.include_router(datasets_router)
 app.include_router(backtests_router)
 app.include_router(tasks_router)
 app.include_router(experiments_router)
+app.include_router(factors_router)
+app.include_router(signals_router)
+app.include_router(research_router)
+app.include_router(strategy_builder_router)
 
 
 # ---- WebSocket 任务推送 ----

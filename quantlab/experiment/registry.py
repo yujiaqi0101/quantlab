@@ -123,6 +123,7 @@ class ExperimentRegistry:
                     e.tag, e.note,
                     e.dataset_id, e.dataset_version,
                     e.tags_json, e.strategy_version,
+                    e.status, e.folder, e.favorite,
                     r.final_equity, r.total_return,
                     r.sharpe, r.max_drawdown,
                     r.trade_count, r.win_rate,
@@ -189,6 +190,7 @@ class ExperimentRegistry:
                 e.tag, e.note,
                 e.dataset_id, e.dataset_version,
                 e.tags_json, e.strategy_version,
+                e.status, e.folder, e.favorite,
                 r.sharpe, r.total_return,
                 r.max_drawdown, r.trade_count,
                 r.win_rate

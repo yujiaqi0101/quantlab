@@ -59,7 +59,11 @@ CREATE TABLE IF NOT EXISTS experiments (
     dataset_id      TEXT DEFAULT '',
     dataset_version TEXT DEFAULT '',
     tags_json       TEXT DEFAULT '[]',
-    strategy_version TEXT DEFAULT ''
+    strategy_version TEXT DEFAULT '',
+    status          TEXT DEFAULT 'normal',
+    folder          TEXT DEFAULT '',
+    favorite        INTEGER DEFAULT 0,
+    parent_id       TEXT DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_experiments_strategy
@@ -68,6 +72,14 @@ CREATE INDEX IF NOT EXISTS idx_experiments_created
     ON experiments(created_at);
 CREATE INDEX IF NOT EXISTS idx_experiments_dataset
     ON experiments(dataset_id);
+CREATE INDEX IF NOT EXISTS idx_experiments_status
+    ON experiments(status);
+CREATE INDEX IF NOT EXISTS idx_experiments_folder
+    ON experiments(folder);
+CREATE INDEX IF NOT EXISTS idx_experiments_favorite
+    ON experiments(favorite);
+CREATE INDEX IF NOT EXISTS idx_experiments_parent
+    ON experiments(parent_id);
 
 CREATE TABLE IF NOT EXISTS results (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -114,6 +126,19 @@ CREATE INDEX IF NOT EXISTS idx_wf_exp
     ON walkforward(experiment_id);
 CREATE INDEX IF NOT EXISTS idx_wf_stability
     ON walkforward(stability_score);
+
+CREATE TABLE IF NOT EXISTS activity_log (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    experiment_id TEXT NOT NULL,
+    action        TEXT NOT NULL,
+    detail        TEXT DEFAULT '',
+    created_at    TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_activity_exp
+    ON activity_log(experiment_id);
+CREATE INDEX IF NOT EXISTS idx_activity_created
+    ON activity_log(created_at);
 """
 
 
@@ -159,6 +184,28 @@ class Database:
                 SCHEMA_SQL
             )
             conn.commit()
+
+        # 迁移：为已有表增加新列
+        self._migrate()
+
+    def _migrate(self):
+        """对已有数据库增加新字段（幂等）"""
+        migrations = [
+            ("status", "TEXT DEFAULT 'normal'"),
+            ("folder", "TEXT DEFAULT ''"),
+            ("favorite", "INTEGER DEFAULT 0"),
+            ("parent_id", "TEXT DEFAULT ''"),
+        ]
+        with self._connect() as conn:
+            for col, col_type in migrations:
+                try:
+                    conn.execute(
+                        f"ALTER TABLE experiments ADD COLUMN {col} {col_type}"
+                    )
+                    conn.commit()
+                except Exception:
+                    # 列已存在，忽略
+                    pass
 
     def _connect(self) -> sqlite3.Connection:
 
