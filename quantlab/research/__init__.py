@@ -94,8 +94,21 @@ from .notebook import (
 
 from .pipeline import (
     ResearchPipeline,
-    PipelineStep,
+    PipelineStepResult,
+    PipelineType,
+    PipelineResult,
+    ResearchContext,
+    FactorConfig,
+    SignalConfig,
+    StrategyConfig,
+    SweepConfig,
+    AlphaBatchConfig,
+    PipelineRegistry,
+    PipelineExecutor,
 )
+
+# 兼容旧代码
+PipelineStep = PipelineStepResult
 
 
 __all__ = [
@@ -126,4 +139,16 @@ __all__ = [
     "Cell",
     "ResearchPipeline",
     "PipelineStep",
+    # V2 Pipeline
+    "PipelineType",
+    "PipelineResult",
+    "PipelineStepResult",
+    "ResearchContext",
+    "FactorConfig",
+    "SignalConfig",
+    "StrategyConfig",
+    "SweepConfig",
+    "AlphaBatchConfig",
+    "PipelineRegistry",
+    "PipelineExecutor",
 ]

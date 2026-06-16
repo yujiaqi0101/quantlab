@@ -8,12 +8,12 @@
 import { computed } from 'vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
-import { CandlestickChart as EchartsCandlestick } from 'echarts/charts'
+import { CandlestickChart as EchartsCandlestick, BarChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, DataZoomComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { PreviewData } from '@/api/dataset'
 
-use([EchartsCandlestick, GridComponent, TooltipComponent, DataZoomComponent, CanvasRenderer])
+use([EchartsCandlestick, BarChart, GridComponent, TooltipComponent, DataZoomComponent, CanvasRenderer])
 
 const props = defineProps<{
   preview: PreviewData

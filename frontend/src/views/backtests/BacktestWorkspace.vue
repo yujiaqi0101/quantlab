@@ -263,10 +263,26 @@ async function onDatasetChange(id: string) {
 async function onRunBacktest() {
   if (!canRun.value) return
 
+  // Parse dataset_id: "default_MSFT" → dataset="default", symbols=["MSFT"]
+  const dsId = selectedDatasetId.value
+  let dataset = dsId
+  let symbols: string[] = []
+  const underscoreIdx = dsId.indexOf('_')
+  if (underscoreIdx > 0) {
+    const prefix = dsId.substring(0, underscoreIdx)
+    const sym = dsId.substring(underscoreIdx + 1)
+    // If prefix is a known dataset base (like "default"), split it
+    if (prefix === 'default' || prefix === 'csi300' || prefix === 'crypto') {
+      dataset = prefix
+      symbols = [sym]
+    }
+  }
+
   await btStore.runBacktest({
     strategy: selectedStrategyId.value,
     parameters: { ...paramValues.value },
-    dataset: selectedDatasetId.value,
+    dataset,
+    symbols,
     initial_cash: advanced.value.initial_cash,
     commission_bps: advanced.value.commission_bps,
     slippage_bps: advanced.value.slippage_bps,

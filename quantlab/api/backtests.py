@@ -15,7 +15,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from ..dto.backtest import BacktestRequest
-from ..application.backtest_service import BacktestService
+from ..services.backtest_service import BacktestService
 
 
 router = APIRouter(prefix="/api/v1/backtests", tags=["backtests"])

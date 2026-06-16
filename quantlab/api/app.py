@@ -26,6 +26,7 @@ from .factors import router as factors_router
 from .signals import router as signals_router
 from .research import router as research_router
 from .strategy_builder import router as strategy_builder_router
+from .alpha import router as alpha_router
 
 
 # ---- App 创建 ----
@@ -54,6 +55,7 @@ app.include_router(factors_router)
 app.include_router(signals_router)
 app.include_router(research_router)
 app.include_router(strategy_builder_router)
+app.include_router(alpha_router)
 
 
 # ---- WebSocket 任务推送 ----

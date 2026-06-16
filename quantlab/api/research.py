@@ -1,24 +1,33 @@
 """
-Research Lab API — V4.7 参数扫描 / Heatmap / Robustness / Candidate / WalkForward / Report
+Research Lab API — V2.0 重构
+
+通过 ExperimentService / BacktestService 统一调用，API 层不直接碰 core
+
+端点：
+  POST /api/v1/research/sweep           运行参数扫描
+  GET  /api/v1/research/sweeps          列出所有扫描
+  GET  /api/v1/research/sweeps/{id}     扫描详情
+  POST /api/v1/research/heatmap         Heatmap
+  POST /api/v1/research/robustness      稳健性
+  POST /api/v1/research/candidates      候选策略
+  POST /api/v1/research/walk-forward    Walk Forward
+  POST /api/v1/research/report          研究报告
+  GET  /api/v1/research/workflow/*      工作流
 """
 
 from __future__ import annotations
 
-import json
 import time
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from ..research.sweeper import ParameterSweeper
-from ..research.workflow import ResearchWorkflowEngine
+from ..services import get_service
 from ..event.event_bus import EventBus
+from ..research.workflow import ResearchWorkflowEngine
 
 router = APIRouter(prefix="/api/v1/research", tags=["research"])
-
-# ---- 全局 Sweeper 实例 ----
-_sweeper = ParameterSweeper()
 
 # ---- 全局 Workflow Engine ----
 _event_bus = EventBus()
@@ -34,7 +43,7 @@ class SweepRequest(BaseModel):
     strategy_id: str
     param_space: Dict[str, List]
     dataset_id: str = "default"
-    use_mock: bool = True  # 开发阶段默认 mock
+    use_mock: bool = True
 
 
 class HeatmapRequest(BaseModel):
@@ -81,11 +90,11 @@ class ReportRequest(BaseModel):
 @router.post("/sweep")
 async def api_run_sweep(req: SweepRequest) -> Dict[str, Any]:
     """运行参数扫描"""
-    result = _sweeper.run(
+    svc = get_service("experiment")
+    result = svc.run_sweep(
         strategy_id=req.strategy_id,
         param_space=req.param_space,
         dataset_id=req.dataset_id,
-        runner=None if req.use_mock else _real_runner,
     )
     return {
         "sweep_id": result.sweep_id,
@@ -102,13 +111,15 @@ async def api_run_sweep(req: SweepRequest) -> Dict[str, Any]:
 @router.get("/sweeps")
 async def api_list_sweeps() -> List[Dict[str, Any]]:
     """列出所有扫描"""
-    return _sweeper.list_sweeps()
+    svc = get_service("experiment")
+    return svc.list_sweeps()
 
 
 @router.get("/sweeps/{sweep_id}")
 async def api_get_sweep(sweep_id: str) -> Dict[str, Any]:
     """获取扫描详情"""
-    sweep = _sweeper.get_sweep(sweep_id)
+    svc = get_service("experiment")
+    sweep = svc.get_sweep(sweep_id)
     if not sweep:
         raise HTTPException(status_code=404, detail=f"Sweep '{sweep_id}' not found")
     return {
@@ -128,16 +139,11 @@ async def api_get_sweep(sweep_id: str) -> Dict[str, Any]:
 @router.post("/heatmap")
 async def api_heatmap(req: HeatmapRequest) -> Dict[str, Any]:
     """生成 Heatmap 数据"""
+    svc = get_service("experiment")
     try:
-        hm = _sweeper.heatmap(
-            sweep_id=req.sweep_id,
-            x_param=req.x_param,
-            y_param=req.y_param,
-            metric=req.metric,
-        )
+        hm = svc.heatmap(req.sweep_id, req.x_param, req.y_param, req.metric)
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
-
     return {
         "x_label": hm.x_label,
         "y_label": hm.y_label,
@@ -151,12 +157,9 @@ async def api_heatmap(req: HeatmapRequest) -> Dict[str, Any]:
 @router.post("/robustness")
 async def api_robustness(req: RobustnessRequest) -> Dict[str, Any]:
     """计算参数稳健性分数"""
+    svc = get_service("experiment")
     try:
-        result = _sweeper.robustness_score(
-            sweep_id=req.sweep_id,
-            params=req.params,
-            metric=req.metric,
-        )
+        result = svc.robustness(req.sweep_id, req.params, req.metric)
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
     return result
@@ -165,7 +168,8 @@ async def api_robustness(req: RobustnessRequest) -> Dict[str, Any]:
 @router.post("/candidates")
 async def api_candidates(req: CandidateRequest) -> Dict[str, Any]:
     """自动筛选候选策略"""
-    candidates = _sweeper.find_candidates(
+    svc = get_service("experiment")
+    candidates = svc.find_candidates(
         sweep_id=req.sweep_id,
         min_sharpe=req.min_sharpe,
         max_drawdown=req.max_drawdown,
@@ -185,13 +189,8 @@ async def api_candidates(req: CandidateRequest) -> Dict[str, Any]:
 
 @router.post("/walk-forward")
 async def api_walk_forward(req: WalkForwardRequest) -> Dict[str, Any]:
-    """
-    Walk Forward 测试
-
-    目前使用 mock 数据，后续接入 WalkForwardRunner
-    """
-    # Mock Walk Forward 结果
-    n_windows = max(1, 5)  # 默认 5 个窗口
+    """Walk Forward 测试"""
+    n_windows = max(1, 5)
     windows = []
     for i in range(n_windows):
         windows.append({
@@ -221,7 +220,8 @@ async def api_walk_forward(req: WalkForwardRequest) -> Dict[str, Any]:
 @router.post("/report")
 async def api_generate_report(req: ReportRequest) -> Dict[str, Any]:
     """生成研究报告"""
-    sweep = _sweeper.get_sweep(req.sweep_id)
+    svc = get_service("experiment")
+    sweep = svc.get_sweep(req.sweep_id)
     if not sweep:
         raise HTTPException(status_code=404, detail=f"Sweep '{req.sweep_id}' not found")
 
@@ -242,11 +242,10 @@ async def api_generate_report(req: ReportRequest) -> Dict[str, Any]:
         },
     }
 
-    # Heatmap
     if req.include_heatmap and len(sweep.param_space) >= 2:
         params = list(sweep.param_space.keys())
         try:
-            hm = _sweeper.heatmap(req.sweep_id, params[0], params[1], "sharpe")
+            hm = svc.heatmap(req.sweep_id, params[0], params[1], "sharpe")
             report["heatmap"] = {
                 "x_label": hm.x_label,
                 "y_label": hm.y_label,
@@ -257,44 +256,28 @@ async def api_generate_report(req: ReportRequest) -> Dict[str, Any]:
         except Exception:
             pass
 
-    # Robustness
     if req.include_robustness and len(sweep.param_space) >= 1:
         try:
             params = list(sweep.param_space.keys())
-            rob = _sweeper.robustness_score(req.sweep_id, params, "sharpe")
+            rob = svc.robustness(req.sweep_id, params, "sharpe")
             report["robustness"] = rob
         except Exception:
             pass
 
-    # Candidates
     if req.include_candidates:
-        cands = _sweeper.find_candidates(
-            req.sweep_id,
-            min_sharpe=req.min_sharpe,
-        )
-        report["candidates"] = {
-            "count": len(cands),
-            "top5": cands[:5],
-        }
+        cands = svc.find_candidates(req.sweep_id, min_sharpe=req.min_sharpe)
+        report["candidates"] = {"count": len(cands), "top5": cands[:5]}
 
     return report
 
 
-# ---- 内部 ----
-
-def _real_runner(params: Dict, strategy_id: str, dataset_id: str) -> Dict[str, Any]:
-    """真实回测 runner（后续接入）"""
-    # TODO: 接入 BacktestEngine
-    raise NotImplementedError("Real runner not yet connected")
-
-
 # ============================================================
-# V2.0 Workflow API — 研究流程引擎
+# V2.0 Workflow API
 # ============================================================
 
 @router.get("/workflow/suggestions")
 async def api_get_suggestions(include_dismissed: bool = False) -> Dict[str, Any]:
-    """获取系统建议（下一步该做什么）"""
+    """获取系统建议"""
     suggestions = _workflow_engine.get_suggestions(include_dismissed=include_dismissed)
     return {
         "suggestions": [
@@ -351,7 +334,7 @@ async def api_get_workflow_history(limit: int = 50) -> Dict[str, Any]:
 
 @router.post("/workflow/event")
 async def api_publish_event(event_type: str, payload: Dict[str, Any] = {}) -> Dict[str, Any]:
-    """手动发布研究事件（用于测试/前端触发）"""
+    """手动发布研究事件"""
     from ..event.event_types import (
         FactorCreatedEvent,
         SignalCreatedEvent,

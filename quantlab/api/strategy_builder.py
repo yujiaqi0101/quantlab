@@ -1,5 +1,7 @@
 """
-Strategy Builder API — V5.0 可视化策略构建
+Strategy Builder API — V2.0 重构
+
+通过 StrategyService 统一调用，API 层不直接碰 core
 
 端点：
   GET  /api/v1/strategy-builder/templates       模板列表
@@ -9,29 +11,24 @@ Strategy Builder API — V5.0 可视化策略构建
   DELETE /api/v1/strategy-builder/specs/{id}     删除规格
   POST /api/v1/strategy-builder/compile          编译策略
   POST /api/v1/strategy-builder/preview          预览策略信号
+  POST /api/v1/strategy-builder/from-template    从模板创建
 """
 
 from __future__ import annotations
 
-import time
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from ..strategy_builder import (
-    StrategyBuilder,
-    StrategySpec,
-    SignalRule,
-    PositionConfig,
-    RiskConfig,
-    STRATEGY_TEMPLATES,
-)
+from ..services import get_service
+from ..strategy_builder import STRATEGY_TEMPLATES
 
 router = APIRouter(prefix="/api/v1/strategy-builder", tags=["strategy-builder"])
 
-# ---- 全局 Builder 实例 ----
-_builder = StrategyBuilder()
+
+def _svc():
+    return get_service("strategy")
 
 
 # ============================================================
@@ -77,10 +74,7 @@ class PreviewRequest(BaseModel):
 async def api_list_templates() -> List[Dict[str, Any]]:
     """列出策略模板"""
     return [
-        {
-            "key": key,
-            **STRATEGY_TEMPLATES[key],
-        }
+        {"key": key, **STRATEGY_TEMPLATES[key]}
         for key in STRATEGY_TEMPLATES
     ]
 
@@ -88,8 +82,9 @@ async def api_list_templates() -> List[Dict[str, Any]]:
 @router.post("/create")
 async def api_create_strategy(req: CreateStrategyRequest) -> Dict[str, Any]:
     """创建策略规格"""
+    svc = _svc()
     signals = [s.model_dump() for s in req.signals]
-    spec = _builder.create_spec(
+    spec = svc.create_spec(
         name=req.name,
         signals=signals,
         signal_logic=req.signal_logic,
@@ -104,13 +99,14 @@ async def api_create_strategy(req: CreateStrategyRequest) -> Dict[str, Any]:
 @router.get("/specs")
 async def api_list_specs() -> List[Dict[str, Any]]:
     """列出已保存的策略规格"""
-    return _builder.list_specs()
+    return _svc().list_specs()
 
 
 @router.get("/specs/{spec_id}")
 async def api_get_spec(spec_id: str) -> Dict[str, Any]:
     """获取策略规格详情"""
-    spec = _builder.get_spec(spec_id)
+    svc = _svc()
+    spec = svc.get_spec(spec_id)
     if not spec:
         raise HTTPException(status_code=404, detail=f"Spec '{spec_id}' not found")
     return spec.to_dict()
@@ -119,7 +115,8 @@ async def api_get_spec(spec_id: str) -> Dict[str, Any]:
 @router.delete("/specs/{spec_id}")
 async def api_delete_spec(spec_id: str) -> Dict[str, Any]:
     """删除策略规格"""
-    ok = _builder.delete_spec(spec_id)
+    svc = _svc()
+    ok = svc.delete_spec(spec_id)
     if not ok:
         raise HTTPException(status_code=404, detail=f"Spec '{spec_id}' not found")
     return {"deleted": True, "spec_id": spec_id}
@@ -128,12 +125,13 @@ async def api_delete_spec(spec_id: str) -> Dict[str, Any]:
 @router.post("/compile")
 async def api_compile_strategy(req: CompileRequest) -> Dict[str, Any]:
     """编译策略规格为可运行的 Strategy 类"""
-    spec = _builder.get_spec(req.spec_id)
+    svc = _svc()
+    spec = svc.get_spec(req.spec_id)
     if not spec:
         raise HTTPException(status_code=404, detail=f"Spec '{req.spec_id}' not found")
 
     try:
-        strategy_cls = _builder.compile(spec)
+        strategy_cls = svc.compile_spec(spec)
         return {
             "spec_id": req.spec_id,
             "name": spec.name,
@@ -152,23 +150,20 @@ async def api_compile_strategy(req: CompileRequest) -> Dict[str, Any]:
 @router.post("/preview")
 async def api_preview_strategy(req: PreviewRequest) -> Dict[str, Any]:
     """预览策略信号（模拟）"""
-    spec = _builder.get_spec(req.spec_id)
+    svc = _svc()
+    spec = svc.get_spec(req.spec_id)
     if not spec:
         raise HTTPException(status_code=404, detail=f"Spec '{req.spec_id}' not found")
 
-    # Mock 预览：生成模拟信号序列
     import numpy as np
     rng = np.random.RandomState(42)
 
     n_bars = req.bars
-    # 根据信号逻辑生成模拟信号
     signals = []
     for rule in spec.signals:
-        # 随机生成信号
         sig = rng.choice([0, 1, -1], size=n_bars, p=[0.6, 0.25, 0.15])
         signals.append(sig)
 
-    # 组合
     if spec.signal_logic == "AND":
         combined = np.ones(n_bars)
         for s in signals:
@@ -178,11 +173,10 @@ async def api_preview_strategy(req: PreviewRequest) -> Dict[str, Any]:
         for s in signals:
             combined = combined + s
         combined = np.where(combined > 0, 1, np.where(combined < 0, -1, 0))
-    else:  # MAJORITY
+    else:
         combined = sum(signals)
         combined = np.where(combined > 0, 1, np.where(combined < 0, -1, 0))
 
-    # 统计
     long_count = int(np.sum(combined == 1))
     short_count = int(np.sum(combined == -1))
     neutral_count = int(np.sum(combined == 0))
@@ -196,7 +190,7 @@ async def api_preview_strategy(req: PreviewRequest) -> Dict[str, Any]:
         "neutral_count": neutral_count,
         "long_pct": round(long_count / n_bars * 100, 1),
         "short_pct": round(short_count / n_bars * 100, 1),
-        "signal_timeline": combined.tolist()[:100],  # 前100个
+        "signal_timeline": combined.tolist()[:100],
         "signal_logic": spec.signal_logic,
         "position": spec.position.to_dict(),
         "risk": spec.risk.to_dict(),
@@ -209,8 +203,9 @@ async def api_create_from_template(template_key: str, name: Optional[str] = None
     if template_key not in STRATEGY_TEMPLATES:
         raise HTTPException(status_code=404, detail=f"Template '{template_key}' not found")
 
+    svc = _svc()
     tmpl = STRATEGY_TEMPLATES[template_key]
-    spec = _builder.create_spec(
+    spec = svc.create_spec(
         name=name or tmpl["name"],
         signals=tmpl["signals"],
         signal_logic=tmpl.get("signal_logic", "AND"),
