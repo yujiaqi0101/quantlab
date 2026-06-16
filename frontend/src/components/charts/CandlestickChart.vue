@@ -1,26 +1,23 @@
 <template>
-  <div class="chart-container" ref="containerRef">
+  <div class="chart-container">
     <v-chart :option="chartOption" autoresize class="chart" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { CandlestickChart as EchartsCandlestick } from 'echarts/charts'
 import { GridComponent, TooltipComponent, DataZoomComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
+import type { PreviewData } from '@/api/dataset'
 
 use([EchartsCandlestick, GridComponent, TooltipComponent, DataZoomComponent, CanvasRenderer])
-
-import type { PreviewData } from '@/api/dataset'
 
 const props = defineProps<{
   preview: PreviewData
 }>()
-
-const containerRef = ref<HTMLElement>()
 
 const chartOption = computed(() => {
   if (!props.preview?.symbols?.length) return {}

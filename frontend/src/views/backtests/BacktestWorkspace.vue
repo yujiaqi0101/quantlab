@@ -199,7 +199,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStrategyStore } from '@/stores/strategy'
 import { useDatasetStore } from '@/stores/dataset'

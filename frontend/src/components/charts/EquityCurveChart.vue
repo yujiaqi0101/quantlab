@@ -11,10 +11,9 @@ import { use } from 'echarts/core'
 import { LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent, DataZoomComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
+import type { EquityData } from '@/api/experiment'
 
 use([LineChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent, CanvasRenderer])
-
-import type { EquityData } from '@/api/experiment'
 
 const props = defineProps<{
   equity: EquityData
@@ -26,7 +25,6 @@ const chartOption = computed(() => {
 
   const timestamps = props.equity.timestamps
   const equity = props.equity.equity
-  const initial = equity[0] || 100000
 
   // Compute drawdown
   const drawdown: number[] = []
