@@ -43,6 +43,25 @@ from .validator import (
     ValidationResult,
 )
 
+from .lineage import (
+    DatasetLineage,
+    LineageNode,
+    LineageEdge,
+    get_lineage,
+)
+
+from .snapshot import (
+    SnapshotManager,
+    Snapshot,
+    get_snapshot_manager,
+)
+
+from .quality import (
+    DataQualityReporter,
+    DataQualityReport,
+    DataIssue,
+)
+
 
 __all__ = [
     # metadata
@@ -67,4 +86,17 @@ __all__ = [
     # validator
     "DatasetValidator",
     "ValidationResult",
+    # lineage
+    "DatasetLineage",
+    "LineageNode",
+    "LineageEdge",
+    "get_lineage",
+    # snapshot
+    "SnapshotManager",
+    "Snapshot",
+    "get_snapshot_manager",
+    # quality
+    "DataQualityReporter",
+    "DataQualityReport",
+    "DataIssue",
 ]

@@ -27,6 +27,8 @@ from .signals import router as signals_router
 from .research import router as research_router
 from .strategy_builder import router as strategy_builder_router
 from .alpha import router as alpha_router
+from .execution import router as execution_router
+from .observe import router as observe_router
 
 
 # ---- App 创建 ----
@@ -56,6 +58,8 @@ app.include_router(signals_router)
 app.include_router(research_router)
 app.include_router(strategy_builder_router)
 app.include_router(alpha_router)
+app.include_router(execution_router)
+app.include_router(observe_router)
 
 
 # ---- WebSocket 任务推送 ----
@@ -127,7 +131,33 @@ async def on_startup():
 # ---- 健康检查 ----
 @app.get("/api/v1/health")
 async def health_check():
+    """简单存活检查"""
     return {"status": "ok", "version": "4.2.0"}
+
+
+@app.get("/api/v1/system/status")
+async def system_status():
+    """系统详细状态：Database / Artifact Store / Task Queue / Event Bus / Config / Logging"""
+    from ..infra.health import get_health_checker
+    checker = get_health_checker()
+    return checker.check_all()
+
+
+@app.get("/api/v1/system/metrics")
+async def system_metrics():
+    """系统指标 Dashboard 数据"""
+    from ..infra.metrics import get_system_metrics
+    return get_system_metrics().dashboard()
+
+
+@app.get("/api/v1/system/logs")
+async def system_logs(filename: str = "app.log", lines: int = 100):
+    """读取日志文件"""
+    from ..infra.logging import read_log, list_log_files
+    return {
+        "files": list_log_files(),
+        "content": read_log(filename, lines),
+    }
 
 
 # ---- 直接运行 ----
