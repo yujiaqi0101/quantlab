@@ -34,7 +34,10 @@ class DatasetService:
         self,
         registry: Optional[DatasetRegistry] = None,
     ) -> None:
-        self._registry = registry or DatasetRegistry()
+        # 默认使用模块级 DatasetRegistry 单例，
+        # 与 DataCatalog().scan() 共享同一个实例，
+        # 否则 service 里的 list_datasets 永远为空
+        self._registry = registry or get_dataset_registry()
         self._loader = CSVLoader()
         self._catalog_initialized = False
 

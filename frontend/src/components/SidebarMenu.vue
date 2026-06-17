@@ -78,6 +78,11 @@
       <el-icon><Coin /></el-icon>
       <template #title>Datasets</template>
     </el-menu-item>
+
+    <el-menu-item index="/backtests">
+      <el-icon><DataAnalysis /></el-icon>
+      <template #title>Backtest</template>
+    </el-menu-item>
   </el-menu>
 
   <div class="sidebar-toggle" @click="appStore.toggleSidebar()">
@@ -92,7 +97,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'
-import { Odometer, Coin, DataLine, Files, Fold, Expand, TrendCharts, Trophy, Histogram, Switch, Cpu, SetUp, Monitor, Aim } from '@element-plus/icons-vue'
+import { Odometer, Coin, DataLine, Files, Fold, Expand, TrendCharts, Trophy, Histogram, Switch, Cpu, SetUp, Monitor, Aim, DataAnalysis } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const appStore = useAppStore()
@@ -107,6 +112,7 @@ const activeRoute = computed(() => {
   if (route.path.startsWith('/fidelity')) return '/fidelity'
   if (route.path.startsWith('/alpha-aware')) return '/alpha-aware'
   if (route.path.startsWith('/strategy-builder')) return '/strategy-builder'
+  if (route.path.startsWith('/backtests')) return '/backtests'
   return route.path
 })
 const collapsed = computed(() => appStore.sidebarCollapsed)

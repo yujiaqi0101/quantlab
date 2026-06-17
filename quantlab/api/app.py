@@ -132,6 +132,13 @@ def _setup_task_subscriber() -> None:
 @app.on_event("startup")
 async def on_startup():
     _setup_task_subscriber()
+    # 启动时主动扫描 data/ 目录，把示例数据集注册到模块级 Registry
+    try:
+        from ..dataset.catalog import DataCatalog
+        DataCatalog().scan()
+    except Exception as exc:  # 启动失败不阻塞服务
+        import logging
+        logging.getLogger("quantlab.api.app").warning("dataset catalog scan failed on startup: %s", exc)
 
 
 # ---- 健康检查 ----

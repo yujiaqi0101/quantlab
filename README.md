@@ -26,10 +26,12 @@
 - [16. V3.2 可观测性中心](#16-v32-可观测性中心)
 - [17. V3.3 可恢复运行时](#17-v33-可恢复运行时)
 - [18. V3.4 多策略 × 多账户矩阵](#18-v34-多策略--多账户矩阵)
-- [19. 主入口 `main.py` 的 16 个 Stage](#19-主入口-mainpy-的-16-个-stage)
-- [20. 快速上手](#20-快速上手)
-- [21. 数据格式约定](#21-数据格式约定)
-- [22. 版本演进](#22-版本演进)
+- [19. V3.5 Execution Fidelity Layer](#19-v35-execution-fidelity-layer)
+- [20. V3.6 Execution-Aware Alpha Layer](#20-v36-execution-aware-alpha-layer)
+- [21. 主入口 `main.py` 的 16 个 Stage](#21-主入口-mainpy-的-16-个-stage)
+- [22. 快速上手](#22-快速上手)
+- [23. 数据格式约定](#23-数据格式约定)
+- [24. 版本演进](#24-版本演进)
 
 ---
 
@@ -155,7 +157,40 @@
         ├── allocation.py         # V3.4 FixedAllocation / DynamicAllocation
         ├── router.py             # V3.4 OrderRouter（拆单 + 路由）
         ├── strategy_runtime.py   # V3.4 独立运行单元
-        └── supervisor.py         # V3.4 PortfolioSupervisor + StrategyRegistry
+        ├── supervisor.py         # V3.4 PortfolioSupervisor + StrategyRegistry
+    ├── execution/                # V3.5+ 真实交易模拟层
+    │   ├── fidelity/             # V3.5 Execution Fidelity Layer
+    │   │   ├── orderbook/        # 订单簿模拟器 + 流动性模型
+    │   │   ├── impact/           # 市场冲击模型（sqrt / linear / power）
+    │   │   ├── latency/          # 延迟模型
+    │   │   ├── cost/             # 综合成本模型（fee / slippage / impact / opportunity）
+    │   │   ├── fill_engine.py    # 成交引擎（限价/市价 + 部分成交）
+    │   │   ├── matcher.py        # 多档撮合
+    │   │   ├── reconciliation.py # 成交对账（本地 vs 交易所）
+    │   │   ├── replay.py         # 确定性回放
+    │   │   ├── shadow.py         # 影子模式（paper vs live 对比）
+    │   │   ├── truth.py          # 真实 PnL（扣除全部成本）
+    │   │   └── adaptive.py       # 自适应执行计划
+    │   └── alpha_aware/          # V3.6 Execution-Aware Alpha Layer
+    │       ├── realizability.py  # Alpha Realizability Engine
+    │       ├── turnover.py       # Turnover Pressure Model
+    │       ├── liquidity_filter.py # Liquidity-Aware Alpha Filter
+    │       ├── sensitivity.py    # Execution Sensitivity Test
+    │       ├── latency_fragility.py # Latency Fragility Test
+    │       ├── impact_backtest.py # Market Impact Backtest
+    │       ├── adj_sharpe.py     # Execution-Adjusted Sharpe
+    │       ├── survival.py       # Alpha Survival Filter
+    │       ├── features.py       # Execution-Aware Feature Engineering
+    │       └── tradeability.py   # Tradeability Score System
+    ├── api/                      # FastAPI 路由
+    │   ├── app.py                # FastAPI 入口
+    │   ├── fidelity.py           # V3.5 API
+    │   ├── production.py         # V3.4 运行时 API
+    │   └── alpha_aware.py        # V3.6 API
+    └── frontend/                 # 前端（Vue 3 + Element Plus + Vite）
+        └── src/views/
+            ├── fidelity/FidelityStudio.vue       # V3.5 前端
+            └── alpha_aware/AlphaAwareStudio.vue   # V3.6 前端
 ```
 
 ---
@@ -1154,7 +1189,347 @@ python examples/run_multi_strategy.py
 
 ---
 
-## 19. 主入口 `main.py` 的 16 个 Stage
+## 19. V3.5 Execution Fidelity Layer
+
+> 核心命题：**让"纸上交易" ≈ "真实交易"**。把回测从"假设你能成交"升级为"真实模拟你能不能成交"。
+
+### 19.1 为什么需要这一层
+
+普通回测假设：
+- 订单**瞬间以中价成交**
+- 没有对手盘，没有深度限制
+- 滑点是**常数 bps**
+- 没有延迟
+
+这导致"纸面收益"和"实盘收益"差距 20~50%，机构叫这个差距为**"Paper-to-Live Gap"**。V3.5 的目标就是**把这段 gap 显式化、可量化、可控化**。
+
+### 19.2 模块结构
+
+```
+quantlab/execution/fidelity/
+├── orderbook/
+│   ├── simulator.py        # 订单簿模拟器（生成 asks/bids）
+│   └── liquidity_model.py  # 流动性模型（深度 + spread）
+├── impact/model.py         # 市场冲击模型（sqrt / linear / power）
+├── latency/model.py        # 延迟模型
+├── cost/model.py           # 综合成本模型（fee / slippage / impact / opportunity）
+├── fill_engine.py          # 成交引擎（限价/市价 + 部分成交）
+├── matcher.py              # 多档撮合
+├── reconciliation.py       # 成交对账（本地 vs 交易所）
+├── replay.py               # 确定性回放
+├── shadow.py               # 影子模式（paper vs live 对比）
+├── truth.py                # 真实 PnL（扣除全部成本）
+└── adaptive.py             # 自适应执行计划
+```
+
+### 19.3 核心模块说明
+
+#### 19.3.1 Orderbook Simulator — 订单簿模拟
+- 输入：`mid_price, volatility, volume`
+- 输出：ask/bid 多档（5~20 档），每档含 `price, qty`
+- 算法：在 mid 价附近按对数正态分布生成 depth，spread 受 `volatility` 驱动
+
+#### 19.3.2 Impact Model — 市场冲击
+三种模型可选：
+- **Sqrt**（默认）：`impact = σ × c × sqrt(participation)`，**学术主流**（Almgren-Chriss）
+- **Linear**：`impact = σ × c × participation`，保守模型
+- **Power**：`impact = σ × c × participation^α`，通用框架
+
+输出分**永久冲击**和**暂时冲击**，永久冲击不会被回退。
+
+#### 19.3.3 Latency Model — 延迟模型
+- 分解为：`send_latency + exchange_latency + recv_latency`
+- 默认中位数 50ms，可调分布（对数正态）
+- 配合 `latency_fragility` 测试策略对延迟的脆弱性
+
+#### 19.3.4 Cost Model — 综合成本
+```
+total_cost = fee_cost 
+           + slippage_cost 
+           + impact_cost 
+           + opportunity_cost 
+           + funding_cost
+```
+每个分量按 `bps` 标准化，可单独查询或汇总。
+
+#### 19.3.5 Fill Engine — 成交引擎
+- 支持 **市价单 / 限价单**
+- 支持 **部分成交**（多档撮合）
+- 输出完整 `Fill` 对象：`fill_qty, fill_price, slippage_bps, commission, is_partial`
+
+#### 19.3.6 Reconciliation — 成交对账
+- 本地成交 vs 交易所回报逐笔对账
+- 不匹配项标记：`MISSING / EXTRA / QTY_MISMATCH / PRICE_MISMATCH`
+- 提供对账报告
+
+#### 19.3.7 Replay — 确定性回放
+- 给定相同 input + seed，**逐 byte 重现**回放过程
+- 配合 V3.3 `RecoveryManager` 做崩溃后精确恢复
+
+#### 19.3.8 Shadow Mode — 影子模式
+- 同时运行 paper 和 live，记录每次成交差异
+- 三档告警：`OK / WARNING / CRITICAL`
+- 用于 **paper→live 灰度切换**前的最后一关
+
+#### 19.3.9 True PnL — 真实 PnL
+- 区别于"理论 PnL"，**扣完全部成本**后的 PnL
+- 包含：`gross_pnl, fee, slippage, impact, true_pnl, true_pnl_bps, cost_drag_bps`
+- `cost_drag_bps` 量化成本对收益的拖拽幅度
+
+#### 19.3.10 Adaptive — 自适应执行
+- 输入：订单参数 + 市场状态（volatility, liquidity_score, urgency）
+- 输出：执行计划（切片数 + 切片量 + 切片延迟 + 订单类型）
+- 内部根据市场状态判断 `regime`（trending / ranging / volatile）和 `style`（aggressive / passive / neutral）
+
+### 19.4 集成方式
+
+#### Python API
+```python
+from quantlab.execution.fidelity import (
+    OrderbookSimulator, ImpactModel, LatencyModel,
+    CostModel, FillEngine, TruePnLTracker, ShadowMode,
+    AdaptiveExecutionPlanner,
+)
+
+# 1. 生成订单簿
+sim = OrderbookSimulator()
+book = sim.generate(mid_price=50000, volatility=0.02, volume=1_000_000)
+
+# 2. 模拟扫单
+result = sim.sweep(book, side="BUY", qty=10)
+print(result.avg_price, result.impact_bps)
+
+# 3. 算成本
+cost = CostModel().calculate(
+    symbol="BTCUSDT", side="BUY", qty=10, price=50000,
+    slippage_bps=2.0, volume=1_000_000, volatility=0.02,
+)
+print(cost.total_cost)  # 包含 fee + slippage + impact + ...
+
+# 4. 真实 PnL
+tracker = TruePnLTracker()
+tracker.update_position("BTCUSDT", qty=0.5, avg_entry=50000)
+tracker.update_price("BTCUSDT", 51000)
+report = tracker.compute_true_pnl()
+print(report.true_pnl, report.cost_drag_bps)
+```
+
+#### HTTP API（FastAPI）
+- `GET /api/v1/fidelity/status` — 全局状态
+- `POST /api/v1/fidelity/orderbook/generate` — 生成订单簿
+- `POST /api/v1/fidelity/orderbook/sweep` — 扫单
+- `POST /api/v1/fidelity/impact/calculate` — 计算冲击
+- `POST /api/v1/fidelity/impact/suggest-split` — 建议拆单
+- `POST /api/v1/fidelity/cost/calculate` — 计算成本
+- `POST /api/v1/fidelity/fill/process` — 处理订单
+- `POST /api/v1/fidelity/adaptive/plan` — 生成执行计划
+- `POST /api/v1/fidelity/truth/position` / `/price` / `GET /pnl` — 真实 PnL
+- `POST /api/v1/fidelity/shadow/*` — 影子模式
+
+#### 前端
+- `FidelityStudio.vue` — 7 个 Tab 页：Overview / Order Book / Impact / Cost / Fill Engine / Shadow Mode / Adaptive / True PnL
+- 路径：`/fidelity`
+
+### 19.5 V3.5 注意事项
+
+1. **冲击模型按品种选**：股票用 `linear`（受冲击衰减慢），crypto 用 `sqrt`（Almgren-Chriss 标准），低流动性用 `power`。
+2. **CostModel 的 funding_cost 仅 crypto 有**：股票策略不要传 funding。
+3. **ShadowMode 不是校验工具**：它是**告警**。paper 和 live 的差异 **永远存在**，但 > X bps 就要调查。
+4. **Replayer 的种子**：生产环境别忘记录 `seed`，事故复盘时能 byte-by-byte 重现。
+5. **Adaptive Planner 不会自动下单**：它只**生成计划**，执行要走 `StrategyRuntime` 的 Execution 通道。
+
+---
+
+## 20. V3.6 Execution-Aware Alpha Layer
+
+> 核心命题：**从"预测收益"到"真实可交易"**。没有这一层，你在优化"数学正确性"；有了这一层，你在优化"市场存活率"。
+
+### 20.1 为什么需要这一层
+
+普通 alpha 评估：
+- IC 0.08，Sharpe 2.0 → **看起来很棒**
+- 但实盘可能：成交太慢、滑点太大、换手太高、延迟敏感
+- 真实 `real_score < 0`
+
+V3.6 的目标：**在策略进 paper/live 之前**，系统地评估它"能不能活下来"。
+
+### 20.2 完整闭环
+
+```
+Research Alpha
+  ↓
+ML Validation
+  ↓
+Auto Research
+  ↓
+Execution Fidelity Layer (V3.5)
+  ↓
+Execution-Aware Alpha Layer (V3.6)  ← 本层
+  ↓
+Paper Trading
+  ↓
+Live Trading
+  ↓
+Observe Studio
+```
+
+### 20.3 10 个核心模块
+
+```
+quantlab/execution/alpha_aware/
+├── realizability.py        # 1. Alpha Realizability Engine
+├── turnover.py             # 2. Turnover Pressure Model
+├── liquidity_filter.py     # 3. Liquidity-Aware Alpha Filter
+├── sensitivity.py          # 4. Execution Sensitivity Test
+├── latency_fragility.py    # 5. Latency Fragility Test
+├── impact_backtest.py      # 6. Market Impact Backtest
+├── adj_sharpe.py           # 7. Execution-Adjusted Sharpe
+├── survival.py             # 8. Alpha Survival Filter
+├── features.py             # 9. Execution-Aware Feature Engineering
+└── tradeability.py         # 10. Tradeability Score System
+```
+
+#### ① Alpha Realizability Engine — 可实现性评估
+核心评分：
+```
+real_score = signal_strength 
+            × liquidity_score 
+            × turnover_penalty 
+            × cost_adjusted_return
+```
+- 信号强但**不能成交** → 0
+- 论文 IC=0.08、Sharpe=2.0，真实环境可能 real_score < 0
+
+#### ② Turnover Pressure Model — 换手压力模型
+- 计算 `turnover = Σ|position_t - position_{t-1}|`
+- 输出：`avg_daily_turnover, max_daily_turnover, annual_turnover, annual_cost, cost_drag_bps, pressure_score`
+- `pressure_score = avg_component × 0.5 + vol_component × 0.2 + max_component × 0.3`
+- 高换手 → 成本爆炸 → 不可持续
+
+#### ③ Liquidity-Aware Alpha Filter — 流动性过滤
+- 指标：`volume, spread, depth, impact_cost`
+- 四维评分 → 总分 → `PASS / WARN / REJECT`
+- 过滤规则：`volume < threshold → reject`
+
+#### ④ Execution Sensitivity Test — 执行敏感性测试
+- 模拟 `slippage × 0.5x, 1x, 2x, 3x, 5x`
+- 输出：`sharpe_stability, return_degradation, breakpoint_multiplier`
+- breakpoint = 让收益归零的 slippage 倍数
+- 收益崩塌 → alpha 不可执行
+
+#### ⑤ Latency Fragility Test — 延迟脆弱性测试
+- 模拟 `delay = 1ms, 10ms, 100ms, 500ms, 1000ms, 5000ms`
+- 输出：`alpha_half_life_ms, critical_latency_ms, latency_class, is_scalable`
+- 依赖极低延迟 → 不可扩展 alpha
+
+#### ⑥ Market Impact Backtest — 冲击回测
+- 普通回测：假设无限成交
+- 冲击回测：订单影响价格
+- `real_sharpe = paper_sharpe × (1 - cost_ratio)`
+- `real_return = paper_return × (1 - return_decay)`
+
+#### ⑦ Execution-Adjusted Sharpe — 执行调整夏普
+```
+Sharpe_real = Sharpe_paper 
+              - fee_penalty 
+              - slippage_penalty 
+              - impact_penalty
+```
+- 这是机构内部真正看的指标
+- 等级 A~F（A: ≥2.0, B: ≥1.5, C: ≥1.0, D: ≥0.5, F: <0.5）
+
+#### ⑧ Alpha Survival Filter — 生存过滤器
+- 综合评分 IC 稳定性 + 换手 + 滑点 + 流动性 + 延迟
+- 输出 `survival_score ∈ [0, 1]` + `survives / dies / marginal`
+- 通过线：`survival_score >= 0.6` 且 `real_sharpe >= 0.5`
+
+#### ⑨ Execution-Aware Feature Engineering — 执行感知特征
+- `RSI → RSI_adjusted`
+- 加入：`liquidity weighting, turnover penalty, impact scaling`
+- 变成 **Execution-aware feature space**
+- 高质量的低换手、低冲击的因子会被"放大权重"
+
+#### ⑩ Tradeability Score System — 可交易评分系统（最终层）
+```
+Alpha Score = (Predictive Power 
+               × Executability 
+               × Stability 
+               × Cost Efficiency) ^ 0.25
+```
+- 几何平均 → 任何一项为 0 整个分数归零
+- 评级：`S / A / B / C / D / F`
+- **最终不再选"Sharpe 最高的策略"，而是"最能活下来的策略"**
+
+### 20.4 集成方式
+
+#### Python API
+```python
+from quantlab.execution.alpha_aware import (
+    AlphaRealizabilityEngine, TurnoverPressureModel,
+    LiquidityAlphaFilter, ExecutionSensitivityTest,
+    LatencyFragilityTest, MarketImpactBacktest,
+    ExecutionAdjustedSharpe, AlphaSurvivalFilter,
+    ExecutionAwareFeatures, TradeabilityScoreSystem,
+)
+
+# 1. 可实现性
+report = AlphaRealizabilityEngine().evaluate(metrics, constraints)
+print(report.real_score, report.verdict)  # 'TRADABLE' / 'UNTRADABLE'
+
+# 2. 换手压力
+turnover = TurnoverPressureModel().analyze(positions=[0.1, 0.15, 0.12], capital=1_000_000)
+print(turnover.pressure_score, turnover.is_sustainable)
+
+# 3. 流动性过滤
+filt = LiquidityAlphaFilter().check(metrics)
+print(filt.verdict, filt.overall_score)  # 'PASS' / 'WARN' / 'REJECT'
+
+# 4. 一键全流程
+system = TradeabilityScoreSystem()
+result = system.evaluate(metrics, constraints, survival_input)
+print(result.alpha_score, result.rank, result.is_recommended)
+```
+
+#### HTTP API（FastAPI）
+- `POST /api/v1/alpha-aware/realizability/evaluate`
+- `POST /api/v1/alpha-aware/turnover/analyze`
+- `POST /api/v1/alpha-aware/liquidity/filter`
+- `POST /api/v1/alpha-aware/sensitivity/test`
+- `POST /api/v1/alpha-aware/latency/fragility`
+- `POST /api/v1/alpha-aware/impact/backtest`
+- `POST /api/v1/alpha-aware/sharpe/adjusted`
+- `POST /api/v1/alpha-aware/survival/evaluate`
+- `POST /api/v1/alpha-aware/features/adjust`
+- `POST /api/v1/alpha-aware/tradeability/score`
+- `POST /api/v1/alpha-aware/evaluate/all` — 一键全流程
+
+#### 前端
+- `AlphaAwareStudio.vue` — 10 个 Tab 页 + 一键全流程评估
+- 路径：`/alpha-aware`
+- 顶部 5 个 summary 卡片：可实现性、生存判定、可交易评级、真实夏普、推荐实盘
+
+### 20.5 评分体系速查
+
+| 评级 | Alpha Score | 推荐 |
+|------|-------------|------|
+| **S** | ≥ 0.80 | 强烈推荐 |
+| **A** | ≥ 0.65 | 推荐 |
+| **B** | ≥ 0.50 | 谨慎 |
+| **C** | ≥ 0.35 | 不推荐 |
+| **D** | ≥ 0.20 | 拒绝 |
+| **F** | < 0.20 | 强烈拒绝 |
+
+### 20.6 V3.6 注意事项
+
+1. **real_score 是 0~1，不是 R²**：表示"在真实环境下还能保留多少原 alpha"。
+2. **Tradeability 用几何平均**：单项 0 直接归零 → 任何短板都要修。
+3. **Latency Fragility 是机构指标**：散户策略会得到"SCALABLE"，不代表真的好；要看 `critical_latency_ms` 绝对值。
+4. **Feature Engineering 谨慎用**：执行感知特征**只在 live 阶段使用**，研究阶段用原始特征避免引入未来函数。
+5. **生存判定 survival_score 要看具体分数**而不是**survives 布尔值**——0.61 和 0.95 都"survives"，但差别巨大。
+
+---
+
+## 21. 主入口 `main.py` 的 16 个 Stage
 
 `main.py` 是一个端到端 demo，把所有模块都验证一遍。整体流程：
 
@@ -1507,6 +1882,8 @@ datetime,open,high,low,close,volume
 | **V3.2** | `monitoring` | **可观测性中心**：`TradeLogger` + `MetricsCollector` + `EventTracer(trace_id 串联)` + `AlertManager` + `Dashboard` + `SystemContext`（替代 cross-import） |
 | **V3.3** | `runtime` | **可恢复运行时**：`StateSnapshot` + `CheckpointManager` + `RecoveryManager` + `ConsistencyChecker` + `ReplayEngine` + `ShutdownManager` + `TradeLock` + `EventLog` |
 | **V3.4** | `runtime` | **多策略 × 多账户矩阵**：`Account` + `AccountManager` + `StrategyRuntime`（状态隔离） + `StrategyRegistry` + `AllocationEngine` + `OrderRouter`（拆单+幂等） + `PortfolioSupervisor`（系统级 Kill Switch） |
+| **V3.5** | `execution.fidelity` | **执行保真层**：订单簿模拟 + 市场冲击（sqrt/linear/power）+ 延迟模型 + 综合成本（fee+slippage+impact+opportunity+funding）+ 成交引擎（部分成交） + 多档撮合 + 成交对账 + 确定性回放 + 影子模式（paper vs live 对比） + True PnL（扣完全部成本） + 自适应执行计划（按 regime 切算法） |
+| **V3.6** | `execution.alpha_aware` | **执行感知 Alpha 层**：Alpha Realizability Engine + Turnover Pressure Model + Liquidity-Aware Filter + Execution Sensitivity Test + Latency Fragility Test + Market Impact Backtest + Execution-Adjusted Sharpe + Alpha Survival Filter + Execution-Aware Feature Engineering + Tradeability Score System。**核心理念：从优化"数学正确性"到优化"市场存活率"** |
 
 **架构演进总览**：
 
@@ -1517,6 +1894,8 @@ V3.1   统一 Execution（回测/paper/live 同构）  生产接口
 V3.2   + 监控/告警/Trace                    可观测性
 V3.3   + 状态恢复 / 事件重放 / 优雅停机        高可用
 V3.4   + 多策略/多账户矩阵 / 系统级 Kill Switch  多租户/多账户
+V3.5   + 订单簿/冲击/延迟/成本/对账/影子/True PnL  让纸上交易 ≈ 真实交易
+V3.6   + 可实现性/换手/流动性/敏感性/生存/可交易  从数学正确到市场存活
 ```
 
 ---

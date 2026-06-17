@@ -505,22 +505,22 @@ async function fetchOverview() {
 
 async function fetchHealth() {
   try {
-    const res = await api.get('/api/v1/production/health')
-    healthData.value = res.data
+    const res = await api.get('/production/health')
+    healthData.value = res
   } catch (e) { /* silent */ }
 }
 
 async function fetchRisk() {
   try {
-    const res = await api.get('/api/v1/production/risk')
-    riskData.value = res.data
+    const res = await api.get('/production/risk')
+    riskData.value = res
   } catch (e) { /* silent */ }
 }
 
 async function fetchPnl() {
   try {
-    const res = await api.get('/api/v1/production/pnl/attribution')
-    pnlData.value = res.data
+    const res = await api.get('/production/pnl/attribution')
+    pnlData.value = res
   } catch (e) { /* silent */ }
 }
 
@@ -528,29 +528,29 @@ async function fetchJournal() {
   try {
     const params: any = { limit: 200 }
     if (journalFilter.value) params.type = journalFilter.value
-    const res = await api.get('/api/v1/production/journal', { params })
-    journalData.value = res.data
+    const res = await api.get('/production/journal', { params })
+    journalData.value = res
   } catch (e) { /* silent */ }
 }
 
 async function fetchRecovery() {
   try {
-    const res = await api.get('/api/v1/production/recovery')
-    recoveryData.value = res.data
+    const res = await api.get('/production/recovery')
+    recoveryData.value = res
   } catch (e) { /* silent */ }
 }
 
 async function refreshSelfHealing() {
   try {
-    const res = await api.get('/api/v1/production/self-healing')
-    selfHealingData.value = res.data
+    const res = await api.get('/production/self-healing')
+    selfHealingData.value = res
   } catch (e) { /* silent */ }
 }
 
 async function fetchReplay() {
   try {
-    const res = await api.get('/api/v1/production/replay/status')
-    replayData.value = res.data
+    const res = await api.get('/production/replay/status')
+    replayData.value = res
   } catch (e) { /* silent */ }
 }
 
@@ -573,7 +573,7 @@ async function fetchAll() {
 
 async function startRuntime() {
   try {
-    await api.post('/api/v1/production/runtime/start')
+    await api.post('/production/runtime/start')
     ElMessage.success('Runtime started')
     fetchOverview()
   } catch (e) { ElMessage.error('Start failed') }
@@ -581,7 +581,7 @@ async function startRuntime() {
 
 async function pauseRuntime() {
   try {
-    await api.post('/api/v1/production/runtime/pause')
+    await api.post('/production/runtime/pause')
     ElMessage.success('Runtime paused')
     fetchOverview()
   } catch (e) { ElMessage.error('Pause failed') }
@@ -589,7 +589,7 @@ async function pauseRuntime() {
 
 async function stopRuntime() {
   try {
-    await api.post('/api/v1/production/runtime/stop')
+    await api.post('/production/runtime/stop')
     ElMessage.success('Runtime stopped')
     fetchOverview()
   } catch (e) { ElMessage.error('Stop failed') }
@@ -602,7 +602,7 @@ async function triggerKillSwitch() {
       'KILL SWITCH CONFIRMATION',
       { type: 'warning', confirmButtonText: 'TRIGGER KILL SWITCH', cancelButtonText: 'Cancel' }
     )
-    await api.post('/api/v1/production/risk/kill-switch', { reason: 'Manual trigger from Production Studio' })
+    await api.post('/production/risk/kill-switch', { reason: 'Manual trigger from Production Studio' })
     ElMessage.warning('Kill Switch triggered')
     fetchOverview()
   } catch (e) { /* cancelled */ }

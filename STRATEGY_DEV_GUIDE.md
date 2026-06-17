@@ -1044,4 +1044,149 @@ my_fund/
 8. **V3.1+ 模式无感知**：策略层**永远不**写 `if mode == "live"`。三模式切换是 `ExecutionFactory` 的事，不是策略的事。
 9. **V3.2 trace_id 全程开**：从策略开发第一天起就接 `TradeLogger` + `EventTracer`，否则上线后排查"为什么亏"会成倍耗时。
 10. **V3.3 先做 Replay 再上线**：每个新策略上线前都跑一次 `ReplayEngine` 验证本地和 broker 端一致。
+11. **V3.5 真实化不可省**：任何"看起来很棒"的 backtest 都要过 True PnL、Orderbook 扫单、Adaptive Plan、Shadow Mode 四关。详见 §21。
+12. **V3.6 Tradeability 是机构红线**：Tradeability Rank F 策略**禁止**进入实盘，无论回测多漂亮。详见 §21。
+
+***
+
+## 21. V3.5+ Execution Fidelity & Alpha-Aware 集成指南
+
+> 这一节是**对开发流程的扩展**：当你的策略走完 §1 的 8 步之后，还**必须**在实盘前经过 V3.5 / V3.6 两层"真实化"评估。
+
+### 21.1 新增的开发步骤（在 §1 的 8 步之后）
+
+```
+9.  真实化模拟        V3.5 Execution Fidelity（订单簿/冲击/成本/True PnL）
+10. 执行感知评估      V3.6 Execution-Aware Alpha（10 个模块）
+11. 影子模式          V3.5 Shadow Mode（paper vs live 灰度）
+12. 真实资金上线      Live + Observe
+```
+
+### 21.2 V3.5 Execution Fidelity 集成硬约束
+
+**所有新策略上线前必须先跑过下面四个真实化指标**：
+
+1. **True PnL 必须 ≥ 0**
+   - 在你策略的目标资金量级上，扣除全部成本（fee + slippage + impact + opportunity）后 PnL 仍为正
+   - 用 `TruePnLTracker.compute_true_pnl()` 算 `cost_drag_bps`
+   - 警告线：`cost_drag_bps > 50`（成本占去年化收益 > 50%）
+
+2. **Orderbook 扫单不能超出 N 档**
+   - 目标成交量 ≤ 订单簿前 5 档深度之和
+   - 否则你的订单就是"打穿对手盘"的市价单，真实成本会远高于 `slippage_bps` 的假设
+
+3. **Adaptive Plan 的切片数 ≥ 2**
+   - 单一订单大资金必须切片（防冲击）
+   - 计划生成后**自己确认**每片延迟 + 数量
+
+4. **Shadow Mode 至少 100 单**
+   - paper / live 价差 > 5 bps 的订单 < 1%
+   - 否则说明你的 paper broker 假设过于乐观
+
+### 21.3 V3.6 Execution-Aware Alpha 硬约束
+
+**实盘前必须达到下面三条线**：
+
+1. **Tradeability Rank ≥ B**（alpha_score ≥ 0.50）
+   - 用 `TradeabilityScoreSystem().evaluate(...)` 算
+   - F 评级**禁止**进入实盘
+
+2. **Survival Filter 判定 SURVIVES**
+   - `survival_score ≥ 0.6` 且 `real_sharpe ≥ 0.5`
+   - 0.61 vs 0.95 都 `survives`，但**0.61 策略不能上**
+
+3. **Adjusted Sharpe ≥ 1.0**
+   - 机构线是 ≥ 2.0
+   - 散户线 ≥ 1.0，否则即使实盘赚钱也不够覆盖机会成本
+
+### 21.4 推荐集成顺序
+
+```python
+# ===== 在 §1 第 4 步（Optimize）之后插入 =====
+from quantlab.execution.fidelity import (
+    CostModel, ImpactModel, OrderbookSimulator, TruePnLTracker,
+)
+from quantlab.execution.alpha_aware import (
+    AlphaRealizabilityEngine, TurnoverPressureModel,
+    LiquidityAlphaFilter, ExecutionSensitivityTest,
+    LatencyFragilityTest, MarketImpactBacktest,
+    ExecutionAdjustedSharpe, AlphaSurvivalFilter,
+    ExecutionAwareFeatures, TradeabilityScoreSystem,
+)
+
+# Step 9: 真实化模拟（V3.5）
+impact = ImpactModel().calculate(...)
+cost = CostModel().calculate(...)
+assert cost.cost_drag_bps < 50, "成本过高, 不可执行"
+
+# Step 10: 执行感知评估（V3.6）
+report = AlphaRealizabilityEngine().evaluate(metrics, constraints)
+assert report.verdict == "TRADABLE", f"alpha 不可交易: {report.warnings}"
+
+survival = AlphaSurvivalFilter().evaluate(survival_input)
+assert survival.survives and survival.survival_score >= 0.7, \
+    f"alpha 生存判定失败: score={survival.survival_score}"
+
+tradeability = TradeabilityScoreSystem().evaluate(metrics, constraints, survival_input)
+assert tradeability.rank in ("S", "A", "B"), f"alpha 评级不足: {tradeability.rank}"
+```
+
+### 21.5 严禁的反模式
+
+1. **❌ 用 paper backtest 的 Sharpe 直接进 live** —— 必经 V3.5/V3.6 两层真实化。
+2. **❌ 把 ExecutionAdjustedSharpe 当可选项** —— 这是机构红线指标，**强制**。
+3. **❌ 用 Tradeability Rank F 策略做"实验性小资金"** —— 小资金小不了"滑点爆炸"和"延迟敏感"的问题。
+4. **❌ 跳过 Shadow Mode 直接实盘** —— 100 单 paper/live 对比是基本功。
+5. **❌ 用 Execution-Aware Features 做研究阶段** —— 它们包含"成本信息"是未来函数，会污染 IC。
+
+### 21.6 性能影响
+
+V3.5 / V3.6 都是**纯 Python 计算**，不接交易所，不起线程。100 个标的 × 1 年数据：
+- V3.5（订单簿 + 冲击 + 成本）：~200ms
+- V3.6（10 个模块全跑）：~500ms
+- 总计 < 1s，**可以加进每日 Pipeline**
+
+### 21.7 推荐决策树
+
+```
+策略回测 OK
+   ↓
+V3.5 True PnL ≥ 0 ?
+   ├─ NO → 放弃 / 改 cost model / 降资金规模
+   └─ YES ↓
+V3.6 Tradeability Rank ≥ B ?
+   ├─ NO → 看哪个分项 0，修短板
+   │       ├─ Predictive Power 不足 → 重做信号
+   │       ├─ Executability 不足 → 减换手 / 提流动性要求
+   │       ├─ Stability 不足 → 加 walk-forward 验证
+   │       └─ Cost Efficiency 不足 → 调大滑点假设
+   └─ YES ↓
+Shadow Mode 100 单 paper/live < 5 bps ?
+   ├─ NO → 改 paper broker 假设
+   └─ YES ↓
+小资金实盘（建议初始 ≤ 1/10 目标资金量）
+   ↓
+3 个月稳定 → 加仓到 1/3
+   ↓
+6 个月稳定 → 满仓
+```
+
+### 21.8 V3.5/V3.6 调试技巧
+
+| 现象 | 大概率原因 | 解决 |
+|------|------------|------|
+| `real_score` 一直为 0 | `cost_adjusted_return < 0` | 检查 turnover 和 fee_rate 是否过大 |
+| `sharpe_stability` < 0.5 | 策略对 slippage 极敏感 | 加 risk_parity / 减杠杆 |
+| `survival_score` 低 | `real_sharpe` < 0.5 | 用 Execution-Adjusted Sharpe 反推 |
+| `critical_latency_ms` < 50ms | 策略依赖极低延迟 | 这种策略**机构也跑不了**，劝退 |
+| `liquidity_filter` 总是 REJECT | 标的池太冷门 | 限定 universe 到日均成交 > X 的标的 |
+| `adaptive_plan` 切片数 = 1 | `urgency >= 0.9` | 大资金不应 urgent |
+
+### 21.9 文档对应
+
+- 完整模块说明：[`README.md` §19](./README.md#19-v35-execution-fidelity-layer), [§20](./README.md#20-v36-execution-aware-alpha-layer)
+- V3.5 API：`quantlab/api/fidelity.py`
+- V3.6 API：`quantlab/api/alpha_aware.py`
+- V3.5 前端：`/fidelity`
+- V3.6 前端：`/alpha-aware`
 

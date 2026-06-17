@@ -146,8 +146,9 @@
 
         <el-table-column label="" width="80" align="center">
           <template #default="{ row }">
-            <el-dropdown trigger="click" @command="(cmd: string) => onAction(cmd, row)">
-              <el-icon :size="14" color="#484f58" class="action-icon"><MoreFilled /></el-icon>
+            <div @click.stop>
+              <el-dropdown trigger="click" @command="(cmd: string) => onAction(cmd, row)">
+                <el-icon :size="14" color="#484f58" class="action-icon"><MoreFilled /></el-icon>
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item command="candidate">
@@ -163,6 +164,7 @@
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
+            </div>
           </template>
         </el-table-column>
       </el-table>

@@ -104,11 +104,14 @@ class SignalService:
 
     def get_signal(self, name: str) -> Optional[Signal]:
         """获取信号"""
-        return self._engine.get(name) if self._engine.has(name) else None
+        try:
+            return self._engine.get(name)
+        except KeyError:
+            return None
 
     def has_signal(self, name: str) -> bool:
         """检查信号是否存在"""
-        return self._engine.has(name)
+        return name in self._engine.list()
 
     # ---- 构建 ----
 
@@ -170,6 +173,14 @@ class SignalService:
                 if series is None:
                     raise ValueError(f"Factor '{signal.factor_name}' not available")
                 return signal.transform(series)
+        # Composite (AND/OR/Majority)：对每个子信号先 generate 再 transform_multi_signal
+        if hasattr(signal, "transform_multi_signal"):
+            sub_signals = getattr(signal, "_signals", [])
+            sub_values = [
+                self.generate_signal(sub, factor_values)
+                for sub in sub_signals
+            ]
+            return signal.transform_multi_signal(sub_values)
         first_series = list(factor_values.values())[0]
         return signal.transform(first_series)
 
