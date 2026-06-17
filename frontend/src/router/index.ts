@@ -91,6 +91,24 @@ const routes = [
         component: () => import('@/views/research/ResearchLab.vue'),
         meta: { title: 'Research Lab', icon: 'Cpu' },
       },
+      {
+        path: 'production',
+        name: 'ProductionStudio',
+        component: () => import('@/views/production/ProductionStudio.vue'),
+        meta: { title: 'Production Studio', icon: 'Monitor' },
+      },
+      {
+        path: 'fidelity',
+        name: 'FidelityStudio',
+        component: () => import('@/views/fidelity/FidelityStudio.vue'),
+        meta: { title: 'Execution Fidelity', icon: 'Aim' },
+      },
+      {
+        path: 'alpha-aware',
+        name: 'AlphaAwareStudio',
+        component: () => import('@/views/alpha_aware/AlphaAwareStudio.vue'),
+        meta: { title: 'Alpha-Aware', icon: 'Connection' },
+      },
     ],
   },
 ]

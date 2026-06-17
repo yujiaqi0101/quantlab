@@ -39,6 +39,21 @@
       <template #title>Research Lab</template>
     </el-menu-item>
 
+    <el-menu-item index="/production">
+      <el-icon><Monitor /></el-icon>
+      <template #title>Production</template>
+    </el-menu-item>
+
+    <el-menu-item index="/fidelity">
+      <el-icon><Aim /></el-icon>
+      <template #title>Fidelity</template>
+    </el-menu-item>
+
+    <el-menu-item index="/alpha-aware">
+      <el-icon><Connection /></el-icon>
+      <template #title>Alpha-Aware</template>
+    </el-menu-item>
+
     <el-menu-item index="/compare">
       <el-icon><TrendCharts /></el-icon>
       <template #title>Compare</template>
@@ -77,7 +92,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'
-import { Odometer, Coin, DataLine, Files, Fold, Expand, TrendCharts, Trophy, Histogram, Switch, Cpu, SetUp } from '@element-plus/icons-vue'
+import { Odometer, Coin, DataLine, Files, Fold, Expand, TrendCharts, Trophy, Histogram, Switch, Cpu, SetUp, Monitor, Aim } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const appStore = useAppStore()
@@ -88,6 +103,9 @@ const activeRoute = computed(() => {
   if (route.path.startsWith('/factors')) return '/factors'
   if (route.path.startsWith('/signals')) return '/signals'
   if (route.path.startsWith('/research')) return '/research'
+  if (route.path.startsWith('/production')) return '/production'
+  if (route.path.startsWith('/fidelity')) return '/fidelity'
+  if (route.path.startsWith('/alpha-aware')) return '/alpha-aware'
   if (route.path.startsWith('/strategy-builder')) return '/strategy-builder'
   return route.path
 })

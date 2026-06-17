@@ -29,6 +29,9 @@ from .strategy_builder import router as strategy_builder_router
 from .alpha import router as alpha_router
 from .execution import router as execution_router
 from .observe import router as observe_router
+from .production import router as production_router
+from .fidelity import router as fidelity_router
+from .alpha_aware import router as alpha_aware_router
 
 
 # ---- App 创建 ----
@@ -60,6 +63,9 @@ app.include_router(strategy_builder_router)
 app.include_router(alpha_router)
 app.include_router(execution_router)
 app.include_router(observe_router)
+app.include_router(production_router)
+app.include_router(fidelity_router)
+app.include_router(alpha_aware_router)
 
 
 # ---- WebSocket 任务推送 ----
