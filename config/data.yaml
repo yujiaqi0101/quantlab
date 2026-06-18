@@ -1,0 +1,32 @@
+# 数据层配置
+data:
+  # 默认数据源
+  default_source: binance
+  # 数据根目录
+  root_dir: storage/data
+  # 支持的标的
+  symbols:
+    - BTCUSDT
+    - ETHUSDT
+  # 默认时间频率
+  default_timeframe: 1m
+
+# 数据集
+dataset:
+  # 数据集元数据存储
+  meta_dir: storage/datasets
+  # 校验严格模式
+  strict_validation: false
+  # 自动修复缺失K线
+  auto_fix_missing: true
+
+# 缓存
+cache:
+  # 因子缓存
+  factor_cache_dir: storage/cache/factors
+  # 特征缓存
+  feature_store_dir: storage/cache/features
+  # 最大缓存大小（MB）
+  max_size_mb: 1024
+  # 自动清理
+  auto_clean: true

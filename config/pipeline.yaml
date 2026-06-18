@@ -1,0 +1,28 @@
+# Pipeline 配置
+pipeline:
+  # 最大并发工作数
+  max_workers: 8
+  # 任务超时（秒）
+  task_timeout: 3600
+  # 重试次数
+  max_retries: 3
+  # 重试间隔（秒）
+  retry_interval: 5
+
+# 回测引擎
+backtest:
+  # 初始资金
+  initial_capital: 100000
+  # 手续费率
+  commission_rate: 0.001
+  # 滑点
+  slippage: 0.0005
+  # 最大持仓
+  max_positions: 10
+
+# 因子引擎
+factor:
+  # 并行计算
+  parallel: true
+  # 缓存命中优先
+  cache_first: true

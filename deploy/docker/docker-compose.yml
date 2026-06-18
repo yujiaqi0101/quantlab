@@ -1,0 +1,85 @@
+# QuantLab 1.0 — Docker Compose
+#
+# 启动：
+#   docker compose up -d
+#
+# 服务：
+#   backend   FastAPI 后端（端口 8000）
+#   frontend  Vite 前端（端口 5173）
+#   postgres  PostgreSQL 数据库（可选，默认 SQLite）
+#
+# 数据卷：
+#   quantlab_storage   持久化存储（数据/产物/备份）
+#   quantlab_logs      日志
+#   quantlab_db        数据库
+
+version: "3.9"
+
+services:
+  # ---- Backend ----
+  backend:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.backend
+    container_name: quantlab-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../../storage:/app/storage
+      - ../../logs:/app/logs
+      - ../../backups:/app/backups
+      - ../../config:/app/config
+    environment:
+      - QUANTLAB_ENV=production
+      - QUANTLAB_DB_PATH=/app/storage/quantlab.db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - quantlab-net
+
+  # ---- Frontend ----
+  frontend:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.frontend
+    container_name: quantlab-frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - quantlab-net
+
+  # ---- PostgreSQL（可选，默认用 SQLite）----
+  postgres:
+    image: postgres:16-alpine
+    container_name: quantlab-db
+    environment:
+      POSTGRES_DB: quantlab
+      POSTGRES_USER: quantlab
+      POSTGRES_PASSWORD: quantlab_secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - quantlab_db:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - quantlab-net
+    profiles:
+      - postgres  # docker compose --profile postgres up
+
+# ---- 数据卷 ----
+volumes:
+  quantlab_db:
+    driver: local
+
+# ---- 网络 ----
+networks:
+  quantlab-net:
+    driver: bridge

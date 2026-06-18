@@ -7,6 +7,7 @@ OMS 是订单的唯一真相（Single Source of Truth）
 
 from __future__ import annotations
 
+import time
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum

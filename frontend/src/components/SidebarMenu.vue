@@ -39,6 +39,11 @@
       <template #title>Research Lab</template>
     </el-menu-item>
 
+    <el-menu-item index="/ml-lab">
+      <el-icon><Cpu /></el-icon>
+      <template #title>ML Lab</template>
+    </el-menu-item>
+
     <el-menu-item index="/production">
       <el-icon><Monitor /></el-icon>
       <template #title>Production</template>
@@ -53,6 +58,68 @@
       <el-icon><Connection /></el-icon>
       <template #title>Alpha-Aware</template>
     </el-menu-item>
+
+    <el-sub-menu index="/observe">
+      <template #title>
+        <el-icon><View /></el-icon>
+        <span>Observe</span>
+      </template>
+      <el-menu-item index="/observe/overview">
+        <el-icon><DataLine /></el-icon>
+        <template #title>Overview</template>
+      </el-menu-item>
+      <el-menu-item index="/observe/positions">
+        <el-icon><Wallet /></el-icon>
+        <template #title>Positions</template>
+      </el-menu-item>
+      <el-menu-item index="/observe/orders">
+        <el-icon><List /></el-icon>
+        <template #title>Orders</template>
+      </el-menu-item>
+      <el-menu-item index="/observe/trades">
+        <el-icon><Tickets /></el-icon>
+        <template #title>Trades</template>
+      </el-menu-item>
+      <el-menu-item index="/observe/risk">
+        <el-icon><Warning /></el-icon>
+        <template #title>Risk</template>
+      </el-menu-item>
+      <el-menu-item index="/observe/health">
+        <el-icon><Bell /></el-icon>
+        <template #title>Health</template>
+      </el-menu-item>
+      <el-menu-item index="/observe/timeline">
+        <el-icon><Timer /></el-icon>
+        <template #title>Timeline</template>
+      </el-menu-item>
+      <el-menu-item index="/observe/replay">
+        <el-icon><VideoPlay /></el-icon>
+        <template #title>Replay</template>
+      </el-menu-item>
+      <el-menu-item index="/observe/analysis">
+        <el-icon><Aim /></el-icon>
+        <template #title>Root Cause</template>
+      </el-menu-item>
+      <el-menu-item index="/observe/performance">
+        <el-icon><TrendCharts /></el-icon>
+        <template #title>Performance</template>
+      </el-menu-item>
+      <el-menu-item index="/observe/journal">
+        <el-icon><Notebook /></el-icon>
+        <template #title>Journal</template>
+      </el-menu-item>
+    </el-sub-menu>
+
+    <el-sub-menu index="/live">
+      <template #title>
+        <el-icon><VideoCamera /></el-icon>
+        <span>Live Studio</span>
+      </template>
+      <el-menu-item index="/live">
+        <el-icon><DataLine /></el-icon>
+        <template #title>Strategies</template>
+      </el-menu-item>
+    </el-sub-menu>
 
     <el-menu-item index="/compare">
       <el-icon><TrendCharts /></el-icon>
@@ -97,7 +164,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'
-import { Odometer, Coin, DataLine, Files, Fold, Expand, TrendCharts, Trophy, Histogram, Switch, Cpu, SetUp, Monitor, Aim, DataAnalysis } from '@element-plus/icons-vue'
+import { Odometer, Coin, DataLine, Files, Fold, Expand, TrendCharts, Trophy, Histogram, Switch, Cpu, SetUp, Monitor, Aim, DataAnalysis, View, Wallet, List, Tickets, Warning, Bell, Timer, VideoPlay, Notebook, VideoCamera } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const appStore = useAppStore()
@@ -108,9 +175,12 @@ const activeRoute = computed(() => {
   if (route.path.startsWith('/factors')) return '/factors'
   if (route.path.startsWith('/signals')) return '/signals'
   if (route.path.startsWith('/research')) return '/research'
+  if (route.path.startsWith('/ml-lab')) return '/ml-lab'
   if (route.path.startsWith('/production')) return '/production'
   if (route.path.startsWith('/fidelity')) return '/fidelity'
   if (route.path.startsWith('/alpha-aware')) return '/alpha-aware'
+  if (route.path.startsWith('/observe')) return '/observe/overview'
+  if (route.path.startsWith('/live')) return '/live'
   if (route.path.startsWith('/strategy-builder')) return '/strategy-builder'
   if (route.path.startsWith('/backtests')) return '/backtests'
   return route.path

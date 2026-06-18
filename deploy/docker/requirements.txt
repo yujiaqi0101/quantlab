@@ -1,0 +1,30 @@
+# QuantLab 1.0 — Python 依赖
+# 部署所需的核心依赖
+
+# Web 框架
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+
+# 数据处理
+numpy>=1.24.0
+pandas>=2.0.0
+pyarrow>=14.0.0
+
+# 数据库
+sqlalchemy>=2.0.0
+
+# 配置
+pyyaml>=6.0
+
+# 系统监控
+psutil>=5.9.0
+
+# 可视化
+matplotlib>=3.7.0
+
+# HTTP 客户端（数据源）
+requests>=2.31.0
+
+# 加密（如果需要）
+cryptography>=41.0.0

@@ -1,0 +1,35 @@
+# 研究模块配置
+research:
+  # 项目存储
+  projects_dir: storage/projects
+  # 实验存储
+  experiments_dir: storage/experiments
+  # 候选管理
+  candidates_dir: storage/candidates
+  # 知识库
+  knowledge_dir: storage/knowledge
+  # 时间线
+  tracker_dir: storage/tracker
+
+# Alpha Factory
+alpha:
+  # Alpha 数据库
+  db_path: storage/alpha.db
+  # Alpha 池大小
+  pool_size: 1000
+  # 自动评估
+  auto_evaluate: true
+  # 相关性阈值（去重）
+  correlation_threshold: 0.7
+
+# 实验
+experiment:
+  # 自动入库
+  auto_save: true
+  # 实验对比默认指标
+  compare_metrics:
+    - sharpe
+    - total_return
+    - max_drawdown
+    - trade_count
+    - win_rate

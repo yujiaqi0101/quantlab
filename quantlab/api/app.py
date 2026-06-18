@@ -17,21 +17,12 @@ from typing import Set
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-from .strategies import router as strategies_router
-from .datasets import router as datasets_router
-from .backtests import router as backtests_router
-from .tasks import router as tasks_router
-from .experiments import router as experiments_router
-from .factors import router as factors_router
-from .signals import router as signals_router
-from .research import router as research_router
-from .strategy_builder import router as strategy_builder_router
-from .alpha import router as alpha_router
-from .execution import router as execution_router
-from .observe import router as observe_router
-from .production import router as production_router
 from .fidelity import router as fidelity_router
 from .alpha_aware import router as alpha_aware_router
+from .production import router as production_router
+from .observe import router as observe_router
+from .live import router as live_router
+from .ml import router as ml_router
 
 
 # ---- App 创建 ----
@@ -51,21 +42,12 @@ app.add_middleware(
 )
 
 # ---- 注册路由 ----
-app.include_router(strategies_router)
-app.include_router(datasets_router)
-app.include_router(backtests_router)
-app.include_router(tasks_router)
-app.include_router(experiments_router)
-app.include_router(factors_router)
-app.include_router(signals_router)
-app.include_router(research_router)
-app.include_router(strategy_builder_router)
-app.include_router(alpha_router)
-app.include_router(execution_router)
-app.include_router(observe_router)
-app.include_router(production_router)
 app.include_router(fidelity_router)
 app.include_router(alpha_aware_router)
+app.include_router(production_router)
+app.include_router(observe_router)
+app.include_router(live_router)
+app.include_router(ml_router)
 
 
 # ---- WebSocket 任务推送 ----
@@ -121,17 +103,9 @@ def _on_task_change(task) -> None:
         pass
 
 
-def _setup_task_subscriber() -> None:
-    """启动时注册 TaskManager 订阅"""
-    from ..runtime.task_manager import get_task_manager
-    mgr = get_task_manager()
-    mgr.subscribe(_on_task_change)
-
-
 # ---- 启动事件 ----
 @app.on_event("startup")
 async def on_startup():
-    _setup_task_subscriber()
     # 启动时主动扫描 data/ 目录，把示例数据集注册到模块级 Registry
     try:
         from ..dataset.catalog import DataCatalog

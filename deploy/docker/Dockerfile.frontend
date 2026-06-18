@@ -1,0 +1,23 @@
+# QuantLab Frontend Dockerfile
+FROM node:20-slim AS builder
+
+WORKDIR /app
+
+# 复制依赖文件
+COPY frontend/package*.json ./
+RUN npm ci
+
+# 复制源码并构建
+COPY frontend/ ./
+RUN npm run build
+
+# 运行阶段
+FROM node:20-slim
+
+WORKDIR /app
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/package*.json ./
+RUN npm ci --production
+
+EXPOSE 5173
+CMD ["npm", "run", "preview", "--", "--host", "0.0.0.0", "--port", "5173"]
