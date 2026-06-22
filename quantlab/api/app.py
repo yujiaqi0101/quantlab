@@ -23,6 +23,9 @@ from .production import router as production_router
 from .observe import router as observe_router
 from .live import router as live_router
 from .ml import router as ml_router
+from .experiments import router as experiments_router
+from .datasets import router as datasets_router
+from .strategies import router as strategies_router
 
 
 # ---- App 创建 ----
@@ -48,6 +51,9 @@ app.include_router(production_router)
 app.include_router(observe_router)
 app.include_router(live_router)
 app.include_router(ml_router)
+app.include_router(experiments_router)
+app.include_router(datasets_router)
+app.include_router(strategies_router)
 
 
 # ---- WebSocket 任务推送 ----
@@ -106,13 +112,13 @@ def _on_task_change(task) -> None:
 # ---- 启动事件 ----
 @app.on_event("startup")
 async def on_startup():
-    # 启动时主动扫描 data/ 目录，把示例数据集注册到模块级 Registry
+    # 初始化统一 DatasetManager（自动从 DB 恢复 + 种子化示例数据）
     try:
-        from ..dataset.catalog import DataCatalog
-        DataCatalog().scan()
+        from ..ml.dataset import get_dataset_manager
+        get_dataset_manager()
     except Exception as exc:  # 启动失败不阻塞服务
         import logging
-        logging.getLogger("quantlab.api.app").warning("dataset catalog scan failed on startup: %s", exc)
+        logging.getLogger("quantlab.api.app").warning("dataset manager init failed on startup: %s", exc)
 
 
 # ---- 健康检查 ----

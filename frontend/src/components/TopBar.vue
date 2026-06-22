@@ -3,7 +3,7 @@
     <div class="topbar-left">
       <span class="topbar-title">{{ route.meta.title || 'QuantLab Studio' }}</span>
       <span class="topbar-divider" />
-      <span class="topbar-subtitle">Research Platform</span>
+      <span class="topbar-subtitle">研究平台 Research Platform</span>
     </div>
 
     <div class="topbar-right">
@@ -29,7 +29,7 @@
       </el-select>
 
       <!-- Theme switcher -->
-      <el-tooltip :content="appStore.theme === 'dark' ? 'Switch to Light' : 'Switch to Dark'" placement="bottom">
+      <el-tooltip :content="appStore.theme === 'dark' ? '切换亮色 Switch to Light' : '切换暗色 Switch to Dark'" placement="bottom">
         <div class="theme-toggle" @click="onToggleTheme">
           <el-icon :size="16">
             <Moon v-if="appStore.theme === 'dark'" />
@@ -41,7 +41,7 @@
       <!-- System status -->
       <div class="topbar-status">
         <span class="status-dot" />
-        <span class="status-text">System Online</span>
+        <span class="status-text">系统在线 System Online</span>
       </div>
     </div>
   </div>

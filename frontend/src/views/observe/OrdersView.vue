@@ -2,20 +2,20 @@
   <div class="observe-orders">
     <div class="page-header">
       <div>
-        <h1 class="page-title">Orders</h1>
-        <span class="page-subtitle">订单管理</span>
+        <h1 class="page-title">订单 Orders</h1>
+        <span class="page-subtitle">订单管理 Order management</span>
       </div>
       <div class="header-actions">
-        <el-select v-model="filter.status" placeholder="状态" clearable size="small" style="width: 140px">
+        <el-select v-model="filter.status" placeholder="状态 Status" clearable size="small" style="width: 140px">
           <el-option label="Open" value="SUBMITTED" />
           <el-option label="Filled" value="FILLED" />
           <el-option label="Cancelled" value="CANCELLED" />
           <el-option label="Rejected" value="REJECTED" />
         </el-select>
         <el-select v-model="filter.hours" size="small" style="width: 140px">
-          <el-option label="最近24小时" :value="24" />
-          <el-option label="最近7天" :value="168" />
-          <el-option label="最近30天" :value="720" />
+          <el-option label="最近24小时 Last 24h" :value="24" />
+          <el-option label="最近7天 Last 7 days" :value="168" />
+          <el-option label="最近30天 Last 30 days" :value="720" />
         </el-select>
         <el-button :icon="Refresh" @click="refresh" :loading="loading">刷新</el-button>
       </div>

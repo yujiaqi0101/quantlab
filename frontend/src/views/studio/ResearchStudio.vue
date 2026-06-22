@@ -3,11 +3,11 @@
     <!-- Header -->
     <div class="dash-header">
       <div>
-        <h1 class="dash-title">Research Dashboard</h1>
-        <p class="dash-sub">Your research at a glance</p>
+        <h1 class="dash-title">研究仪表盘 Research Dashboard</h1>
+        <p class="dash-sub">研究一览 Your research at a glance</p>
       </div>
       <div class="dash-actions">
-        <el-button type="primary" :icon="DataLine" @click="router.push('/backtests')">New Backtest</el-button>
+        <el-button type="primary" :icon="DataLine" @click="router.push('/backtests')">新建回测 New Backtest</el-button>
       </div>
     </div>
 
@@ -15,19 +15,19 @@
     <div class="stats-row">
       <div class="stat-card">
         <span class="stat-value">{{ allExperiments.length }}</span>
-        <span class="stat-label">Total Experiments</span>
+        <span class="stat-label">总实验 Total Experiments</span>
       </div>
       <div class="stat-card">
         <span class="stat-value">{{ favorites.length }}</span>
-        <span class="stat-label">Favorites</span>
+        <span class="stat-label">收藏 Favorites</span>
       </div>
       <div class="stat-card">
         <span class="stat-value">{{ candidates.length }}</span>
-        <span class="stat-label">Candidates</span>
+        <span class="stat-label">候选 Candidates</span>
       </div>
       <div class="stat-card">
         <span class="stat-value">{{ productionCount }}</span>
-        <span class="stat-label">Production</span>
+        <span class="stat-label">生产 Production</span>
       </div>
     </div>
 
@@ -36,12 +36,12 @@
       <!-- Recent Experiments -->
       <div class="dash-section">
         <div class="section-header">
-          <span class="section-title">Recent Experiments</span>
-          <el-button text size="small" @click="router.push('/experiments')">View All</el-button>
+          <span class="section-title">最近实验 Recent Experiments</span>
+          <el-button text size="small" @click="router.push('/experiments')">查看全部 View All</el-button>
         </div>
         <div class="section-body">
           <div v-if="recentExperiments.length === 0" class="section-empty">
-            No experiments yet. Run a backtest to get started.
+            暂无实验，运行回测以开始 No experiments yet. Run a backtest to get started.
           </div>
           <div v-else class="exp-list">
             <div
@@ -68,8 +68,8 @@
                 <span class="metric-sharpe">{{ exp.sharpe?.toFixed(2) }}</span>
               </div>
               <div class="exp-item-badges">
-                <el-tag v-if="exp.status === 'candidate'" type="warning" effect="dark" size="small">Candidate</el-tag>
-                <el-tag v-if="exp.status === 'production'" type="success" effect="dark" size="small">Production</el-tag>
+                <el-tag v-if="exp.status === 'candidate'" type="warning" effect="dark" size="small">候选 Candidate</el-tag>
+                <el-tag v-if="exp.status === 'production'" type="success" effect="dark" size="small">生产 Production</el-tag>
               </div>
             </div>
           </div>
@@ -79,7 +79,7 @@
       <!-- Favorites -->
       <div v-if="favorites.length" class="dash-section">
         <div class="section-header">
-          <span class="section-title">★ Favorites</span>
+          <span class="section-title">★ 收藏 Favorites</span>
         </div>
         <div class="section-body">
           <div class="exp-list">
@@ -109,13 +109,13 @@
       <!-- Candidates -->
       <div v-if="candidates.length" class="dash-section">
         <div class="section-header">
-          <span class="section-title">Candidates</span>
+          <span class="section-title">候选 Candidates</span>
           <el-button
             v-if="candidates.length >= 2"
             text
             size="small"
             @click="router.push({ path: '/compare', query: { ids: candidates.map(c => c.id).join(',') } })"
-          >Compare All</el-button>
+          >全部对比 Compare All</el-button>
         </div>
         <div class="section-body">
           <div class="exp-list">
@@ -145,12 +145,12 @@
       <!-- Leaderboard Preview -->
       <div class="dash-section">
         <div class="section-header">
-          <span class="section-title">Top by Sharpe</span>
-          <el-button text size="small" @click="router.push('/leaderboard')">Full Leaderboard</el-button>
+          <span class="section-title">夏普排行 Top by Sharpe</span>
+          <el-button text size="small" @click="router.push('/leaderboard')">完整排行 Full Leaderboard</el-button>
         </div>
         <div class="section-body">
           <div v-if="topBySharpe.length === 0" class="section-empty">
-            No experiments with Sharpe data yet.
+            暂无夏普数据 No experiments with Sharpe data yet.
           </div>
           <div v-else class="lb-preview">
             <div
@@ -174,11 +174,11 @@
       <!-- Research Timeline -->
       <div class="dash-section">
         <div class="section-header">
-          <span class="section-title">Research Timeline</span>
+          <span class="section-title">研究时间线 Research Timeline</span>
         </div>
         <div class="section-body">
           <div v-if="store.timeline.length === 0" class="section-empty">
-            No activity yet. Interact with experiments to build your timeline.
+            暂无活动 No activity yet. Interact with experiments to build your timeline.
           </div>
           <div v-else class="timeline-list">
             <div v-for="item in store.timeline" :key="item.id" class="timeline-item" @click="item.experiment_id && router.push(`/experiments/${item.experiment_id}`)">
@@ -246,9 +246,9 @@ function timelineDotClass(action: string): string {
 
 function formatAction(action: string): string {
   const map: Record<string, string> = {
-    status_changed: 'Status Changed',
-    note_updated: 'Note Updated',
-    parent_set: 'Lineage Set',
+    status_changed: '状态变更 Status Changed',
+    note_updated: '笔记更新 Note Updated',
+    parent_set: '谱系设置 Lineage Set',
   }
   return map[action] || action
 }

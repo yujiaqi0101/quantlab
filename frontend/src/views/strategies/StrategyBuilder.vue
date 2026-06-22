@@ -3,8 +3,8 @@
     <div class="page-header">
       <div class="page-header-row">
         <div>
-          <h1 class="page-title">Strategy Builder</h1>
-          <p class="page-desc">Build strategies visually — no code required</p>
+          <h1 class="page-title">策略构建器 Strategy Builder</h1>
+          <p class="page-desc">可视化构建策略 Build strategies visually — no code required</p>
         </div>
       </div>
     </div>
@@ -12,29 +12,29 @@
     <div class="page-content">
       <el-tabs v-model="activeTab" class="q-tabs">
         <!-- ==================== Builder ==================== -->
-        <el-tab-pane label="Builder" name="builder">
+        <el-tab-pane label="构建器 Builder" name="builder">
           <div class="builder-layout">
             <!-- Left: Config -->
             <div class="builder-config">
-              <h3 class="section-title">Strategy Configuration</h3>
+              <h3 class="section-title">策略配置 Strategy Configuration</h3>
 
               <!-- Name -->
               <div class="form-group">
-                <label>Strategy Name</label>
+                <label>策略名称 Strategy Name</label>
                 <el-input v-model="form.name" placeholder="e.g. RSI_Momentum_Strategy" />
               </div>
 
               <div class="form-group">
-                <label>Description</label>
+                <label>描述 Description</label>
                 <el-input v-model="form.description" type="textarea" :rows="2" placeholder="Optional description" />
               </div>
 
               <!-- Signal Rules -->
               <div class="form-group">
-                <label>Signal Rules</label>
+                <label>信号规则 Signal Rules</label>
                 <div v-for="(rule, idx) in form.signals" :key="idx" class="rule-card">
                   <div class="rule-header">
-                    <span class="rule-index">Signal {{ idx + 1 }}</span>
+                    <span class="rule-index">信号 Signal {{ idx + 1 }}</span>
                     <el-button :icon="Delete" circle size="small" @click="removeSignal(idx)" />
                   </div>
                   <div class="rule-body">
@@ -78,13 +78,13 @@
                 </div>
 
                 <el-button type="primary" size="small" :icon="Plus" @click="addSignal" style="width:100%">
-                  Add Signal
+                  Add Signal 添加信号
                 </el-button>
               </div>
 
               <!-- Signal Logic -->
               <div class="form-group">
-                <label>Signal Logic</label>
+                <label>信号逻辑 Signal Logic</label>
                 <el-select v-model="form.signalLogic" style="width:100%">
                   <el-option value="AND" label="AND (all signals agree)" />
                   <el-option value="OR" label="OR (any signal triggers)" />
@@ -94,7 +94,7 @@
 
               <!-- Position -->
               <div class="form-group">
-                <label>Position</label>
+                <label>持仓 Position</label>
                 <div class="pos-row">
                   <el-select v-model="form.position.type" style="width:140px;margin-right:8px" size="small">
                     <el-option value="target" label="Target" />
@@ -106,18 +106,18 @@
 
               <!-- Risk -->
               <div class="form-group">
-                <label>Risk Control</label>
+                <label>风控 Risk Control</label>
                 <div class="risk-grid">
                   <div class="risk-item">
-                    <span class="risk-label">Stop Loss</span>
+                    <span class="risk-label">止损 Stop Loss</span>
                     <el-input-number v-model="form.risk.stop_loss" :min="0" :max="1" :step="0.01" size="small" style="width:100px" />
                   </div>
                   <div class="risk-item">
-                    <span class="risk-label">Take Profit</span>
+                    <span class="risk-label">止盈 Take Profit</span>
                     <el-input-number v-model="form.risk.take_profit" :min="0" :max="1" :step="0.01" size="small" style="width:100px" />
                   </div>
                   <div class="risk-item">
-                    <span class="risk-label">Max DD</span>
+                    <span class="risk-label">最大回撤 Max DD</span>
                     <el-input-number v-model="form.risk.max_drawdown" :min="0" :max="1" :step="0.01" size="small" style="width:100px" />
                   </div>
                 </div>
@@ -126,7 +126,7 @@
               <!-- Actions -->
               <div class="action-buttons">
                 <el-button type="primary" :loading="createLoading" @click="createStrategy">
-                  Create Strategy
+                  创建策略 Create Strategy
                 </el-button>
                 <el-button @click="resetForm">Reset</el-button>
               </div>
@@ -135,7 +135,7 @@
             <!-- Right: Preview -->
             <div class="builder-preview">
               <div v-if="previewData" class="preview-content">
-                <h3 class="section-title">Strategy Preview</h3>
+                <h3 class="section-title">策略预览 Strategy Preview</h3>
 
                 <!-- Strategy Graph -->
                 <div class="strategy-graph">
@@ -150,19 +150,19 @@
                   <div class="graph-arrow">&#8595;</div>
                   <div class="graph-node logic">
                     <div class="node-icon">{{ form.signalLogic }}</div>
-                    <div class="node-label">Signal Logic</div>
+                    <div class="node-label">信号逻辑 Signal Logic</div>
                   </div>
                   <div class="graph-arrow">&#8595;</div>
                   <div class="graph-node position">
                     <div class="node-icon">P</div>
-                    <div class="node-label">Position {{ (form.position.value * 100).toFixed(0) }}%</div>
+                    <div class="node-label">持仓 Position {{ (form.position.value * 100).toFixed(0) }}%</div>
                   </div>
                 </div>
 
                 <!-- Stats -->
                 <div class="stats-bar">
                   <div class="stat-item">
-                    <span class="stat-label">Total Bars</span>
+                    <span class="stat-label">总K线 Total Bars</span>
                     <span class="stat-value">{{ previewData.total_bars }}</span>
                   </div>
                   <div class="stat-item">
@@ -177,7 +177,7 @@
 
                 <!-- Timeline -->
                 <div class="timeline-section">
-                  <h4 class="sub-title">Signal Timeline</h4>
+                  <h4 class="sub-title">信号时间线 Signal Timeline</h4>
                   <div class="signal-timeline">
                     <span
                       v-for="(sig, i) in previewData.signal_timeline"
@@ -200,7 +200,7 @@
         </el-tab-pane>
 
         <!-- ==================== Templates ==================== -->
-        <el-tab-pane label="Templates" name="templates">
+        <el-tab-pane label="模板 Templates" name="templates">
           <div class="templates-grid">
             <div
               v-for="tmpl in templates"
@@ -219,7 +219,7 @@
         </el-tab-pane>
 
         <!-- ==================== My Strategies ==================== -->
-        <el-tab-pane label="My Strategies" name="list">
+        <el-tab-pane label="我的策略 My Strategies" name="list">
           <div class="tab-toolbar">
             <el-button :icon="Refresh" circle @click="loadSpecs" :loading="listLoading" />
           </div>
@@ -234,20 +234,20 @@
                 <span class="spec-name">{{ spec.name }}</span>
                 <el-tag size="small" effect="dark">{{ spec.signal_logic }}</el-tag>
               </div>
-              <div class="spec-desc">{{ spec.description || 'No description' }}</div>
+              <div class="spec-desc">{{ spec.description || '无描述 No description' }}</div>
               <div class="spec-meta">
-                <span>{{ spec.signal_count }} signals</span>
-                <span>Position: {{ (spec.position_value * 100).toFixed(0) }}%</span>
+                <span>{{ spec.signal_count }} 信号 signals</span>
+                <span>持仓 Position: {{ (spec.position_value * 100).toFixed(0) }}%</span>
               </div>
               <div class="spec-actions">
                 <el-button size="small" type="primary" @click="compileSpec(spec.spec_id)">
-                  Compile
+                  编译 Compile
                 </el-button>
                 <el-button size="small" @click="previewSpec(spec.spec_id)">
-                  Preview
+                  预览 Preview
                 </el-button>
                 <el-button size="small" type="danger" @click="deleteSpec(spec.spec_id)">
-                  Delete
+                  删除 Delete
                 </el-button>
               </div>
             </div>

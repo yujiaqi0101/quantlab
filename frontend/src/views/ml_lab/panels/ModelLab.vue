@@ -1,8 +1,8 @@
 <template>
   <div class="model-lab">
     <div class="panel-header">
-      <h2>Model Lab</h2>
-      <p class="hint">Supported models: Linear Regression, Random Forest, XGBoost, LightGBM</p>
+      <h2>模型实验室 Model Lab</h2>
+      <p class="hint">支持的模型：线性回归、随机森林、XGBoost、LightGBM</p>
     </div>
 
     <el-row :gutter="16">
@@ -12,7 +12,7 @@
             <div class="card-header">
               <span>{{ model.name }}</span>
               <el-tag :type="model.is_classifier ? 'warning' : 'success'" size="small">
-                {{ model.is_classifier ? 'Classification' : 'Regression' }}
+                {{ model.is_classifier ? '分类 Classification' : '回归 Regression' }}
               </el-tag>
             </div>
           </template>
@@ -36,7 +36,7 @@ async function loadData() {
     const resp = await getMLModels()
     models.value = resp.models || []
   } catch (e) {
-    ElMessage.error('Failed to load models')
+    ElMessage.error('加载模型失败 Failed to load models')
   }
 }
 

@@ -1,23 +1,23 @@
 <template>
   <div class="experiments">
     <div class="panel-header">
-      <h2>Experiments</h2>
+      <h2>实验 Experiments</h2>
       <div>
-        <el-select v-model="filterModelType" placeholder="Model Type" clearable style="width: 160px; margin-right: 8px" @change="loadData">
-          <el-option label="Linear" value="LINEAR_REGRESSION" />
-          <el-option label="Random Forest" value="RANDOM_FOREST" />
+        <el-select v-model="filterModelType" placeholder="模型类型 Model Type" clearable style="width: 160px; margin-right: 8px" @change="loadData">
+          <el-option label="线性回归 Linear" value="LINEAR_REGRESSION" />
+          <el-option label="随机森林 Random Forest" value="RANDOM_FOREST" />
           <el-option label="LightGBM" value="LIGHTGBM" />
           <el-option label="XGBoost" value="XGBOOST" />
         </el-select>
-        <el-button @click="showSummary = true">Summary</el-button>
-        <el-button type="primary" @click="showLeaderboard = true">Leaderboard</el-button>
+        <el-button @click="showSummary = true">统计 Summary</el-button>
+        <el-button type="primary" @click="showLeaderboard = true">排行榜 Leaderboard</el-button>
       </div>
     </div>
 
     <el-table :data="experiments" v-loading="loading" border style="width: 100%">
       <el-table-column prop="experiment_id" label="ID" width="120" />
-      <el-table-column prop="name" label="Name" width="180" />
-      <el-table-column prop="model_type" label="Model" width="140" />
+      <el-table-column prop="name" label="名称 Name" width="180" />
+      <el-table-column prop="model_type" label="模型 Model" width="140" />
       <el-table-column label="IC" width="100">
         <template #default="{ row }">
           {{ row.metrics?.ic?.toFixed(4) ?? '-' }}
@@ -33,47 +33,47 @@
           {{ row.metrics?.rmse?.toFixed(4) ?? '-' }}
         </template>
       </el-table-column>
-      <el-table-column prop="status" label="Status" width="120">
+      <el-table-column prop="status" label="状态 Status" width="120">
         <template #default="{ row }">
           <el-tag :type="row.status === 'COMPLETED' ? 'success' : 'info'" size="small">{{ row.status }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="created_at" label="Created" width="180" />
-      <el-table-column label="Actions" width="100">
+      <el-table-column prop="created_at" label="创建时间 Created" width="180" />
+      <el-table-column label="操作 Actions" width="100">
         <template #default="{ row }">
-          <el-button size="small" @click="viewDetail(row)">Detail</el-button>
+          <el-button size="small" @click="viewDetail(row)">详情 Detail</el-button>
         </template>
       </el-table-column>
     </el-table>
 
     <!-- 详情对话框 -->
-    <el-dialog v-model="showDetail" title="Experiment Detail" width="700px">
+    <el-dialog v-model="showDetail" title="实验详情 Experiment Detail" width="700px">
       <div v-if="current">
         <el-descriptions :column="2" border>
           <el-descriptions-item label="ID">{{ current.experiment_id }}</el-descriptions-item>
-          <el-descriptions-item label="Name">{{ current.name }}</el-descriptions-item>
-          <el-descriptions-item label="Dataset">{{ current.dataset_id }}</el-descriptions-item>
-          <el-descriptions-item label="FeatureSet">{{ current.feature_set_id }}</el-descriptions-item>
-          <el-descriptions-item label="LabelSet">{{ current.label_set_id }}</el-descriptions-item>
-          <el-descriptions-item label="Model">{{ current.model_type }}</el-descriptions-item>
-          <el-descriptions-item label="Classifier">{{ current.is_classifier }}</el-descriptions-item>
-          <el-descriptions-item label="Status">{{ current.status }}</el-descriptions-item>
+          <el-descriptions-item label="名称 Name">{{ current.name }}</el-descriptions-item>
+          <el-descriptions-item label="数据集 Dataset">{{ current.dataset_id }}</el-descriptions-item>
+          <el-descriptions-item label="特征集 FeatureSet">{{ current.feature_set_id }}</el-descriptions-item>
+          <el-descriptions-item label="标签集 LabelSet">{{ current.label_set_id }}</el-descriptions-item>
+          <el-descriptions-item label="模型 Model">{{ current.model_type }}</el-descriptions-item>
+          <el-descriptions-item label="分类器 Classifier">{{ current.is_classifier }}</el-descriptions-item>
+          <el-descriptions-item label="状态 Status">{{ current.status }}</el-descriptions-item>
         </el-descriptions>
-        <h4>Metrics</h4>
+        <h4>指标 Metrics</h4>
         <pre>{{ JSON.stringify(current.metrics, null, 2) }}</pre>
-        <h4>Params</h4>
+        <h4>参数 Params</h4>
         <pre>{{ JSON.stringify(current.model_params, null, 2) }}</pre>
-        <h4 v-if="current.feature_importance && Object.keys(current.feature_importance).length > 0">Feature Importance</h4>
+        <h4 v-if="current.feature_importance && Object.keys(current.feature_importance).length > 0">特征重要性 Feature Importance</h4>
         <pre v-if="current.feature_importance">{{ JSON.stringify(current.feature_importance, null, 2) }}</pre>
       </div>
     </el-dialog>
 
     <!-- 排行榜 -->
-    <el-dialog v-model="showLeaderboard" title="Experiment Leaderboard" width="700px">
+    <el-dialog v-model="showLeaderboard" title="实验排行榜 Experiment Leaderboard" width="700px">
       <el-table :data="leaderboard" border>
-        <el-table-column type="index" label="Rank" width="80" />
-        <el-table-column prop="name" label="Name" />
-        <el-table-column prop="model_type" label="Model" width="140" />
+        <el-table-column type="index" label="排名 Rank" width="80" />
+        <el-table-column prop="name" label="名称 Name" />
+        <el-table-column prop="model_type" label="模型 Model" width="140" />
         <el-table-column label="IC" width="120">
           <template #default="{ row }">
             {{ row.metrics?.ic?.toFixed(4) ?? '-' }}
@@ -83,7 +83,7 @@
     </el-dialog>
 
     <!-- 统计 -->
-    <el-dialog v-model="showSummary" title="Experiment Summary" width="600px">
+    <el-dialog v-model="showSummary" title="实验统计 Experiment Summary" width="600px">
       <pre v-if="summary">{{ JSON.stringify(summary, null, 2) }}</pre>
     </el-dialog>
   </div>
@@ -116,7 +116,7 @@ async function loadData() {
     const resp = await getExperiments({ model_type: filterModelType.value || undefined })
     experiments.value = resp.experiments
   } catch (e: any) {
-    ElMessage.error(e.message || 'Failed to load')
+    ElMessage.error(e.message || '加载失败 Failed to load')
   } finally {
     loading.value = false
   }
@@ -127,7 +127,7 @@ async function viewDetail(row: MLExperiment) {
     current.value = await getExperiment(row.experiment_id)
     showDetail.value = true
   } catch (e: any) {
-    ElMessage.error(e.message || 'Failed to load')
+    ElMessage.error(e.message || '加载失败 Failed to load')
   }
 }
 
@@ -136,7 +136,7 @@ async function loadLeaderboard() {
     const resp = await getExperimentLeaderboard('ic', 20)
     leaderboard.value = resp.leaderboard
   } catch (e: any) {
-    ElMessage.error(e.message || 'Failed to load leaderboard')
+    ElMessage.error(e.message || '加载排行榜失败 Failed to load leaderboard')
   }
 }
 
@@ -144,7 +144,7 @@ async function loadSummary() {
   try {
     summary.value = await getExperimentSummary()
   } catch (e: any) {
-    ElMessage.error(e.message || 'Failed to load summary')
+    ElMessage.error(e.message || '加载统计失败 Failed to load summary')
   }
 }
 

@@ -1,7 +1,7 @@
 <template>
   <div class="label-diagnostics">
     <div class="panel-header">
-      <h2>Label Diagnostics</h2>
+      <h2>标签诊断 Label Diagnostics</h2>
       <p class="hint">
         M1 必做：统计 label_distribution，发现标签严重失衡并报警（如 上涨 95% / 下跌 5%）。
       </p>
@@ -11,13 +11,13 @@
     <el-card shadow="never" class="input-card">
       <template #header>
         <div class="card-header">
-          <span>一键诊断（Dataset + FeatureSet + Label）</span>
-          <el-button type="primary" :loading="loading" @click="runFromDataset">Run Diagnostics</el-button>
+          <span>一键诊断（数据集 + 特征集 + 标签）</span>
+          <el-button type="primary" :loading="loading" @click="runFromDataset">运行诊断 Run</el-button>
         </div>
       </template>
       <el-form :inline="true" :model="form" label-width="120px">
-        <el-form-item label="Dataset">
-          <el-select v-model="form.dataset_id" placeholder="Select dataset" filterable style="width: 220px">
+        <el-form-item label="数据集 Dataset">
+          <el-select v-model="form.dataset_id" placeholder="选择数据集 Select dataset" filterable style="width: 220px">
             <el-option
               v-for="d in datasets"
               :key="d.dataset_id"
@@ -26,8 +26,8 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="FeatureSet">
-          <el-select v-model="form.feature_set_name" placeholder="Select feature set" filterable style="width: 220px">
+        <el-form-item label="特征集 FeatureSet">
+          <el-select v-model="form.feature_set_name" placeholder="选择特征集 Select feature set" filterable style="width: 220px">
             <el-option
               v-for="fs in featureSets"
               :key="fs.name"
@@ -36,8 +36,8 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="Label">
-          <el-select v-model="form.label_id" placeholder="Select label" filterable style="width: 220px">
+        <el-form-item label="标签 Label">
+          <el-select v-model="form.label_id" placeholder="选择标签 Select label" filterable style="width: 220px">
             <el-option
               v-for="l in labels"
               :key="l.label_id"
@@ -88,35 +88,35 @@
       <el-card shadow="never" class="summary-card">
         <div class="metric">
           <div class="metric-value">{{ report.result.n_samples }}</div>
-          <div class="metric-label">Samples</div>
+          <div class="metric-label">样本数 Samples</div>
         </div>
       </el-card>
       <el-card shadow="never" class="summary-card">
         <div class="metric">
           <div class="metric-value">{{ report.result.label_type }}</div>
-          <div class="metric-label">Label Type</div>
+          <div class="metric-label">标签类型 Label Type</div>
         </div>
       </el-card>
       <el-card shadow="never" class="summary-card">
         <div class="metric">
           <div class="metric-value">{{ report.result.n_classes }}</div>
-          <div class="metric-label">Classes</div>
+          <div class="metric-label">类别数 Classes</div>
         </div>
       </el-card>
       <el-card shadow="never" class="summary-card" :class="{ bad: report.is_imbalanced }">
         <div class="metric">
           <div class="metric-value">{{ (report.result.max_class_ratio * 100).toFixed(1) }}%</div>
-          <div class="metric-label">Max Class Ratio</div>
+          <div class="metric-label">最大类别占比 Max Class Ratio</div>
         </div>
       </el-card>
     </div>
 
     <!-- 分类标签：类别分布 -->
     <el-card v-if="report && report.result.label_type === 'classification' && hasClassDist" shadow="never" class="dist-card">
-      <template #header>Class Distribution</template>
+      <template #header>类别分布 Class Distribution</template>
       <div class="dist-bars">
         <div v-for="(ratio, cls) in report.result.class_distribution" :key="cls" class="dist-item">
-          <div class="dist-label">Class {{ cls }}</div>
+          <div class="dist-label">类别 Class {{ cls }}</div>
           <div class="dist-bar-wrapper">
             <div
               class="dist-bar"
@@ -131,26 +131,26 @@
 
     <!-- 回归标签：统计信息 -->
     <el-card v-if="report && report.result.label_type === 'regression'" shadow="never" class="dist-card">
-      <template #header>Regression Statistics</template>
+      <template #header>回归统计 Regression Statistics</template>
       <el-descriptions :column="3" border>
-        <el-descriptions-item label="Mean">
+        <el-descriptions-item label="均值 Mean">
           {{ report.result.mean === null ? '-' : report.result.mean.toFixed(6) }}
         </el-descriptions-item>
-        <el-descriptions-item label="Std">
+        <el-descriptions-item label="标准差 Std">
           {{ report.result.std === null ? '-' : report.result.std.toFixed(6) }}
         </el-descriptions-item>
-        <el-descriptions-item label="Variance">
+        <el-descriptions-item label="方差 Variance">
           <span :class="{ 'bad-cell': report.result.variance !== null && report.result.variance < 1e-10 }">
             {{ report.result.variance === null ? '-' : report.result.variance.toExponential(3) }}
           </span>
         </el-descriptions-item>
-        <el-descriptions-item label="Unique Values">
+        <el-descriptions-item label="唯一值 Unique Values">
           {{ report.result.n_unique }}
         </el-descriptions-item>
-        <el-descriptions-item label="Missing">
+        <el-descriptions-item label="缺失 Missing">
           {{ report.result.n_missing }} ({{ (report.result.missing_rate * 100).toFixed(2) }}%)
         </el-descriptions-item>
-        <el-descriptions-item label="Inf Count">
+        <el-descriptions-item label="无穷值 Inf Count">
           <span :class="{ 'bad-cell': report.result.n_inf > 0 }">{{ report.result.n_inf }}</span>
         </el-descriptions-item>
       </el-descriptions>
@@ -158,7 +158,7 @@
 
     <!-- 问题列表 -->
     <el-card v-if="report && report.issues.length > 0" shadow="never" class="issue-card">
-      <template #header>Issues</template>
+      <template #header>问题 Issues</template>
       <div class="issue-tags">
         <el-tag
           v-for="issue in report.issues"
@@ -232,13 +232,13 @@ async function loadData() {
     featureSets.value = fsResp.sets || []
     labels.value = lblResp.labels || []
   } catch (e) {
-    ElMessage.error('Failed to load metadata')
+    ElMessage.error('加载元数据失败 Failed to load metadata')
   }
 }
 
 async function runFromDataset() {
   if (!form.value.dataset_id || !form.value.feature_set_name || !form.value.label_id) {
-    ElMessage.warning('Please select dataset, feature set and label')
+    ElMessage.warning('请选择数据集、特征集和标签 Please select dataset, feature set and label')
     return
   }
 
@@ -249,16 +249,15 @@ async function runFromDataset() {
       throw new Error('FeatureSet has no features')
     }
 
-    // 通过后端 /diagnostics/training-dataset 端点直接诊断
     const result = await runTrainingDatasetDiagnostics({
       dataset_id: form.value.dataset_id,
       feature_ids: fs.feature_ids,
       label_id: form.value.label_id,
     })
     report.value = result.label_diagnostics
-    ElMessage.success(`Diagnostics done: ${result.n_samples} samples`)
+    ElMessage.success(`诊断完成：${result.n_samples} 样本 Diagnostics done`)
   } catch (e: any) {
-    ElMessage.error(e.message || 'Diagnostics failed')
+    ElMessage.error(e.message || '诊断失败 Diagnostics failed')
   } finally {
     loading.value = false
   }

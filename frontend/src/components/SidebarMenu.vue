@@ -16,139 +16,139 @@
   >
     <el-menu-item index="/studio">
       <el-icon><DataLine /></el-icon>
-      <template #title>Dashboard</template>
+      <template #title>仪表盘 Dashboard</template>
     </el-menu-item>
 
     <el-menu-item index="/experiments">
       <el-icon><Files /></el-icon>
-      <template #title>Experiments</template>
+      <template #title>实验 Experiments</template>
     </el-menu-item>
 
     <el-menu-item index="/factors">
       <el-icon><Histogram /></el-icon>
-      <template #title>Factors</template>
+      <template #title>因子 Factors</template>
     </el-menu-item>
 
     <el-menu-item index="/signals">
       <el-icon><Switch /></el-icon>
-      <template #title>Signals</template>
+      <template #title>信号 Signals</template>
     </el-menu-item>
 
     <el-menu-item index="/research">
       <el-icon><Cpu /></el-icon>
-      <template #title>Research Lab</template>
+      <template #title>研究实验室 Research Lab</template>
     </el-menu-item>
 
     <el-menu-item index="/ml-lab">
       <el-icon><Cpu /></el-icon>
-      <template #title>ML Lab</template>
+      <template #title>ML实验室 ML Lab</template>
     </el-menu-item>
 
     <el-menu-item index="/production">
       <el-icon><Monitor /></el-icon>
-      <template #title>Production</template>
+      <template #title>生产 Production</template>
     </el-menu-item>
 
     <el-menu-item index="/fidelity">
       <el-icon><Aim /></el-icon>
-      <template #title>Fidelity</template>
+      <template #title>执行保真 Fidelity</template>
     </el-menu-item>
 
     <el-menu-item index="/alpha-aware">
       <el-icon><Connection /></el-icon>
-      <template #title>Alpha-Aware</template>
+      <template #title>Alpha感知 Alpha-Aware</template>
     </el-menu-item>
 
     <el-sub-menu index="/observe">
       <template #title>
         <el-icon><View /></el-icon>
-        <span>Observe</span>
+        <span>观测 Observe</span>
       </template>
       <el-menu-item index="/observe/overview">
         <el-icon><DataLine /></el-icon>
-        <template #title>Overview</template>
+        <template #title>概览 Overview</template>
       </el-menu-item>
       <el-menu-item index="/observe/positions">
         <el-icon><Wallet /></el-icon>
-        <template #title>Positions</template>
+        <template #title>持仓 Positions</template>
       </el-menu-item>
       <el-menu-item index="/observe/orders">
         <el-icon><List /></el-icon>
-        <template #title>Orders</template>
+        <template #title>订单 Orders</template>
       </el-menu-item>
       <el-menu-item index="/observe/trades">
         <el-icon><Tickets /></el-icon>
-        <template #title>Trades</template>
+        <template #title>成交 Trades</template>
       </el-menu-item>
       <el-menu-item index="/observe/risk">
         <el-icon><Warning /></el-icon>
-        <template #title>Risk</template>
+        <template #title>风险 Risk</template>
       </el-menu-item>
       <el-menu-item index="/observe/health">
         <el-icon><Bell /></el-icon>
-        <template #title>Health</template>
+        <template #title>健康 Health</template>
       </el-menu-item>
       <el-menu-item index="/observe/timeline">
         <el-icon><Timer /></el-icon>
-        <template #title>Timeline</template>
+        <template #title>时间线 Timeline</template>
       </el-menu-item>
       <el-menu-item index="/observe/replay">
         <el-icon><VideoPlay /></el-icon>
-        <template #title>Replay</template>
+        <template #title>回放 Replay</template>
       </el-menu-item>
       <el-menu-item index="/observe/analysis">
         <el-icon><Aim /></el-icon>
-        <template #title>Root Cause</template>
+        <template #title>根因分析 Root Cause</template>
       </el-menu-item>
       <el-menu-item index="/observe/performance">
         <el-icon><TrendCharts /></el-icon>
-        <template #title>Performance</template>
+        <template #title>性能 Performance</template>
       </el-menu-item>
       <el-menu-item index="/observe/journal">
         <el-icon><Notebook /></el-icon>
-        <template #title>Journal</template>
+        <template #title>日志 Journal</template>
       </el-menu-item>
     </el-sub-menu>
 
     <el-sub-menu index="/live">
       <template #title>
         <el-icon><VideoCamera /></el-icon>
-        <span>Live Studio</span>
+        <span>实盘 Live Studio</span>
       </template>
       <el-menu-item index="/live">
         <el-icon><DataLine /></el-icon>
-        <template #title>Strategies</template>
+        <template #title>策略 Strategies</template>
       </el-menu-item>
     </el-sub-menu>
 
     <el-menu-item index="/compare">
       <el-icon><TrendCharts /></el-icon>
-      <template #title>Compare</template>
+      <template #title>对比 Compare</template>
     </el-menu-item>
 
     <el-menu-item index="/leaderboard">
       <el-icon><Trophy /></el-icon>
-      <template #title>Leaderboard</template>
+      <template #title>排行榜 Leaderboard</template>
     </el-menu-item>
 
     <el-menu-item index="/strategies">
       <el-icon><Odometer /></el-icon>
-      <template #title>Strategies</template>
+      <template #title>策略 Strategies</template>
     </el-menu-item>
 
     <el-menu-item index="/strategy-builder">
       <el-icon><SetUp /></el-icon>
-      <template #title>Builder</template>
+      <template #title>构建器 Builder</template>
     </el-menu-item>
 
     <el-menu-item index="/datasets">
       <el-icon><Coin /></el-icon>
-      <template #title>Datasets</template>
+      <template #title>数据集 Datasets</template>
     </el-menu-item>
 
     <el-menu-item index="/backtests">
       <el-icon><DataAnalysis /></el-icon>
-      <template #title>Backtest</template>
+      <template #title>回测 Backtest</template>
     </el-menu-item>
   </el-menu>
 

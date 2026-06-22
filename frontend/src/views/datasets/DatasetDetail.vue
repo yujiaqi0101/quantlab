@@ -3,13 +3,13 @@
     <!-- Back -->
     <div class="detail-back" @click="router.push('/datasets')">
       <el-icon :size="14"><ArrowLeft /></el-icon>
-      <span>Back to Datasets</span>
+      <span>返回数据集 Back to Datasets</span>
     </div>
 
     <!-- Loading -->
     <div v-if="store.loading" class="loading-state">
       <el-icon class="is-loading" :size="24"><Loading /></el-icon>
-      <span>Loading dataset...</span>
+      <span>加载数据集中 Loading dataset...</span>
     </div>
 
     <!-- Error -->
@@ -36,40 +36,40 @@
       <!-- Info Grid -->
       <div class="info-grid">
         <div class="info-card">
-          <span class="info-label">Symbol</span>
+          <span class="info-label">标的 Symbol</span>
           <span class="info-value mono">{{ dataset.symbol }}</span>
         </div>
         <div class="info-card">
-          <span class="info-label">Frequency</span>
+          <span class="info-label">频率 Frequency</span>
           <span class="info-value mono">{{ dataset.frequency }}</span>
         </div>
         <div class="info-card">
-          <span class="info-label">Rows</span>
+          <span class="info-label">行数 Rows</span>
           <span class="info-value mono highlight">{{ formatNumber(dataset.rows) }}</span>
         </div>
         <div class="info-card">
-          <span class="info-label">Start</span>
+          <span class="info-label">开始 Start</span>
           <span class="info-value mono">{{ formatDate(dataset.start_time) }}</span>
         </div>
         <div class="info-card">
-          <span class="info-label">End</span>
+          <span class="info-label">结束 End</span>
           <span class="info-value mono">{{ formatDate(dataset.end_time) }}</span>
         </div>
         <div class="info-card">
-          <span class="info-label">Format</span>
+          <span class="info-label">格式 Format</span>
           <span class="info-value mono">{{ dataset.storage_format }}</span>
         </div>
       </div>
 
       <!-- Candlestick Chart -->
       <div v-if="dataset.is_ohlcv && previewData" class="detail-section">
-        <h3 class="section-title">Price Chart</h3>
+        <h3 class="section-title">价格图表 Price Chart</h3>
         <CandlestickChart :preview="previewData" />
       </div>
 
       <!-- Data Preview -->
       <div v-if="previewData" class="detail-section">
-        <h3 class="section-title">Data Preview</h3>
+        <h3 class="section-title">数据预览 Data Preview</h3>
         <div class="preview-tabs">
           <div
             v-for="sym in previewData.symbols"
@@ -89,7 +89,7 @@
           :cell-style="{ borderBottom: '1px solid #1b2332' }"
           max-height="400"
         >
-          <el-table-column label="Date" width="160">
+          <el-table-column label="日期 Date" width="160">
             <template #default="{ $index }">
               <span class="cell-date">{{ previewIndex[$index] }}</span>
             </template>
@@ -110,7 +110,7 @@
 
       <!-- Schema -->
       <div v-if="dataset.schema?.columns?.length" class="detail-section">
-        <h3 class="section-title">Schema</h3>
+        <h3 class="section-title">模式 Schema</h3>
         <div class="schema-grid">
           <div
             v-for="col in dataset.schema.columns"

@@ -77,6 +77,13 @@ class Dataset:
     frequency: str = "1d"          # 1m / 5m / 15m / 1h / 4h / 1d
     description: str = ""
     tags: List[str] = field(default_factory=list)
+    # 统一存储扩展字段（合并自原 datasets.db）
+    asset_type: str = "crypto"     # crypto / stock / futures
+    storage_path: str = ""
+    storage_format: str = "parquet"
+    schema: Dict[str, Any] = field(default_factory=lambda: {"columns": [], "column_names": [], "has_ohlcv": True})
+    is_ohlcv: bool = True
+    coverage: str = ""
     _data: Optional[pd.DataFrame] = None
     created_at: str = ""
 
@@ -94,8 +101,20 @@ class Dataset:
                 self.end_date = str(df.index.max())
 
     def get_data(self) -> Optional[pd.DataFrame]:
-        """获取数据"""
-        return self._data
+        """获取数据（内存无数据时从 Parquet 加载）"""
+        if self._data is not None:
+            return self._data
+        # 尝试从 Parquet 持久化加载
+        try:
+            from quantlab.ml.storage import get_parquet_store
+            ps = get_parquet_store()
+            df = ps.load_dataset_data(self.dataset_id)
+            if df is not None:
+                self._data = df
+                return df
+        except Exception:
+            pass
+        return None
 
     def get_stats(self) -> DatasetStats:
         """获取统计信息"""
@@ -144,6 +163,13 @@ class Dataset:
             "tags": self.tags,
             "created_at": self.created_at,
             "has_data": self._data is not None,
+            # 统一存储扩展字段
+            "asset_type": self.asset_type,
+            "storage_path": self.storage_path,
+            "storage_format": self.storage_format,
+            "schema": self.schema,
+            "is_ohlcv": self.is_ohlcv,
+            "coverage": self.coverage,
         }
 
 
@@ -180,6 +206,8 @@ class DatasetManager:
         frequency: str = "1d",
         description: str = "",
         tags: Optional[List[str]] = None,
+        asset_type: str = "crypto",
+        is_ohlcv: bool = True,
     ) -> Dataset:
         """创建数据集"""
         ds = Dataset(
@@ -188,6 +216,8 @@ class DatasetManager:
             frequency=frequency,
             description=description,
             tags=tags or [],
+            asset_type=asset_type,
+            is_ohlcv=is_ohlcv,
         )
         self._datasets[ds.dataset_id] = ds
         if self._persist and self._store:
@@ -282,12 +312,32 @@ class DatasetManager:
         for row in rows:
             if row["dataset_id"] in self._datasets:
                 continue
+            # symbols 可能是 JSON 字符串或逗号分隔字符串
+            symbols_raw = row["symbols"]
+            if isinstance(symbols_raw, str):
+                if symbols_raw.startswith("["):
+                    import json
+                    try:
+                        symbols = json.loads(symbols_raw)
+                    except (json.JSONDecodeError, TypeError):
+                        symbols = [s.strip() for s in symbols_raw.split(",") if s.strip()]
+                else:
+                    symbols = [s.strip() for s in symbols_raw.split(",") if s.strip()]
+            else:
+                symbols = symbols_raw if isinstance(symbols_raw, list) else []
+
             ds = Dataset(
                 name=row["name"],
-                symbols=row["symbols"],
+                symbols=symbols,
                 frequency=row["frequency"],
                 description=row["description"],
                 tags=row["tags"],
+                asset_type=row.get("asset_type", "crypto"),
+                storage_path=row.get("storage_path", ""),
+                storage_format=row.get("storage_format", "parquet"),
+                schema=row.get("schema", {"columns": [], "column_names": [], "has_ohlcv": True}),
+                is_ohlcv=row.get("is_ohlcv", True),
+                coverage=row.get("coverage", ""),
             )
             # 覆盖为 DB 中的 id 和时间戳，保持一致
             ds.dataset_id = row["dataset_id"]
@@ -297,6 +347,59 @@ class DatasetManager:
             self._datasets[ds.dataset_id] = ds
             count += 1
         logger.info(f"Loaded {count} datasets from store")
+        return count
+
+    def seed_sample_datasets(self) -> int:
+        """
+        注入示例数据集（合并自原 datasets.db 的种子数据）。
+        只添加不存在的样本，已存在的跳过。
+        返回新增数量。
+        """
+        samples = [
+            ("BTC_1h", "BTC/USDT 1H", "BTCUSDT", "1h", "crypto", "2023-01-01", "2025-06-01", 17520, "crypto", "BTC"),
+            ("ETH_1h", "ETH/USDT 1H", "ETHUSDT", "1h", "crypto", "2023-01-01", "2025-06-01", 17520, "crypto", "ETH"),
+            ("SOL_4h", "SOL/USDT 4H", "SOLUSDT", "4h", "crypto", "2023-06-01", "2025-06-01", 4380, "crypto", "SOL"),
+            ("BNB_1d", "BNB/USDT 1D", "BNBUSDT", "1d", "crypto", "2022-01-01", "2025-06-01", 1248, "crypto", "BNB"),
+            ("BTC_5m", "BTC/USDT 5M", "BTCUSDT", "5m", "crypto", "2024-01-01", "2025-06-01", 148032, "crypto", "BTC"),
+            ("ETH_15m", "ETH/USDT 15M", "ETHUSDT", "15m", "crypto", "2024-01-01", "2025-06-01", 49344, "crypto", "ETH"),
+            ("MULTI_1h", "Multi-Crypto 1H", "BTCUSDT,ETHUSDT,SOLUSDT", "1h", "crypto", "2023-01-01", "2025-06-01", 52560, "crypto", "multi"),
+        ]
+        count = 0
+        for s in samples:
+            ds_id, name, symbol, freq, asset_type, start, end, rows, tag, _ = s
+            if ds_id in self._datasets:
+                continue
+            symbols_list = [sym.strip() for sym in symbol.split(",") if sym.strip()]
+            ds = Dataset(
+                name=name,
+                symbols=symbols_list,
+                frequency=freq,
+                description=f"{name} sample dataset",
+                tags=[tag],
+                asset_type=asset_type,
+                is_ohlcv=True,
+            )
+            ds.dataset_id = ds_id
+            ds.start_date = start
+            ds.end_date = end
+            ds.storage_format = "parquet"
+            ds.schema = {
+                "columns": [
+                    {"name": "open", "dtype": "float64", "role": "price", "description": "Open price"},
+                    {"name": "high", "dtype": "float64", "role": "price", "description": "High price"},
+                    {"name": "low", "dtype": "float64", "role": "price", "description": "Low price"},
+                    {"name": "close", "dtype": "float64", "role": "price", "description": "Close price"},
+                    {"name": "volume", "dtype": "float64", "role": "volume", "description": "Volume"},
+                ],
+                "column_names": ["open", "high", "low", "close", "volume"],
+                "has_ohlcv": True,
+            }
+            ds.coverage = f"{start} ~ {end}"
+            self._datasets[ds_id] = ds
+            if self._persist and self._store:
+                self._store.save_dataset(ds.to_dict(), has_data=False)
+            count += 1
+        logger.info(f"Seeded {count} sample datasets")
         return count
 
     def load_dataset_data(self, dataset_id: str) -> bool:
@@ -327,10 +430,13 @@ def get_dataset_manager(persist: bool = True) -> DatasetManager:
     Args:
         persist: 是否开启 SQLite + Parquet 持久化（默认 True）
                  首次创建时会自动从 DB 恢复已有 Dataset 元信息
+                 如果 DB 为空则注入示例数据
     """
     global _dataset_manager
     if _dataset_manager is None:
         _dataset_manager = DatasetManager(persist=persist)
         if persist:
             _dataset_manager.load_from_store()
+            # 注入示例数据集（只添加不存在的）
+            _dataset_manager.seed_sample_datasets()
     return _dataset_manager

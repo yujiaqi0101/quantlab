@@ -1,7 +1,7 @@
 <template>
   <div class="feature-diagnostics">
     <div class="panel-header">
-      <h2>Feature Diagnostics</h2>
+      <h2>特征诊断 Feature Diagnostics</h2>
       <p class="hint">
         M1 必做：自动统计 missing_rate / inf_count / zero_rate / variance，发现坏特征并自动标红。
       </p>
@@ -11,13 +11,13 @@
     <el-card shadow="never" class="input-card">
       <template #header>
         <div class="card-header">
-          <span>一键诊断（Dataset + FeatureSet）</span>
-          <el-button type="primary" :loading="loading" @click="runFromDataset">Run Diagnostics</el-button>
+          <span>一键诊断（数据集 + 特征集）</span>
+          <el-button type="primary" :loading="loading" @click="runFromDataset">运行诊断 Run</el-button>
         </div>
       </template>
       <el-form :inline="true" :model="form" label-width="120px">
-        <el-form-item label="Dataset">
-          <el-select v-model="form.dataset_id" placeholder="Select dataset" filterable style="width: 220px">
+        <el-form-item label="数据集 Dataset">
+          <el-select v-model="form.dataset_id" placeholder="选择数据集 Select dataset" filterable style="width: 220px">
             <el-option
               v-for="d in datasets"
               :key="d.dataset_id"
@@ -26,8 +26,8 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="FeatureSet">
-          <el-select v-model="form.feature_set_name" placeholder="Select feature set" filterable style="width: 220px">
+        <el-form-item label="特征集 FeatureSet">
+          <el-select v-model="form.feature_set_name" placeholder="选择特征集 Select feature set" filterable style="width: 220px">
             <el-option
               v-for="fs in featureSets"
               :key="fs.name"
@@ -36,8 +36,8 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="Label">
-          <el-select v-model="form.label_id" placeholder="Select label" filterable style="width: 220px">
+        <el-form-item label="标签 Label">
+          <el-select v-model="form.label_id" placeholder="选择标签 Select label" filterable style="width: 220px">
             <el-option
               v-for="l in labels"
               :key="l.label_id"
@@ -79,32 +79,32 @@
       <el-card shadow="never" class="summary-card">
         <div class="metric">
           <div class="metric-value">{{ report.n_features }}</div>
-          <div class="metric-label">Total Features</div>
+          <div class="metric-label">总特征数 Total Features</div>
         </div>
       </el-card>
       <el-card shadow="never" class="summary-card">
         <div class="metric">
           <div class="metric-value">{{ report.n_samples }}</div>
-          <div class="metric-label">Samples</div>
+          <div class="metric-label">样本数 Samples</div>
         </div>
       </el-card>
       <el-card shadow="never" class="summary-card bad">
         <div class="metric">
           <div class="metric-value">{{ report.n_bad }}</div>
-          <div class="metric-label">Bad Features</div>
+          <div class="metric-label">坏特征 Bad Features</div>
         </div>
       </el-card>
       <el-card shadow="never" class="summary-card">
         <div class="metric">
           <div class="metric-value">{{ (report.summary.bad_ratio * 100).toFixed(1) }}%</div>
-          <div class="metric-label">Bad Ratio</div>
+          <div class="metric-label">坏特征率 Bad Ratio</div>
         </div>
       </el-card>
     </div>
 
     <!-- 问题类型统计 -->
     <el-card v-if="report && Object.keys(report.summary.issue_counts).length > 0" shadow="never" class="issue-card">
-      <template #header>Issue Breakdown</template>
+      <template #header>问题分类 Issue Breakdown</template>
       <div class="issue-tags">
         <el-tag
           v-for="(count, issue) in report.summary.issue_counts"
@@ -125,44 +125,44 @@
       style="width: 100%; margin-top: 16px"
       :row-class-name="rowClassName"
     >
-      <el-table-column prop="feature_name" label="Feature" width="180" fixed />
-      <el-table-column prop="dtype" label="Dtype" width="100" />
-      <el-table-column prop="n_samples" label="Samples" width="90" />
-      <el-table-column label="Missing" width="140">
+      <el-table-column prop="feature_name" label="特征 Feature" width="180" fixed />
+      <el-table-column prop="dtype" label="类型 Dtype" width="100" />
+      <el-table-column prop="n_samples" label="样本数 Samples" width="90" />
+      <el-table-column label="缺失 Missing" width="140">
         <template #default="{ row }">
           <span :class="{ 'bad-cell': row.missing_rate > 0.5 }">
             {{ row.n_missing }} ({{ (row.missing_rate * 100).toFixed(1) }}%)
           </span>
         </template>
       </el-table-column>
-      <el-table-column label="Inf" width="80">
+      <el-table-column label="无穷 Inf" width="80">
         <template #default="{ row }">
           <span :class="{ 'bad-cell': row.n_inf > 0 }">{{ row.n_inf }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="Zero" width="140">
+      <el-table-column label="零值 Zero" width="140">
         <template #default="{ row }">
           <span :class="{ 'bad-cell': row.zero_rate > 0.5 }">
             {{ row.n_zero }} ({{ (row.zero_rate * 100).toFixed(1) }}%)
           </span>
         </template>
       </el-table-column>
-      <el-table-column label="Variance" width="130">
+      <el-table-column label="方差 Variance" width="130">
         <template #default="{ row }">
           <span :class="{ 'bad-cell': row.variance !== null && row.variance < 1e-10 }">
             {{ row.variance === null ? '-' : row.variance.toExponential(3) }}
           </span>
         </template>
       </el-table-column>
-      <el-table-column prop="n_unique" label="Unique" width="90" />
-      <el-table-column label="Status" width="100">
+      <el-table-column prop="n_unique" label="唯一值 Unique" width="90" />
+      <el-table-column label="状态 Status" width="100">
         <template #default="{ row }">
           <el-tag :type="row.is_bad ? 'danger' : 'success'" size="small">
-            {{ row.is_bad ? 'BAD' : 'OK' }}
+            {{ row.is_bad ? '坏 BAD' : '好 OK' }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="Issues" min-width="200">
+      <el-table-column label="问题 Issues" min-width="200">
         <template #default="{ row }">
           <el-tag
             v-for="issue in row.issues"
@@ -239,49 +239,38 @@ async function loadData() {
     featureSets.value = fsResp.sets || []
     labels.value = lblResp.labels || []
   } catch (e) {
-    ElMessage.error('Failed to load metadata')
+    ElMessage.error('加载元数据失败 Failed to load metadata')
   }
 }
 
 async function runFromDataset() {
   if (!form.value.dataset_id || !form.value.feature_set_name || !form.value.label_id) {
-    ElMessage.warning('Please select dataset, feature set and label')
+    ElMessage.warning('请选择数据集、特征集和标签 Please select dataset, feature set and label')
     return
   }
 
   loading.value = true
   try {
-    // 1. 获取数据集统计信息（含数据预览）
     const stats = await getMLDatasetStats(form.value.dataset_id)
-    // 2. 获取 FeatureSet 详情，拿到 feature_ids
     const fs = featureSets.value.find(f => f.name === form.value.feature_set_name)
     if (!fs || !fs.feature_ids.length) {
       throw new Error('FeatureSet has no features')
     }
 
-    // 3. 从数据集预览中取数据，计算特征
-    // 注意：这里使用 stats 中的 preview 数据；实际生产应通过专用接口拉取全量数据
-    // 此处采用简化路径：直接调用 /features/compute
-    // 由于 Dataset Center 的 preview 数据有限，这里给出提示
     if (!stats || !stats.columns || stats.columns.length === 0) {
-      throw new Error('Dataset has no data, please upload CSV first')
+      throw new Error('数据集无数据，请先上传 Dataset has no data, please upload CSV first')
     }
 
-    ElMessage.info('Diagnostics requires feature matrix. Please use the manual input below or ensure dataset has data.')
-    // 简化：如果数据集有数据，前端无法直接拿到全量 DataFrame
-    // 这里给出一个占位提示，实际全量诊断建议通过 /diagnostics/training-dataset 端点
-    // 该端点在后端直接读取 Dataset 数据并诊断
+    ElMessage.info('诊断需要特征矩阵，请确保数据集有数据 Diagnostics requires feature matrix.')
     await runViaTrainingDataset()
   } catch (e: any) {
-    ElMessage.error(e.message || 'Diagnostics failed')
+    ElMessage.error(e.message || '诊断失败 Diagnostics failed')
   } finally {
     loading.value = false
   }
 }
 
 async function runViaTrainingDataset() {
-  // 通过后端 /diagnostics/training-dataset 端点直接诊断
-  // 该端点在后端读取 Dataset 全量数据，无需前端传 DataFrame
   const { runTrainingDatasetDiagnostics } = await import('@/api/ml')
   const result = await runTrainingDatasetDiagnostics({
     dataset_id: form.value.dataset_id,
@@ -289,7 +278,7 @@ async function runViaTrainingDataset() {
     label_id: form.value.label_id,
   })
   report.value = result.feature_diagnostics
-  ElMessage.success(`Diagnostics done: ${result.n_samples} samples, ${result.n_features} features`)
+  ElMessage.success(`诊断完成：${result.n_samples} 样本，${result.n_features} 特征 Diagnostics done`)
 }
 
 onMounted(() => {

@@ -31,6 +31,10 @@ class FutureReturn(Label):
         self.params = {"period": period}
         self.label_id = f"future_return_{period}"
         self.name = f"FutureReturn{period}"
+        self.description = "Future N-period return"
+        self.label_type = "regression"
+        self.classes = []
+        self.required_columns = ["close"]
 
     def generate(self, df: pd.DataFrame) -> pd.Series:
         period = self.params["period"]
@@ -56,6 +60,10 @@ class UpDownLabel(Label):
         self.params = {"period": period, "threshold": threshold}
         self.label_id = f"updown_{period}_{threshold}"
         self.name = f"UpDown({period},{threshold})"
+        self.description = "3-class label: Up / Neutral / Down"
+        self.label_type = "classification"
+        self.classes = ["Down", "Neutral", "Up"]
+        self.required_columns = ["close"]
 
     def generate(self, df: pd.DataFrame) -> pd.Series:
         period = self.params["period"]
@@ -88,6 +96,10 @@ class DirectionLabel(Label):
         self.params = {"period": period}
         self.label_id = f"direction_{period}"
         self.name = f"Direction({period})"
+        self.description = "Binary label: Up / Down"
+        self.label_type = "classification"
+        self.classes = ["Down", "Up"]
+        self.required_columns = ["close"]
 
     def generate(self, df: pd.DataFrame) -> pd.Series:
         period = self.params["period"]

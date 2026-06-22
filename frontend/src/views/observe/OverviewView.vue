@@ -2,24 +2,24 @@
   <div class="observe-overview">
     <div class="page-header">
       <div>
-        <h1 class="page-title">Observe Studio</h1>
-        <span class="page-subtitle">理解系统正在发生什么</span>
+        <h1 class="page-title">观测工作室 Observe Studio</h1>
+        <span class="page-subtitle">理解系统正在发生什么 Understand what the system is doing</span>
       </div>
       <div class="header-actions">
-        <el-button :icon="Refresh" @click="refreshAll" :loading="loading">刷新</el-button>
+        <el-button :icon="Refresh" @click="refreshAll" :loading="loading">刷新 Refresh</el-button>
       </div>
     </div>
 
     <!-- Account Summary Cards -->
     <div class="cards-grid">
       <el-card class="summary-card" shadow="hover">
-        <template #header><span>账户权益</span></template>
+        <template #header><span>账户权益 Account Equity</span></template>
         <div class="metric-value">${{ formatNum(overview?.equity) }}</div>
         <div class="metric-sub">现金: ${{ formatNum(overview?.cash) }}</div>
       </el-card>
 
       <el-card class="summary-card" shadow="hover">
-        <template #header><span>今日收益</span></template>
+        <template #header><span>今日收益 Today P&L</span></template>
         <div class="metric-value" :class="pnlClass(overview?.today_pnl)">
           {{ formatPnl(overview?.today_pnl) }}
         </div>

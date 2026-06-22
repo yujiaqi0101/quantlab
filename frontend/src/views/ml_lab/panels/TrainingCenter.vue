@@ -1,43 +1,43 @@
 <template>
   <div class="training-center">
     <div class="panel-header">
-      <h2>Training Center</h2>
-      <el-button type="primary" @click="showTrainDialog = true">Start Training</el-button>
+      <h2>训练中心 Training Center</h2>
+      <el-button type="primary" @click="showTrainDialog = true">开始训练 Start Training</el-button>
     </div>
 
     <!-- 状态卡片 -->
     <el-row :gutter="16" v-if="status" style="margin-bottom: 16px">
       <el-col :span="6">
-        <el-card><div class="stat"><div class="label">Total</div><div class="value">{{ status.total }}</div></div></el-card>
+        <el-card><div class="stat"><div class="label">总计 Total</div><div class="value">{{ status.total }}</div></div></el-card>
       </el-col>
       <el-col :span="6">
-        <el-card><div class="stat"><div class="label">Completed</div><div class="value success">{{ status.completed }}</div></div></el-card>
+        <el-card><div class="stat"><div class="label">已完成 Completed</div><div class="value success">{{ status.completed }}</div></div></el-card>
       </el-col>
       <el-col :span="6">
-        <el-card><div class="stat"><div class="label">Failed</div><div class="value danger">{{ status.failed }}</div></div></el-card>
+        <el-card><div class="stat"><div class="label">失败 Failed</div><div class="value danger">{{ status.failed }}</div></div></el-card>
       </el-col>
       <el-col :span="6">
-        <el-card><div class="stat"><div class="label">Running</div><div class="value warning">{{ status.running }}</div></div></el-card>
+        <el-card><div class="stat"><div class="label">运行中 Running</div><div class="value warning">{{ status.running }}</div></div></el-card>
       </el-col>
     </el-row>
 
     <!-- 任务列表 -->
     <el-table :data="jobs" v-loading="loading" border>
-      <el-table-column prop="job_id" label="Job ID" width="120" />
-      <el-table-column prop="dataset_id" label="Dataset" width="120" />
-      <el-table-column prop="feature_ids" label="Features" width="200">
+      <el-table-column prop="job_id" label="任务ID Job ID" width="120" />
+      <el-table-column prop="dataset_id" label="数据集 Dataset" width="120" />
+      <el-table-column prop="feature_ids" label="特征 Features" width="200">
         <template #default="{ row }">
           <el-tag v-for="f in row.feature_ids" :key="f" size="small" style="margin-right: 4px">{{ f }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="label_id" label="Label" width="150" />
-      <el-table-column prop="model_type" label="Model" width="150" />
-      <el-table-column prop="status" label="Status" width="120">
+      <el-table-column prop="label_id" label="标签 Label" width="150" />
+      <el-table-column prop="model_type" label="模型 Model" width="150" />
+      <el-table-column prop="status" label="状态 Status" width="120">
         <template #default="{ row }">
           <el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="Metrics" v-if="jobs.length > 0 && jobs[0].metrics">
+      <el-table-column label="指标 Metrics" v-if="jobs.length > 0 && jobs[0].metrics">
         <template #default="{ row }">
           <span v-if="row.metrics">IC: {{ row.metrics.ic?.toFixed(4) }}, RMSE: {{ row.metrics.rmse?.toFixed(4) }}</span>
         </template>
@@ -45,38 +45,38 @@
     </el-table>
 
     <!-- 训练对话框 -->
-    <el-dialog v-model="showTrainDialog" title="Start Training" width="600px">
+    <el-dialog v-model="showTrainDialog" title="开始训练 Start Training" width="600px">
       <el-form :model="trainForm" label-width="120px">
-        <el-form-item label="Dataset">
-          <el-select v-model="trainForm.dataset_id" placeholder="Select dataset" style="width: 100%">
+        <el-form-item label="数据集 Dataset">
+          <el-select v-model="trainForm.dataset_id" placeholder="选择数据集 Select dataset" style="width: 100%">
             <el-option v-for="ds in datasets" :key="ds.dataset_id" :label="ds.name" :value="ds.dataset_id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="Features">
-          <el-select v-model="trainForm.feature_ids" multiple placeholder="Select features" style="width: 100%">
+        <el-form-item label="特征 Features">
+          <el-select v-model="trainForm.feature_ids" multiple placeholder="选择特征 Select features" style="width: 100%">
             <el-option v-for="f in features" :key="f.feature_id" :label="f.name" :value="f.feature_id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="Label">
-          <el-select v-model="trainForm.label_id" placeholder="Select label" style="width: 100%">
+        <el-form-item label="标签 Label">
+          <el-select v-model="trainForm.label_id" placeholder="选择标签 Select label" style="width: 100%">
             <el-option v-for="l in labels" :key="l.label_id" :label="l.name" :value="l.label_id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="Model">
+        <el-form-item label="模型 Model">
           <el-select v-model="trainForm.model_type" style="width: 100%">
             <el-option v-for="m in models" :key="m.type" :label="m.name" :value="m.type" />
           </el-select>
         </el-form-item>
-        <el-form-item label="Classifier">
+        <el-form-item label="分类器 Classifier">
           <el-switch v-model="trainForm.is_classifier" />
         </el-form-item>
-        <el-form-item label="Train Ratio">
+        <el-form-item label="训练比例 Train Ratio">
           <el-slider v-model="trainForm.train_ratio" :min="0.5" :max="0.9" :step="0.05" show-input />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showTrainDialog = false">Cancel</el-button>
-        <el-button type="primary" :loading="training" @click="startTraining">Train</el-button>
+        <el-button @click="showTrainDialog = false">取消 Cancel</el-button>
+        <el-button type="primary" :loading="training" @click="startTraining">训练 Train</el-button>
       </template>
     </el-dialog>
   </div>
@@ -136,7 +136,7 @@ async function loadData() {
     labels.value = labelResp.labels || []
     models.value = modelResp.models || []
   } catch (e) {
-    ElMessage.error('Failed to load data')
+    ElMessage.error('加载数据失败 Failed to load data')
   } finally {
     loading.value = false
   }
@@ -144,21 +144,21 @@ async function loadData() {
 
 async function startTraining() {
   if (!trainForm.value.dataset_id || trainForm.value.feature_ids.length === 0 || !trainForm.value.label_id) {
-    ElMessage.warning('Please fill all fields')
+    ElMessage.warning('请填写所有必填项 Please fill all fields')
     return
   }
   training.value = true
   try {
     const result = await submitTraining(trainForm.value)
     if (result.status === 'COMPLETED') {
-      ElMessage.success(`Training completed! IC=${result.metrics?.ic?.toFixed(4)}`)
+      ElMessage.success(`训练完成！IC=${result.metrics?.ic?.toFixed(4)}`)
     } else {
-      ElMessage.error(`Training failed: ${result.error}`)
+      ElMessage.error(`训练失败：${result.error}`)
     }
     showTrainDialog.value = false
     loadData()
   } catch (e: any) {
-    ElMessage.error(e.response?.data?.detail || 'Training failed')
+    ElMessage.error(e.response?.data?.detail || '训练失败 Training failed')
   } finally {
     training.value = false
   }

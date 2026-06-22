@@ -1,22 +1,22 @@
 <template>
   <div class="model-arena">
     <div class="panel-header">
-      <h2>Model Arena</h2>
-      <el-button type="primary" @click="showRunDialog = true">Run Comparison</el-button>
+      <h2>模型竞技场 Model Arena</h2>
+      <el-button type="primary" @click="showRunDialog = true">运行对比 Run Comparison</el-button>
     </div>
 
     <!-- 排行榜 -->
     <el-card>
       <template #header>
         <div style="display: flex; justify-content: space-between; align-items: center">
-          <span>Leaderboard (by IC)</span>
-          <el-button size="small" @click="loadLeaderboard">Refresh</el-button>
+          <span>排行榜（按IC）Leaderboard (by IC)</span>
+          <el-button size="small" @click="loadLeaderboard">刷新 Refresh</el-button>
         </div>
       </template>
       <el-table :data="leaderboard" v-loading="loading" border>
-        <el-table-column type="index" label="Rank" width="80" />
-        <el-table-column prop="name" label="Model" width="180" />
-        <el-table-column prop="model_type" label="Type" width="160" />
+        <el-table-column type="index" label="排名 Rank" width="80" />
+        <el-table-column prop="name" label="模型 Model" width="180" />
+        <el-table-column prop="model_type" label="类型 Type" width="160" />
         <el-table-column label="IC" width="120">
           <template #default="{ row }">
             {{ row.metrics?.ic?.toFixed(4) ?? '-' }}
@@ -32,45 +32,45 @@
             {{ row.metrics?.rmse?.toFixed(4) ?? '-' }}
           </template>
         </el-table-column>
-        <el-table-column label="Train Time" width="120">
+        <el-table-column label="训练时间 Train Time" width="120">
           <template #default="{ row }">
             {{ row.train_time?.toFixed(2) }}s
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="Status" width="120" />
+        <el-table-column prop="status" label="状态 Status" width="120" />
       </el-table>
     </el-card>
 
     <!-- 运行对比对话框 -->
-    <el-dialog v-model="showRunDialog" title="Run Model Comparison" width="600px">
+    <el-dialog v-model="showRunDialog" title="运行模型对比 Run Model Comparison" width="600px">
       <el-form :model="form" label-width="120px">
-        <el-form-item label="Dataset">
-          <el-select v-model="form.dataset_id" placeholder="Select dataset" style="width: 100%">
+        <el-form-item label="数据集 Dataset">
+          <el-select v-model="form.dataset_id" placeholder="选择数据集 Select dataset" style="width: 100%">
             <el-option v-for="d in datasets" :key="d.dataset_id" :label="d.name" :value="d.dataset_id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="FeatureSet">
-          <el-select v-model="form.feature_set_id" style="width: 100%">
+        <el-form-item label="特征集 FeatureSet">
+          <el-select v-model="form.feature_set_id" placeholder="选择特征集 Select feature set" style="width: 100%">
             <el-option v-for="f in featureSets" :key="f.name" :label="f.name" :value="f.name" />
           </el-select>
         </el-form-item>
-        <el-form-item label="LabelSet">
-          <el-select v-model="form.label_set_id" style="width: 100%">
+        <el-form-item label="标签集 LabelSet">
+          <el-select v-model="form.label_set_id" placeholder="选择标签集 Select label set" style="width: 100%">
             <el-option v-for="l in labelSets" :key="l.name" :label="l.name" :value="l.name" />
           </el-select>
         </el-form-item>
-        <el-form-item label="Models">
+        <el-form-item label="模型 Models">
           <el-checkbox-group v-model="form.model_types">
-            <el-checkbox label="LINEAR_REGRESSION">Linear</el-checkbox>
-            <el-checkbox label="RANDOM_FOREST">Random Forest</el-checkbox>
+            <el-checkbox label="LINEAR_REGRESSION">线性回归 Linear</el-checkbox>
+            <el-checkbox label="RANDOM_FOREST">随机森林 Random Forest</el-checkbox>
             <el-checkbox label="LIGHTGBM">LightGBM</el-checkbox>
             <el-checkbox label="XGBOOST">XGBoost</el-checkbox>
           </el-checkbox-group>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showRunDialog = false">Cancel</el-button>
-        <el-button type="primary" :loading="running" @click="runComparison">Run</el-button>
+        <el-button @click="showRunDialog = false">取消 Cancel</el-button>
+        <el-button type="primary" :loading="running" @click="runComparison">运行 Run</el-button>
       </template>
     </el-dialog>
   </div>
@@ -112,7 +112,7 @@ async function loadLeaderboard() {
     const resp = await getArenaLeaderboard('ic', false)
     leaderboard.value = resp.leaderboard
   } catch (e: any) {
-    ElMessage.error(e.message || 'Failed to load')
+    ElMessage.error(e.message || '加载失败 Failed to load')
   } finally {
     loading.value = false
   }
@@ -127,11 +127,11 @@ async function loadOptions() {
 
 async function runComparison() {
   if (!form.value.dataset_id || !form.value.feature_set_id || !form.value.label_set_id) {
-    ElMessage.warning('Please select dataset, FeatureSet, and LabelSet')
+    ElMessage.warning('请选择数据集、特征集和标签集 Please select dataset, FeatureSet, and LabelSet')
     return
   }
   if (form.value.model_types.length === 0) {
-    ElMessage.warning('Please select at least one model')
+    ElMessage.warning('请至少选择一个模型 Please select at least one model')
     return
   }
 
@@ -144,10 +144,10 @@ async function runComparison() {
       model_types: form.value.model_types,
     })
     leaderboard.value = resp.leaderboard
-    ElMessage.success(`Comparison done: ${resp.total} models`)
+    ElMessage.success(`对比完成：${resp.total} 个模型 Comparison done: ${resp.total} models`)
     showRunDialog.value = false
   } catch (e: any) {
-    ElMessage.error(e.message || 'Comparison failed')
+    ElMessage.error(e.message || '对比失败 Comparison failed')
   } finally {
     running.value = false
   }

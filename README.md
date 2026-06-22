@@ -28,10 +28,11 @@
 - [18. V3.4 多策略 × 多账户矩阵](#18-v34-多策略--多账户矩阵)
 - [19. V3.5 Execution Fidelity Layer](#19-v35-execution-fidelity-layer)
 - [20. V3.6 Execution-Aware Alpha Layer](#20-v36-execution-aware-alpha-layer)
-- [21. 主入口 `main.py` 的 16 个 Stage](#21-主入口-mainpy-的-16-个-stage)
-- [22. 快速上手](#22-快速上手)
-- [23. 数据格式约定](#23-数据格式约定)
-- [24. 版本演进](#24-版本演进)
+- [21. V4.4 ML Lab + Observe + Live Studio](#21-v44-ml-lab--observe--live-studio)
+- [22. 主入口 `main.py` 的 16 个 Stage](#22-主入口-mainpy-的-16-个-stage)
+- [23. 快速上手](#23-快速上手)
+- [24. 数据格式约定](#24-数据格式约定)
+- [25. 版本演进](#25-版本演进)
 
 ---
 
@@ -186,11 +187,26 @@
     │   ├── app.py                # FastAPI 入口
     │   ├── fidelity.py           # V3.5 API
     │   ├── production.py         # V3.4 运行时 API
-    │   └── alpha_aware.py        # V3.6 API
+    │   ├── alpha_aware.py        # V3.6 API
+    │   └── ml_lab.py             # V4.4 ML Lab API
     └── frontend/                 # 前端（Vue 3 + Element Plus + Vite）
         └── src/views/
             ├── fidelity/FidelityStudio.vue       # V3.5 前端
-            └── alpha_aware/AlphaAwareStudio.vue   # V3.6 前端
+            ├── alpha_aware/AlphaAwareStudio.vue   # V3.6 前端
+            ├── ml_lab/MLLab.vue                   # V4.4 ML Lab（17 Tab）
+            ├── observe/                           # V4.4 Observe Studio（11 子页面）
+            │   ├── OverviewView.vue
+            │   ├── PositionsView.vue
+            │   ├── OrdersView.vue
+            │   ├── TradesView.vue
+            │   ├── RiskView.vue
+            │   ├── HealthView.vue
+            │   ├── TimelineView.vue
+            │   ├── ReplayView.vue
+            │   ├── AnalysisView.vue
+            │   ├── PerformanceView.vue
+            │   └── JournalView.vue
+            └── live/LiveStudio.vue                # V4.4 Live Studio（6 Tab）
 ```
 
 ---
@@ -1529,7 +1545,80 @@ print(result.alpha_score, result.rank, result.is_recommended)
 
 ---
 
-## 21. 主入口 `main.py` 的 16 个 Stage
+## 21. V4.4 ML Lab + Observe + Live Studio
+
+V4.4（M5 Sprint）新增三大前端模块，覆盖**机器学习策略全流程**、**运行时可观测性**和**实时交易工作室**。
+
+### 21.1 ML Lab（`/ml-lab`）
+
+机器学习策略的端到端工作台，共 **17 个 Tab**：
+
+| # | Tab | 用途 |
+|---|-----|------|
+| 1 | Datasets | ML 数据集管理（创建 / 上传 CSV / 查看统计） |
+| 2 | Features | 特征定义 |
+| 3 | Feature Sets | 特征集合管理 |
+| 4 | Labels | 标签定义 |
+| 5 | Label Sets | 标签集合管理 |
+| 6 | Feature Diagnostics | 特征诊断（缺失率 / 分布 / 相关性） |
+| 7 | Label Diagnostics | 标签诊断 |
+| 8 | Feature Analysis | 特征分析 |
+| 9 | Feature Importance | 特征重要性排序 |
+| 10 | Training Jobs | 模型训练（选 Dataset + Features + Label + Model → Start Training） |
+| 11 | Experiments | ML 实验记录 |
+| 12 | Hyperparameter Search | 超参搜索 |
+| 13 | Validation | Walk Forward 验证（4 张统计卡 + Fold Details 表格） |
+| 14 | Model Arena | 模型对比竞技场（多模型同数据集对比，按 IC 排名） |
+| 15 | Leakage Detector | 数据泄露检测（前瞻偏差检查） |
+| 16 | Model Registry | 模型版本注册（Register Version → 版本管理） |
+| 17 | Strategy Builder | ML 策略构建（4 步 Pipeline：Features → Label → Model → ML Strategy） |
+
+**典型工作流**：Datasets → Features → Labels → Training → Validation → Model Arena → Leakage Detector → Model Registry → Strategy Builder
+
+### 21.2 Observe Studio（`/observe/*`）
+
+运行时可观测性中心，共 **11 个子页面**：
+
+| 路径 | 名称 | 用途 |
+|------|------|------|
+| `/observe/overview` | Overview | 账户概览（6 张摘要卡 + 权益曲线 + 策略状态表） |
+| `/observe/positions` | Positions | 实时持仓（Symbol / 方向 / 数量 / 均价 / 未实现盈亏） |
+| `/observe/orders` | Orders | 订单管理（状态筛选 + 时间范围筛选） |
+| `/observe/trades` | Trades | 成交分析（9 张分析卡：胜率 / 盈亏比 / 期望值 等） |
+| `/observe/risk` | Risk | 风险控制（仓位占比 / 日亏损 / 最大回撤 + Kill Switch 状态） |
+| `/observe/health` | Health | 策略健康监控（4 张摘要卡 + 策略状态详情表） |
+| `/observe/timeline` | Timeline | 事件时间线（类别筛选 + trace_id 串联 + Payload 折叠） |
+| `/observe/replay` | Replay | 回放引擎（三栏布局：会话列表 / 播放控制器+事件流 / 状态+持仓+链路分析） |
+| `/observe/analysis` | Root Cause | 根因分析（三栏布局：亏损交易+异常 / 交易链路图 / 根因列表+解释引擎） |
+| `/observe/performance` | Performance | 绩效归因（策略/品种/多空/时段/市场状态/风险/回撤归因 + 月度报告导出） |
+| `/observe/journal` | Journal | 交易日志（类别筛选 + 时间线 + 新增日志） |
+
+### 21.3 Live Studio（`/live`）
+
+实时交易工作室，共 **6 个 Tab**：
+
+| # | Tab | 用途 |
+|---|-----|------|
+| 1 | Strategies | 策略库（浏览 + Deploy 按钮） |
+| 2 | Deployments | 运行中的部署（查看 / 暂停 / 恢复 / 卸载） |
+| 3 | Orders | 订单（部署选择器 + 状态筛选） |
+| 4 | Positions | 持仓（未实现/已实现盈亏） |
+| 5 | Portfolio | 组合（8 张指标卡：净值 / 现金 / 盈亏 / 敞口 / 回撤 / 持仓数） |
+| 6 | Risk | 风险（4 张指标卡：净值 / 敞口 / 最大回撤 / 当前回撤） |
+
+**Deploy Strategy 对话框**：选策略 → 选品种（多选）→ 设初始资金 → 选 Broker（Paper / Binance）→ 动态参数表单
+
+### 21.4 V4.4 注意事项
+
+1. **Binance 实盘当前 disabled**：Live Studio 的 Broker 下拉中 Binance 选项灰色不可选，仅支持 Paper 模拟。
+2. **Observe Replay 依赖会话**：回放引擎需要先创建 Replay Session，否则无法加载事件。
+3. **ML Lab 数据集支持多 Symbol**：创建时用逗号分隔输入（如 "BTC, ETH, SOL"），与 §6 Datasets 的单 Symbol 不同。
+4. **Performance 归因的因子归因未实现**：当前显示 "未实现" 占位提示。
+5. **Journal 日志支持手动新增**：可添加观察 / 反思 / 开仓 / 平仓类型的日志条目。
+
+---
+
+## 22. 主入口 `main.py` 的 16 个 Stage
 
 `main.py` 是一个端到端 demo，把所有模块都验证一遍。整体流程：
 
@@ -1863,7 +1952,7 @@ datetime,open,high,low,close,volume
 
 ---
 
-## 22. 版本演进
+## 23. 版本演进
 
 | 版本 | 模块 | 关键变化 |
 |------|------|----------|
@@ -1884,6 +1973,7 @@ datetime,open,high,low,close,volume
 | **V3.4** | `runtime` | **多策略 × 多账户矩阵**：`Account` + `AccountManager` + `StrategyRuntime`（状态隔离） + `StrategyRegistry` + `AllocationEngine` + `OrderRouter`（拆单+幂等） + `PortfolioSupervisor`（系统级 Kill Switch） |
 | **V3.5** | `execution.fidelity` | **执行保真层**：订单簿模拟 + 市场冲击（sqrt/linear/power）+ 延迟模型 + 综合成本（fee+slippage+impact+opportunity+funding）+ 成交引擎（部分成交） + 多档撮合 + 成交对账 + 确定性回放 + 影子模式（paper vs live 对比） + True PnL（扣完全部成本） + 自适应执行计划（按 regime 切算法） |
 | **V3.6** | `execution.alpha_aware` | **执行感知 Alpha 层**：Alpha Realizability Engine + Turnover Pressure Model + Liquidity-Aware Filter + Execution Sensitivity Test + Latency Fragility Test + Market Impact Backtest + Execution-Adjusted Sharpe + Alpha Survival Filter + Execution-Aware Feature Engineering + Tradeability Score System。**核心理念：从优化"数学正确性"到优化"市场存活率"** |
+| **V4.4** | `frontend (ML Lab / Observe / Live Studio)` | **M5 Sprint 三大前端模块**：ML Lab（17 Tab 端到端 ML 策略工作台：数据集→特征→标签→训练→验证→模型竞技→泄露检测→模型注册→策略构建）；Observe Studio（11 子页面运行时可观测性：概览/持仓/订单/成交/风险/健康/时间线/回放/根因/绩效/日志）；Live Studio（6 Tab 实时交易工作室：策略部署/运行管理/订单/持仓/组合/风险）。**核心理念：从回测研究到 ML 策略 + 实盘可观测** |
 
 **架构演进总览**：
 
@@ -1896,6 +1986,7 @@ V3.3   + 状态恢复 / 事件重放 / 优雅停机        高可用
 V3.4   + 多策略/多账户矩阵 / 系统级 Kill Switch  多租户/多账户
 V3.5   + 订单簿/冲击/延迟/成本/对账/影子/True PnL  让纸上交易 ≈ 真实交易
 V3.6   + 可实现性/换手/流动性/敏感性/生存/可交易  从数学正确到市场存活
+V4.4   + ML Lab / Observe / Live Studio         从回测研究到ML策略+实盘可观测
 ```
 
 ---

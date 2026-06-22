@@ -2,12 +2,12 @@
   <div class="observe-journal">
     <div class="page-header">
       <div>
-        <h1 class="page-title">Trading Journal</h1>
-        <span class="page-subtitle">交易日志 — 决策记录</span>
+        <h1 class="page-title">交易日志 Trading Journal</h1>
+        <span class="page-subtitle">交易日志 — 决策记录 Trading journal — decision records</span>
       </div>
       <div class="header-actions">
-        <el-button type="primary" :icon="Plus" @click="showAddDialog = true">新增</el-button>
-        <el-button :icon="Refresh" @click="refresh" :loading="loading">刷新</el-button>
+        <el-button type="primary" :icon="Plus" @click="showAddDialog = true">新增 Add</el-button>
+        <el-button :icon="Refresh" @click="refresh" :loading="loading">刷新 Refresh</el-button>
       </div>
     </div>
 

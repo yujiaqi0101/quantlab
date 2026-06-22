@@ -3,14 +3,14 @@
     <div class="page-header">
       <div class="page-header-row">
         <div>
-          <h1 class="page-title">Signal Research</h1>
-          <p class="page-desc">Build, visualize, and analyze trading signals</p>
+          <h1 class="page-title">信号研究 Signal Research</h1>
+          <p class="page-desc">构建、可视化和分析交易信号 Build, visualize, and analyze trading signals</p>
         </div>
         <div class="page-actions">
-          <el-select v-model="selectedDataset" placeholder="Dataset" class="filter-select" @change="onDatasetChange">
+          <el-select v-model="selectedDataset" placeholder="数据集 Dataset" class="filter-select" @change="onDatasetChange">
             <el-option v-for="ds in datasets" :key="ds.dataset_id" :label="ds.name" :value="ds.dataset_id" />
           </el-select>
-          <el-select v-model="selectedSymbol" placeholder="Symbol" clearable class="filter-select" style="width:140px">
+          <el-select v-model="selectedSymbol" placeholder="标的 Symbol" clearable class="filter-select" style="width:140px">
             <el-option v-for="s in symbols" :key="s" :label="s" :value="s" />
           </el-select>
           <el-button :icon="Refresh" circle @click="loadSignals" :loading="loading" />
@@ -23,13 +23,13 @@
       <div class="left-panel">
         <!-- Signal Builder -->
         <div class="builder-card">
-          <div class="card-title">Signal Builder</div>
+          <div class="card-title">信号构建器 Signal Builder</div>
 
           <el-tabs v-model="builderTab" class="q-tabs">
             <!-- Threshold Builder -->
-            <el-tab-pane label="Threshold" name="threshold">
+            <el-tab-pane label="阈值 Threshold" name="threshold">
               <div class="builder-form">
-                <el-select v-model="buildFactor" placeholder="Factor" filterable class="builder-input">
+                <el-select v-model="buildFactor" placeholder="因子 Factor" filterable class="builder-input">
                   <el-option v-for="f in factorList" :key="f.name" :label="f.name" :value="f.name" />
                 </el-select>
                 <el-select v-model="buildOperator" placeholder="Op" class="builder-input" style="width:90px">
@@ -40,21 +40,21 @@
                   <el-option label="Long" value="long" />
                   <el-option label="Short" value="short" />
                 </el-select>
-                <el-button type="primary" size="small" @click="buildThreshold" :loading="buildLoading">Build</el-button>
+                <el-button type="primary" size="small" @click="buildThreshold" :loading="buildLoading">构建 Build</el-button>
               </div>
             </el-tab-pane>
 
             <!-- Crossover Builder -->
-            <el-tab-pane label="Crossover" name="crossover">
+            <el-tab-pane label="交叉 Crossover" name="crossover">
               <div class="builder-form">
-                <el-select v-model="buildFastFactor" placeholder="Fast" filterable class="builder-input">
+                <el-select v-model="buildFastFactor" placeholder="快线 Fast" filterable class="builder-input">
                   <el-option v-for="f in factorList" :key="f.name" :label="f.name" :value="f.name" />
                 </el-select>
-                <span class="builder-label">crosses</span>
-                <el-select v-model="buildSlowFactor" placeholder="Slow" filterable class="builder-input">
+                <span class="builder-label">交叉 crosses</span>
+                <el-select v-model="buildSlowFactor" placeholder="慢线 Slow" filterable class="builder-input">
                   <el-option v-for="f in factorList" :key="f.name" :label="f.name" :value="f.name" />
                 </el-select>
-                <el-button type="primary" size="small" @click="buildCrossover" :loading="buildLoading">Build</el-button>
+                <el-button type="primary" size="small" @click="buildCrossover" :loading="buildLoading">构建 Build</el-button>
               </div>
             </el-tab-pane>
 

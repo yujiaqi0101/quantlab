@@ -3,13 +3,13 @@
     <div class="page-header">
       <div class="page-header-row">
         <div>
-          <h1 class="page-title">Strategies</h1>
-          <p class="page-desc">Manage and configure trading strategies</p>
+          <h1 class="page-title">策略 Strategies</h1>
+          <p class="page-desc">管理和配置交易策略 Manage and configure trading strategies</p>
         </div>
         <div class="page-actions">
           <el-input
             v-model="keyword"
-            placeholder="Search strategies..."
+            placeholder="搜索策略 Search strategies..."
             :prefix-icon="Search"
             clearable
             class="search-input"
@@ -24,14 +24,14 @@
       <!-- Loading -->
       <div v-if="store.loading && store.items.length === 0" class="loading-state">
         <el-icon class="is-loading" :size="24"><Loading /></el-icon>
-        <span>Loading strategies...</span>
+        <span>加载策略中 Loading strategies...</span>
       </div>
 
       <!-- Error -->
       <div v-else-if="store.error" class="error-state">
         <el-icon :size="24" color="#f85149"><CircleCloseFilled /></el-icon>
         <p>{{ store.error }}</p>
-        <el-button type="primary" size="small" @click="onRefresh">Retry</el-button>
+        <el-button type="primary" size="small" @click="onRefresh">重试 Retry</el-button>
       </div>
 
       <!-- Table -->
@@ -43,7 +43,7 @@
         :cell-style="{ borderBottom: '1px solid #1b2332' }"
         :row-style="{ cursor: 'pointer' }"
         @row-click="onRowClick"
-        empty-text="No strategies found"
+        empty-text="未找到策略 No strategies found"
       >
         <el-table-column prop="id" label="ID" min-width="140">
           <template #default="{ row }">
@@ -51,19 +51,19 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="name" label="Name" min-width="180">
+        <el-table-column prop="name" label="名称 Name" min-width="180">
           <template #default="{ row }">
             <span class="cell-name">{{ row.name }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="version" label="Version" width="100">
+        <el-table-column prop="version" label="版本 Version" width="100">
           <template #default="{ row }">
             <el-tag size="small" effect="plain" class="version-tag">{{ row.version }}</el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column prop="tags" label="Tags" min-width="200">
+        <el-table-column prop="tags" label="标签 Tags" min-width="200">
           <template #default="{ row }">
             <el-tag
               v-for="tag in (row.tags || []).slice(0, 3)"
@@ -77,7 +77,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="parameters" label="Params" width="90" align="center">
+        <el-table-column prop="parameters" label="参数 Params" width="90" align="center">
           <template #default="{ row }">
             <span class="cell-params">{{ (row.parameters || []).length }}</span>
           </template>

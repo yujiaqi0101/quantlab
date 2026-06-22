@@ -3,8 +3,8 @@
     <!-- Header -->
     <div class="studio-header">
       <div class="header-left">
-        <h1 class="studio-title">Production Studio</h1>
-        <span class="studio-subtitle">监控一台交易机器</span>
+        <h1 class="studio-title">生产工作室 Production Studio</h1>
+        <span class="studio-subtitle">监控一台交易机器 Monitor a trading machine</span>
       </div>
       <div class="header-right">
         <el-tag :type="runtimeStateType" effect="dark" size="large">
@@ -19,19 +19,19 @@
             :disabled="runtimeState === 'RUNNING'"
             @click="startRuntime"
             size="small"
-          >Start</el-button>
+          >启动 Start</el-button>
           <el-button
             :icon="VideoPause"
             :disabled="runtimeState !== 'RUNNING'"
             @click="pauseRuntime"
             size="small"
-          >Pause</el-button>
+          >暂停 Pause</el-button>
           <el-button
             :icon="CircleClose"
             :disabled="runtimeState === 'STOPPED'"
             @click="stopRuntime"
             size="small"
-          >Stop</el-button>
+          >停止 Stop</el-button>
         </el-button-group>
         <el-button
           type="danger"

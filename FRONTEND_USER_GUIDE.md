@@ -1,7 +1,7 @@
 # QuantLab Studio — 前端用户使用手册
 
 > 适用对象：量化研究员 / 策略开发者 / 运维人员
-> 适用版本：QuantLab V3.6+（含 V3.5 Execution Fidelity、V3.6 Execution-Aware Alpha）
+> 适用版本：QuantLab V4.4+（含 V3.5 Execution Fidelity、V3.6 Execution-Aware Alpha、V4.4 ML Lab + Observe + Live Studio）
 > 入口地址（默认）：`http://localhost:5173`
 
 ---
@@ -24,8 +24,11 @@
 - [14. Production Studio（生产运行时）](#14-production-studio生产运行时)
 - [15. Execution Fidelity Studio（V3.5）](#15-execution-fidelity-studiov35)
 - [16. Alpha-Aware Studio（V3.6）](#16-alpha-aware-studiov36)
-- [17. 通用操作](#17-通用操作)
-- [18. 常见问题 FAQ](#18-常见问题-faq)
+- [17. ML Lab（V4.4）](#17-ml-labv44)
+- [18. Observe Studio（V4.4）](#18-observe-studiov44)
+- [19. Live Studio（V4.4）](#19-live-studiov44)
+- [20. 通用操作](#20-通用操作)
+- [21. 常见问题 FAQ](#21-常见问题-faq)
 
 ---
 
@@ -57,6 +60,9 @@ npm run dev         # 启动 Vite，默认 5173
 | **Production** | 已注册到 Supervisor 的运行时策略（多策略 × 多账户） |
 | **Fidelity** | 真实交易模拟（订单簿、冲击、成本、对账、影子模式） |
 | **Alpha-Aware** | 策略"可交易性"评估（10 个模块，最终给出 S~F 评级） |
+| **ML Lab** | 机器学习策略全流程：数据集 → 特征 → 标签 → 训练 → 验证 → 模型注册 → 策略构建 |
+| **Observe** | 运行时可观测性：概览 / 持仓 / 订单 / 成交 / 风险 / 健康 / 时间线 / 回放 / 根因 / 绩效 / 日志 |
+| **Live Studio** | 实时交易工作室：策略部署 / 订单管理 / 持仓 / 组合 / 风险 |
 
 ---
 
@@ -100,6 +106,9 @@ npm run dev         # 启动 Vite，默认 5173
 | `/production` | Production Studio | 运行时 / 多账户 |
 | `/fidelity` | Execution Fidelity | 真实化模拟（V3.5） |
 | `/alpha-aware` | Alpha-Aware | 可交易性评估（V3.6） |
+| `/ml-lab` | ML Lab | 机器学习策略全流程（V4.4） |
+| `/observe/*` | Observe（子菜单） | 运行时可观测性（V4.4） |
+| `/live` | Live Studio（子菜单） | 实时交易工作室（V4.4） |
 
 ---
 
@@ -985,18 +994,535 @@ npm run dev         # 启动 Vite，默认 5173
 
 ---
 
-## 17. 通用操作
+## 17. ML Lab（V4.4）
+
+**路径**：`/ml-lab`
+**侧边栏**：ML Lab（Cpu 图标）
+**作用**：机器学习策略的端到端工作台——从数据准备到模型训练、验证、注册，最终构建 ML 策略。
+
+> ⚠️ **本节经过 2026-06-18 实际核查** [`MLLab.vue`](file:///d:/python_workspace/quantlab/frontend/src/views/ml_lab/MLLab.vue)，下述 17 个 Tab 为**真实存在的 UI**。
+
+### 17.1 页面结构
+
+ML Lab 采用**顶部 Tab 卡片**布局，共 **17 个 Tab**，按工作流顺序排列：
+
+| # | Tab 名称 | 路径 | 用途 |
+|---|---------|------|------|
+| 1 | Datasets | `DatasetCenter.vue` | ML 数据集管理 |
+| 2 | Features | `FeatureLab.vue` | 特征定义 |
+| 3 | Feature Sets | `FeatureSets.vue` | 特征集合管理 |
+| 4 | Labels | `LabelLab.vue` | 标签定义 |
+| 5 | Label Sets | `LabelSets.vue` | 标签集合管理 |
+| 6 | Feature Diagnostics | `FeatureDiagnostics.vue` | 特征诊断 |
+| 7 | Label Diagnostics | `LabelDiagnostics.vue` | 标签诊断 |
+| 8 | Feature Analysis | `FeatureAnalysis.vue` | 特征分析 |
+| 9 | Feature Importance | `FeatureImportance.vue` | 特征重要性 |
+| 10 | Training Jobs | `TrainingCenter.vue` | 模型训练 |
+| 11 | Experiments | `Experiments.vue` | ML 实验记录 |
+| 12 | Hyperparameter Search | `HyperparameterSearch.vue` | 超参搜索 |
+| 13 | Validation | `ValidationCenter.vue` | Walk Forward 验证 |
+| 14 | Model Arena | `ModelArena.vue` | 模型对比竞技场 |
+| 15 | Leakage Detector | `LeakageDetector.vue` | 数据泄露检测 |
+| 16 | Model Registry | `ModelRegistry.vue` | 模型版本注册 |
+| 17 | Strategy Builder | `StrategyBuilder.vue` | ML 策略构建 |
+
+### 17.2 Tab 1: Datasets（数据集中心）
+
+**实际 UI 元素**（核查 `DatasetCenter.vue`）：
+
+- **Create Dataset 按钮**：弹出对话框
+  - Name（el-input）
+  - Symbols（逗号分隔输入，如 "BTC, ETH, SOL"）
+  - Frequency（el-select：1m / 5m / 15m / 1h / 4h / 1d）
+  - Description（el-input textarea）
+- **数据集表格**：
+
+| 列 | 含义 |
+|----|------|
+| ID | dataset_id |
+| Name | 数据集名 |
+| Symbols | 标的标签（el-tag） |
+| Frequency | 频率 |
+| Start / End | 时间区间 |
+| Description | 描述 |
+| Actions | **Stats** 按钮 + **Upload CSV** 按钮 |
+
+- **Stats 对话框**：显示 JSON 格式的统计信息
+- **Upload CSV**：el-upload 组件，接受 `.csv` 文件
+
+### 17.3 Tab 10: Training Jobs（训练中心）
+
+**实际 UI 元素**（核查 `TrainingCenter.vue`）：
+
+- **Start Training 按钮**：弹出训练对话框
+  - Dataset（el-select）
+  - Features（el-select multiple）
+  - Label（el-select）
+  - Model（el-select，类型来自 `getMLModels()`）
+  - Classifier（el-switch）
+  - Train Ratio（el-slider，0.5~0.9，步长 0.05）
+- **状态卡片**（4 张）：Total / Completed / Failed / Running
+- **任务表格**：
+
+| 列 | 含义 |
+|----|------|
+| Job ID | 训练任务 ID |
+| Dataset | 数据集 |
+| Features | 特征标签列表 |
+| Label | 标签 |
+| Model | 模型类型 |
+| Status | 状态（el-tag） |
+| Metrics | IC / RMSE |
+
+### 17.4 Tab 14: Model Arena（模型竞技场）
+
+**实际 UI 元素**（核查 `ModelArena.vue`）：
+
+- **Run Comparison 按钮**：弹出对比对话框
+  - Dataset（el-select）
+  - FeatureSet（el-select）
+  - LabelSet（el-select）
+  - Models（el-checkbox-group：Linear / Random Forest / LightGBM / XGBoost）
+- **Leaderboard 表格**（按 IC 排序）：
+
+| 列 | 含义 |
+|----|------|
+| Rank | 排名 |
+| Model | 模型名 |
+| Type | 模型类型 |
+| IC | 信息系数 |
+| Rank IC | 斯皮尔曼 IC |
+| RMSE | 均方根误差 |
+| Train Time | 训练耗时 |
+| Status | 状态 |
+
+### 17.5 Tab 15: Leakage Detector（泄露检测器）
+
+**实际 UI 元素**（核查 `LeakageDetector.vue`）：
+
+- **警告提示**：提醒 `shift(-1)` 和 `rolling(center=True)` 是常见的前瞻偏差来源
+- **检测报告卡片**（有报告时显示）：
+  - PASSED / FAILED 大标签
+  - 3 张统计卡：Critical / Warning / Info 数量
+  - 问题表格：Type / Severity / Message / Location / Suggestion
+- **空态**：提示 "Run leakage detection from Training Center"
+
+### 17.6 Tab 16: Model Registry（模型注册表）
+
+**实际 UI 元素**（核查 `ModelRegistry.vue`）：
+
+- **Register Version 按钮**：弹出注册对话框
+  - Name（el-input）
+  - Model Type（el-select：Linear Regression / Logistic Regression / Random Forest / XGBoost / LightGBM）
+  - Description（el-input textarea）
+- **版本表格**：
+
+| 列 | 含义 |
+|----|------|
+| Version ID | 版本号 |
+| Name | 模型名 |
+| Model | 模型类型 |
+| Dataset | 数据集 |
+| Label | 标签 |
+| Features | 特征标签列表 |
+| Metrics | IC / Sharpe |
+| Created | 创建时间 |
+
+### 17.7 Tab 17: Strategy Builder（ML 策略构建）
+
+**实际 UI 元素**（核查 `StrategyBuilder.vue`）：
+
+- **Pipeline 流程图**（el-steps，4 步）：
+  1. Features → 2. Label → 3. Model → 4. ML Strategy
+- **策略表格**：
+
+| 列 | 含义 |
+|----|------|
+| ID | strategy_id |
+| Name | 策略名 |
+| Features | 特征标签列表 |
+| Label | 标签 |
+| Model | 模型类型 |
+
+### 17.8 Tab 13: Validation（Walk Forward 验证）
+
+**实际 UI 元素**（核查 `ValidationCenter.vue`）：
+
+- **警告提示**："Never use train_test_split() for time series. Always use Walk Forward validation."
+- **结果卡片**（有结果时显示）：
+  - 4 张统计卡：Splits / Avg IC / Avg Rank IC / IC Stability
+  - Fold Details 表格：Fold / Train Start~End / Test Start~End / N Train / N Test / IC / Rank IC
+- **空态**：提示 "Run Walk Forward validation from Training Center"
+
+### 17.9 典型工作流
+
+1. **Datasets** Tab → Create Dataset → 上传 CSV
+2. **Features** Tab → 定义特征 → **Feature Sets** Tab → 组合特征集
+3. **Labels** Tab → 定义标签 → **Label Sets** Tab → 组合标签集
+4. **Feature Diagnostics** / **Label Diagnostics** → 检查数据质量
+5. **Training Jobs** Tab → Start Training → 选 Dataset + Features + Label + Model
+6. **Validation** Tab → 查看 Walk Forward 结果
+7. **Model Arena** Tab → Run Comparison → 对比多个模型
+8. **Leakage Detector** Tab → 检查数据泄露
+9. **Model Registry** Tab → Register Version → 注册最佳模型
+10. **Strategy Builder** Tab → 查看 ML 策略列表
+
+---
+
+## 18. Observe Studio（V4.4）
+
+**路径**：`/observe/*`（侧边栏子菜单，11 个子页面）
+**侧边栏**：Observe（View 图标，展开子菜单）
+**作用**：运行时可观测性——理解系统正在发生什么。涵盖账户概览、持仓、订单、成交、风险、策略健康、事件时间线、回放引擎、根因分析、绩效归因、交易日志。
+
+> ⚠️ **本节经过 2026-06-18 实际核查**，下述 11 个子页面为**真实存在的 UI**。
+
+### 18.1 侧边栏子菜单
+
+| 路径 | 名称 | 图标 | 用途 |
+|------|------|------|------|
+| `/observe/overview` | Overview | DataLine | 账户概览 |
+| `/observe/positions` | Positions | Wallet | 实时持仓 |
+| `/observe/orders` | Orders | List | 订单管理 |
+| `/observe/trades` | Trades | Tickets | 成交分析 |
+| `/observe/risk` | Risk | Warning | 风险控制 |
+| `/observe/health` | Health | Bell | 策略健康监控 |
+| `/observe/timeline` | Timeline | Timer | 事件时间线 |
+| `/observe/replay` | Replay | VideoPlay | 回放引擎 |
+| `/observe/analysis` | Root Cause | Aim | 根因分析 |
+| `/observe/performance` | Performance | TrendCharts | 绩效归因 |
+| `/observe/journal` | Journal | Notebook | 交易日志 |
+
+### 18.2 Overview（账户概览）
+
+**实际 UI 元素**（核查 `OverviewView.vue`）：
+
+- **6 张摘要卡片**（grid 布局）：
+
+| 卡片 | 显示内容 |
+|------|---------|
+| 账户权益 | $equity + 现金 |
+| 今日收益 | ±$today_pnl + 百分比 |
+| 总收益 | ±$total_pnl + 百分比 |
+| 当前回撤 | 百分比 + 最大回撤 |
+| 活跃策略 | 运行中数量 |
+| 持仓数量 | 活跃持仓数 |
+
+- **权益曲线**：卡片区域，当前显示 "暂无权益曲线数据"（el-empty 占位）
+- **策略状态表格**（前 5 条）：
+
+| 列 | 含义 |
+|----|------|
+| 策略 | strategy_id |
+| 状态 | healthy / low_activity / stalled / no_fills / losing / stopped |
+| 24h信号 | 信号数 |
+| 24h成交 | 成交数 |
+| 24h PnL | 盈亏 |
+
+- **刷新按钮**
+
+### 18.3 Positions（实时持仓）
+
+**实际 UI 元素**（核查 `PositionsView.vue`）：
+
+- **持仓表格**：
+
+| 列 | 含义 |
+|----|------|
+| Symbol | 品种 |
+| 方向 | LONG / SHORT（el-tag 绿/红） |
+| 数量 | 持仓量 |
+| 均价 | 平均入场价 |
+| 当前价 | 最新价 |
+| 未实现盈亏 | ±$（绿/红） |
+| 收益率 | ±% |
+
+### 18.4 Orders（订单管理）
+
+**实际 UI 元素**（核查 `OrdersView.vue`）：
+
+- **筛选器**：状态（Open / Filled / Cancelled / Rejected）+ 时间范围（24h / 7d / 30d）
+- **订单表格**：
+
+| 列 | 含义 |
+|----|------|
+| 订单ID | order_id |
+| Symbol | 品种 |
+| 方向 | BUY / SELL（el-tag） |
+| 类型 | 订单类型 |
+| 数量 | 下单量 |
+| 价格 | 下单价 |
+| 状态 | FILLED / SUBMITTED / CANCELLED / REJECTED（el-tag） |
+| 创建时间 | 时间戳 |
+
+### 18.5 Trades（成交分析）
+
+**实际 UI 元素**（核查 `TradesView.vue`）：
+
+- **9 张分析卡片**（grid 布局）：总成交 / 胜率 / 盈亏比 / 期望值 / 平均盈利 / 平均亏损 / 最大盈利 / 最大亏损 / 总盈亏
+- **时间范围选择**：24h / 7d / 30d
+- **成交记录表格**：
+
+| 列 | 含义 |
+|----|------|
+| 时间 | 成交时间 |
+| Symbol | 品种 |
+| 方向 | BUY / SELL |
+| 数量 | 成交量 |
+| 价格 | 成交价 |
+| 手续费 | fee |
+| PnL | 盈亏 |
+
+### 18.6 Risk（风险控制）
+
+**实际 UI 元素**（核查 `RiskView.vue`）：
+
+- **风险状态横幅**：NORMAL / WARNING / CRITICAL（左边框颜色区分）+ Kill Switch 状态标签
+- **3 张指标卡**：
+  - 仓位占比（含进度条，>20% 变红）
+  - 日亏损（含限额显示）
+  - 最大回撤（含限额 15%）
+- **风险规则表**（el-descriptions）：最大仓位占比 20% / 日亏损限额 3% / 最大回撤限额 15% / Kill Switch 状态
+
+### 18.7 Health（策略健康监控）
+
+**实际 UI 元素**（核查 `HealthView.vue`）：
+
+- **4 张摘要卡**：总策略数 / 健康 / 告警 / 异常
+- **策略状态详情表格**：
+
+| 列 | 含义 |
+|----|------|
+| 策略 | strategy_id |
+| 状态 | healthy / low_activity / no_fills / stalled / losing / stopped |
+| 24h信号 | 信号数 |
+| 24h成交 | 成交数 |
+| 24h PnL | 盈亏 |
+| 总信号 | 历史总信号 |
+| 总成交 | 历史总成交 |
+| 总PnL | 历史总盈亏 |
+| 最近信号 | 最后信号时间 |
+| 告警 | 告警标签列表 |
+
+### 18.8 Timeline（事件时间线）
+
+**实际 UI 元素**（核查 `TimelineView.vue`）：
+
+- **类别筛选**：Market / Signal / Order / Fill / Risk / Position
+- **事件流**（el-timeline）：每条事件显示
+  - 时间戳
+  - 类别标签（Signal=蓝 / Order=橙 / Fill=绿 / Risk=红）
+  - trace_id（等宽字体）
+  - 耗时（duration_ms）
+  - Payload（JSON 折叠显示）
+- **事件计数标签**
+
+### 18.9 Replay（回放引擎）
+
+**实际 UI 元素**（核查 `ReplayView.vue`）：
+
+**三栏布局**：
+
+- **左栏（6/24）**：
+  - 会话列表表格（Session ID / 策略 / 标的 / 事件数）+ 新建会话按钮
+  - 选中会话后加载事件
+
+- **中栏（11/24）**：
+  - **播放控制器**：上一个 / 播放 / 暂停 / 恢复 / 下一个 / 停止
+  - **速度选择**：0.5x / 1x / 5x / 10x / 50x / 100x
+  - **进度条**（el-slider）：可拖拽跳转
+  - **事件列表**：当前事件高亮，过去事件灰显
+
+- **右栏（7/24）**：
+  - **当前状态卡片**：权益 / 现金 / 总盈亏 / 已实现 / 未实现 / 持仓数
+  - **持仓表格**：标的 / 数量 / 均价 / 现价 / 未实现盈亏
+  - **订单表格**：标的 / 方向 / 数量 / 状态
+  - **事件详情**：Event ID / 类型 / 时间 / 来源 / Trace ID / Payload
+  - **交易链路分析**：点击 "分析链路" 按钮后显示完整链路（Signal → Order → Fill → Risk → Exit）
+
+### 18.10 Root Cause（根因分析）
+
+**实际 UI 元素**（核查 `AnalysisView.vue`）：
+
+**三栏布局**：
+
+- **左栏（6/24）**：
+  - 会话列表
+  - 亏损交易列表（标的 / 盈亏 / % / 根因标签）
+  - 异常检测（el-alert 列表：CRITICAL / WARNING / INFO）
+
+- **中栏（11/24）**：
+  - **交易链路图**（流程图）：Signal → Order → Fill → Risk → Exit（彩色节点）
+  - **关键指标**（el-descriptions）：入场价 / 出场价 / 持仓时长 / 市场变动 / 入场滑点 / 出场滑点 / 手续费 / 风险事件
+
+- **右栏（7/24）**：
+  - **根因列表**：每个根因显示类型标签 + 置信度 + 标题 + 描述 + 证据列表
+    - 类型：信号错误 / 执行错误 / 风控退出 / 市场冲击 / 仓位过大 / 未知
+    - 严重度：CRITICAL（红）/ WARNING（橙）/ INFO（灰）
+  - **解释引擎**：总结 + 段落 + 改进建议
+
+### 18.11 Performance（绩效归因）
+
+**实际 UI 元素**（核查 `PerformanceView.vue`）：
+
+- **顶部控制栏**：选择会话（el-select filterable）+ 刷新 + 重新分析 + 月度报告按钮
+- **4 张核心指标卡**：总收益 / 交易笔数 / 策略数量 / 集中度(HHI)
+- **策略归因表格**：策略 / PnL / 收益贡献（进度条） / 交易数 / 胜率 / 盈亏比 / 风险贡献
+- **品种归因表格**：品种 / PnL / 占比 / 交易数 / 胜率 / 多头 / 空头
+- **多空归因**：多头PnL / 空头PnL / 多头胜率 / 空头胜率 / 偏向标签
+- **时段归因表格**：时段 / PnL / 占比 / 交易数 / 胜率
+- **市场状态归因表格**：状态 / PnL / 占比 / 交易数 / 时长占比
+- **风险归因表格**：策略 / 收益贡献 / 风险贡献 / 收益质量 / 质量比 / Sharpe / PnL波动率
+- **回撤归因表格**：策略 / 最大回撤 / 占比 / 交易数 / 回撤时长
+- **因子归因**（预留）：当前显示 "未实现" 提示
+- **月度报告对话框**：选择月份 → 生成 → 导出 Markdown / HTML
+
+### 18.12 Journal（交易日志）
+
+**实际 UI 元素**（核查 `JournalView.vue`）：
+
+- **筛选器**：类别（Signal / Order / Fill / Risk Alert / Kill Switch / Recovery / Manual / System）+ 策略ID
+- **日志时间线**（el-timeline）：每条日志显示
+  - 类别标签（颜色区分）
+  - 策略 / Symbol / Order 元信息
+  - 消息内容
+  - 附加数据（JSON 折叠）
+  - 标签列表
+- **新增日志按钮**：弹出对话框
+  - 类别（观察 / 反思 / 开仓 / 平仓）
+  - 标题
+  - 内容（textarea）
+  - 策略（可选）
+  - Symbol（可选）
+
+---
+
+## 19. Live Studio（V4.4）
+
+**路径**：`/live`（侧边栏子菜单）
+**侧边栏**：Live Studio（VideoCamera 图标，展开子菜单含 Strategies）
+**作用**：实时交易工作室——部署策略到 Paper/Binance，管理运行中的部署，查看订单、持仓、组合、风险。
+
+> ⚠️ **本节经过 2026-06-18 实际核查** [`LiveStudio.vue`](file:///d:/python_workspace/quantlab/frontend/src/views/live/LiveStudio.vue)，下述 6 个 Tab 为**真实存在的 UI**。
+
+### 19.1 页面顶部
+- **标题**：Live Studio + 副标题 "实时交易工作室 — 看运行过程"
+- **刷新按钮**
+- **Deploy Strategy 按钮**（type=primary）
+
+### 19.2 Tab 1: Strategies（策略库）
+
+- **类别筛选**（el-select）：按 category 过滤
+- **策略表格**：
+
+| 列 | 含义 |
+|----|------|
+| ID | strategy_id |
+| 名称 | 策略名 |
+| 类别 | category（el-tag） |
+| 标签 | tags 列表（el-tag info） |
+| 周期 | timeframe |
+| 版本 | version |
+| 操作 | **Deploy** 按钮 |
+
+### 19.3 Tab 2: Deployments（运行中的部署）
+
+- **部署表格**：
+
+| 列 | 含义 |
+|----|------|
+| Deploy ID | 部署 ID |
+| 策略 | strategy_id |
+| 状态 | RUNNING / STOPPED / FAILED / PENDING（el-tag） |
+| 品种 | symbols 列表 |
+| 初始资金 | $金额 |
+| 部署时间 | 时间戳 |
+| 操作 | 查看 / 暂停 / 恢复 / 卸载 |
+
+### 19.4 Tab 3: Orders（订单）
+
+- **部署选择器**（el-select）+ 仅活跃复选框
+- **订单表格**：
+
+| 列 | 含义 |
+|----|------|
+| Order ID | 订单 ID |
+| 品种 | symbol |
+| 方向 | BUY / SELL（el-tag） |
+| 数量 | 下单量 |
+| 类型 | order_type |
+| 状态 | FILLED / CANCELLED / REJECTED / SUBMITTED / PARTIAL / NEW |
+| 已成交 | filled_qty |
+| 成交均价 | avg_fill_price |
+| 策略 | strategy_id |
+| 时间 | created_at |
+
+### 19.5 Tab 4: Positions（持仓）
+
+- **部署选择器**
+- **持仓表格**：
+
+| 列 | 含义 |
+|----|------|
+| 品种 | symbol |
+| 数量 | qty |
+| 方向 | LONG / SHORT |
+| 均价 | avg_price |
+| 现价 | market_price |
+| 市值 | $market_value |
+| 未实现盈亏 | ±$unrealized_pnl |
+| 已实现盈亏 | ±$realized_pnl |
+| 策略 | strategy_id |
+
+### 19.6 Tab 5: Portfolio（组合）
+
+- **部署选择器**
+- **8 张指标卡**（2 行 × 4 列）：
+
+| 第1行 | 第2行 |
+|-------|-------|
+| 总净值 (Equity) | 敞口 (Exposure) |
+| 现金 (Cash) | 多头敞口 |
+| 总盈亏 (PnL + %) | 空头敞口 |
+| 最大回撤 | 持仓数 |
+
+### 19.7 Tab 6: Risk（风险）
+
+- **部署选择器**
+- **4 张指标卡**：净值 / 敞口 / 最大回撤 / 当前回撤
+
+### 19.8 Deploy Strategy 对话框
+
+- **策略选择**（el-select）
+- **品种选择**（el-select multiple，默认 BTCUSDT / ETHUSDT / SOLUSDT / BNBUSDT）
+- **初始资金**（el-input-number，最小 1000，步长 10000）
+- **Broker**（el-select：Paper 模拟 / Binance 实盘——**Binance 当前 disabled**）
+- **动态参数**：根据所选策略的 `parameters` 自动生成表单
+  - int/float → el-input-number（带 min/max/step）
+  - choice → el-select
+  - 其他 → el-input
+  - 每个参数右侧显示 description
+
+### 19.9 典型工作流
+
+1. **Strategies** Tab → 浏览可用策略
+2. 点击 **Deploy** 或顶部 **Deploy Strategy** 按钮
+3. 在对话框中选策略 → 选品种 → 设初始资金 → 调参数 → 部署
+4. **Deployments** Tab → 查看运行状态 → 暂停/恢复/卸载
+5. **Orders** / **Positions** / **Portfolio** / **Risk** Tab → 选部署查看详情
+
+---
 
 > ⚠️ **本节经过 2026-06-18 实际核查** [`TopBar.vue`](file:///d:/python_workspace/quantlab/frontend/src/components/TopBar.vue)，下述功能为**真实存在的 UI**。
 
-### 17.1 顶部 TopBar
+### 20.1 顶部 TopBar
 - **左侧**：当前页标题（取自 `route.meta.title`）+ 分隔符 + "Research Platform" 副标题
 - **右侧**：
   - **Workspace 预设切换器**（仅在 `/studio` 路径显示）：下拉切换 Workspace 预设
   - **主题切换**：Moon / Sunny 图标，切换 Light / Dark
   - **System Status**：绿色圆点 + "System Online" 文本（静态显示，非 API 健康检查）
 
-### 17.2 ❌ 当前版本**不提供**的能力
+### 20.2 ❌ 当前版本**不提供**的能力
 - ❌ **全局快捷键**（`Ctrl+K` / `Esc` / `/`）—— 代码中无任何 keydown 监听
 - ❌ **表格列头右键菜单**（显示/隐藏列）—— 无此功能
 - ❌ **表头拖拽调整列顺序** —— 无此功能
@@ -1008,7 +1534,7 @@ npm run dev         # 启动 Vite，默认 5173
 - ❌ **导出 Fidelity 报告** —— Fidelity Studio 无下载功能
 - ❌ **导出 Alpha-Aware 报告** —— Alpha-Aware Studio 无 PDF 导出
 
-### 17.3 实际可用的通用交互
+### 20.3 实际可用的通用交互
 - **表格排序**：点击支持 sortable 的列头切换升降序
 - **表格行点击**：多数列表行可点击跳转详情
 - **图表交互**：vue-echarts 原生支持滚轮缩放、拖拽平移、图例点击
@@ -1016,9 +1542,9 @@ npm run dev         # 启动 Vite，默认 5173
 
 ---
 
-## 18. 常见问题 FAQ
+## 21. 常见问题 FAQ
 
-### 18.1 启动 / 部署
+### 21.1 启动 / 部署
 
 **Q：前端报 `Failed to fetch dynamically imported module`**
 - A：检查 `frontend/src/utils/api.ts` 是否存在；检查后端是否启动在 8000 端口。
@@ -1029,7 +1555,7 @@ npm run dev         # 启动 Vite，默认 5173
 **Q：前端调 API 跨域**
 - A：后端已配置 CORS。检查 `.env` 的 `CORS_ORIGINS` 是否包含 `http://localhost:5173`。
 
-### 18.2 策略相关
+### 21.2 策略相关
 
 **Q：跑回测时 `numpy.float64 has no attribute rolling`**
 - A：策略被错误地传了"单行 DataFrame"。在 `/production` 页面注册时**必须**传 `full_data=data`。
@@ -1040,7 +1566,7 @@ npm run dev         # 启动 Vite，默认 5173
 **Q：策略名报错 `must be a valid Python identifier`**
 - A：策略名**只允许**英文、数字、下划线；不能以数字开头。
 
-### 18.3 Fidelity / Alpha-Aware
+### 21.3 Fidelity / Alpha-Aware
 
 **Q：`real_score` 一直为 0**
 - A：检查 `cost_adjusted_return`。如果是负的，看 turnover 是不是太高（>20%/日）或者 fee 设错。
@@ -1057,7 +1583,7 @@ npm run dev         # 启动 Vite，默认 5173
 **Q：Shadow Mode paper 和 live 价差很大**
 - A：检查 `PaperBroker` 的滑点假设。常见原因：假设 `0 bps` 而 live 是 5 bps。建议统一设 2~3 bps。
 
-### 18.4 Production 相关
+### 21.4 Production 相关
 
 **Q：V3.4 的 AccountManager 和 V2.5 的 LiveEngine 冲突吗？**
 - A：不冲突但**不要混用**。新代码全部走 `StrategyRuntime + PortfolioSupervisor`；V2.5 LiveEngine 标记 deprecated。
@@ -1068,7 +1594,7 @@ npm run dev         # 启动 Vite，默认 5173
 **Q：`full_data` 必须传吗？**
 - A：必须。V3.4 的 `sup.register_strategy(..., full_data=data)` 强制要求，否则 `signal()` 在单行 DataFrame 上 `rolling` 会报错。
 
-### 18.5 性能
+### 21.5 性能
 
 **Q：100 个标的 × 1 年数据，Fidelity + Alpha-Aware 要跑多久？**
 - A：< 1s。可以加进每日 Pipeline。
@@ -1098,9 +1624,24 @@ npm run dev         # 启动 Vite，默认 5173
 2. `/production` → Register 策略（带 full_data）
 3. `/production` → Start
 4. `/production` → Supervisor 监控（告警 / Kill Switch）
-5. 每周：检查 `cost_drag_bps`、Shadow Mode 状态
+5. `/live` → Live Studio 部署策略到 Paper 模拟
+6. `/observe/overview` → Observe 概览实时状态
+7. `/observe/health` → 策略健康监控
+8. `/observe/risk` → 风险控制（Kill Switch / 日亏损限额）
+9. 每周：检查 `cost_drag_bps`、Shadow Mode 状态
 
-### A.4 量化新人
+### A.4 ML 研究员
+1. `/ml-lab` → Datasets Tab → 创建/上传 ML 数据集
+2. `/ml-lab` → Features Tab → 定义特征 → Feature Sets → 组合特征集
+3. `/ml-lab` → Labels Tab → 定义标签 → Label Sets → 组合标签集
+4. `/ml-lab` → Training Jobs → Start Training → 选模型训练
+5. `/ml-lab` → Validation → Walk Forward 验证
+6. `/ml-lab` → Model Arena → 对比多个模型
+7. `/ml-lab` → Leakage Detector → 检查数据泄露
+8. `/ml-lab` → Model Registry → 注册最佳模型版本
+9. `/ml-lab` → Strategy Builder → 构建 ML 策略
+
+### A.5 量化新人
 1. `/studio` → 熟悉首页
 2. `/datasets` → 找一个示例数据集
 3. `/backtests` → 跑一个内置策略（如 MaCross）
@@ -1131,8 +1672,14 @@ npm run dev         # 启动 Vite，默认 5173
 | **Cost Drag (bps)** | 全部成本占收益的比例 |
 | **Survival Score** | V3.6 的"是否能活下来"分 |
 | **Tradeability Rank** | V3.6 的 S~F 综合评级 |
+| **Walk Forward** | 时间序列专用的滚动窗口验证方法 |
+| **Leakage** | 训练数据中包含未来信息的前瞻偏差 |
+| **Model Arena** | 多模型同数据集对比竞技 |
+| **Replay** | 按事件粒度回放交易过程 |
+| **Root Cause** | 亏损交易的根因自动分析 |
+| **HHI** | 赫芬达尔指数，衡量集中度 |
 
 ---
 
-**文档版本**：v3.6
-**最后更新**：2026-06-17
+**文档版本**：v4.4
+**最后更新**：2026-06-18

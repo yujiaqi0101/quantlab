@@ -3,18 +3,18 @@
     <!-- Header -->
     <div class="compare-header">
       <div class="compare-header-left">
-        <h1 class="compare-title">Compare Experiments</h1>
-        <p class="compare-sub">{{ compareData.experiments?.length || 0 }} experiments selected</p>
+        <h1 class="compare-title">对比实验 Compare Experiments</h1>
+        <p class="compare-sub">{{ compareData.experiments?.length || 0 }} 个实验已选择 experiments selected</p>
       </div>
       <div class="compare-header-right">
-        <el-button @click="router.push('/experiments')">Back to Experiments</el-button>
+        <el-button @click="router.push('/experiments')">返回实验 Back to Experiments</el-button>
       </div>
     </div>
 
     <!-- Loading -->
     <div v-if="loading" class="loading-state">
       <el-icon class="is-loading" :size="24"><Loading /></el-icon>
-      <span>Loading comparison...</span>
+      <span>加载对比中 Loading comparison...</span>
     </div>
 
     <!-- Error -->
@@ -27,7 +27,7 @@
       <!-- Equity Curve Comparison -->
       <div class="section">
         <div class="section-header">
-          <span class="section-title">Equity Curve Comparison</span>
+          <span class="section-title">资金曲线对比 Equity Curve Comparison</span>
         </div>
         <div class="section-body">
           <div class="chart-container">
@@ -39,7 +39,7 @@
       <!-- Metrics Comparison Table -->
       <div class="section">
         <div class="section-header">
-          <span class="section-title">Metrics Comparison</span>
+          <span class="section-title">指标对比 Metrics Comparison</span>
         </div>
         <div class="section-body">
           <el-table
@@ -48,7 +48,7 @@
             :header-cell-style="{ background: '#161b22', color: '#8b949e', borderBottom: '1px solid #1b2332' }"
             :cell-style="{ borderBottom: '1px solid #1b2332' }"
           >
-            <el-table-column prop="name" label="Experiment" min-width="160">
+            <el-table-column prop="name" label="实验 Experiment" min-width="160">
               <template #default="{ row }">
                 <div class="cell-exp-name">
                   <span class="dot" :style="{ background: row._color }"></span>
@@ -56,24 +56,24 @@
                 </div>
               </template>
             </el-table-column>
-            <el-table-column prop="strategy" label="Strategy" width="140">
+            <el-table-column prop="strategy" label="策略 Strategy" width="140">
               <template #default="{ row }">
                 <span class="cell-strategy">{{ row.strategy }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="total_return" label="Return" width="100" align="right" sortable>
+            <el-table-column prop="total_return" label="收益 Return" width="100" align="right" sortable>
               <template #default="{ row }">
                 <span :class="row.total_return >= 0 ? 'cell-positive' : 'cell-negative'">
                   {{ row.total_return >= 0 ? '+' : '' }}{{ row.total_return?.toFixed(2) }}%
                 </span>
               </template>
             </el-table-column>
-            <el-table-column prop="sharpe" label="Sharpe" width="90" align="right" sortable>
+            <el-table-column prop="sharpe" label="夏普 Sharpe" width="90" align="right" sortable>
               <template #default="{ row }">
                 <span class="cell-num">{{ row.sharpe?.toFixed(3) }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="max_drawdown" label="MaxDD" width="90" align="right" sortable>
+            <el-table-column prop="max_drawdown" label="回撤 MaxDD" width="90" align="right" sortable>
               <template #default="{ row }">
                 <span class="cell-negative">{{ row.max_drawdown?.toFixed(2) }}%</span>
               </template>

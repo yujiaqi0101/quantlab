@@ -1,8 +1,8 @@
 <template>
   <div class="workspace-container">
     <div class="workspace-header">
-      <h1 class="page-title">Backtest Workspace</h1>
-      <p class="page-desc">Select strategy, dataset, and parameters to run a backtest</p>
+      <h1 class="page-title">回测工作区 Backtest Workspace</h1>
+      <p class="page-desc">选择策略、数据集和参数运行回测 Select strategy, dataset, and parameters to run a backtest</p>
     </div>
 
     <div class="workspace-layout">
@@ -10,10 +10,10 @@
       <div class="config-panel">
         <!-- Strategy -->
         <div class="config-section">
-          <h3 class="section-label">Strategy</h3>
+          <h3 class="section-label">策略 Strategy</h3>
           <el-select
             v-model="selectedStrategyId"
-            placeholder="Select strategy..."
+            placeholder="选择策略 Select strategy..."
             class="full-select"
             @change="onStrategyChange"
           >
@@ -28,10 +28,10 @@
 
         <!-- Dataset -->
         <div class="config-section">
-          <h3 class="section-label">Dataset</h3>
+          <h3 class="section-label">数据集 Dataset</h3>
           <el-select
             v-model="selectedDatasetId"
-            placeholder="Select dataset..."
+            placeholder="选择数据集 Select dataset..."
             class="full-select"
             @change="onDatasetChange"
           >
@@ -46,7 +46,7 @@
 
         <!-- Dynamic Parameters -->
         <div v-if="currentParams.length > 0" class="config-section">
-          <h3 class="section-label">Parameters</h3>
+          <h3 class="section-label">参数 Parameters</h3>
           <div class="params-form">
             <div v-for="param in currentParams" :key="param.name" class="param-field">
               <label class="param-label">
@@ -99,7 +99,7 @@
         <!-- Advanced Options -->
         <div class="config-section">
           <h3 class="section-label" @click="showAdvanced = !showAdvanced" style="cursor: pointer">
-            Advanced
+            高级 Advanced
             <el-icon :size="12" style="margin-left: 4px">
               <ArrowDown v-if="!showAdvanced" />
               <ArrowUp v-else />
@@ -107,15 +107,15 @@
           </h3>
           <div v-if="showAdvanced" class="advanced-form">
             <div class="param-field">
-              <label class="param-label">Initial Cash</label>
+              <label class="param-label">初始资金 Initial Cash</label>
               <el-input-number v-model="advanced.initial_cash" :min="1000" :step="10000" controls-position="right" class="full-input" />
             </div>
             <div class="param-field">
-              <label class="param-label">Commission (bps)</label>
+              <label class="param-label">手续费 Commission (bps)</label>
               <el-input-number v-model="advanced.commission_bps" :min="0" :step="0.5" :precision="1" controls-position="right" class="full-input" />
             </div>
             <div class="param-field">
-              <label class="param-label">Slippage (bps)</label>
+              <label class="param-label">滑点 Slippage (bps)</label>
               <el-input-number v-model="advanced.slippage_bps" :min="0" :step="0.5" :precision="1" controls-position="right" class="full-input" />
             </div>
           </div>
@@ -131,7 +131,7 @@
             :disabled="!canRun"
             @click="onRunBacktest"
           >
-            {{ btStore.running ? 'Running...' : 'Run Backtest' }}
+            {{ btStore.running ? '运行中 Running...' : '运行回测 Run Backtest' }}
           </el-button>
 
           <!-- Progress -->
@@ -152,9 +152,9 @@
 
           <!-- Success -->
           <div v-if="btStore.experimentId" class="success-msg">
-            Backtest completed!
+            回测完成！ Backtest completed!
             <el-button type="primary" link @click="goToExperiment">
-              View Experiment →
+              查看实验 View Experiment →
             </el-button>
           </div>
         </div>
@@ -164,30 +164,30 @@
       <div class="preview-panel">
         <div v-if="!selectedDatasetId" class="empty-preview">
           <el-icon :size="48" color="#1b2332"><DataLine /></el-icon>
-          <p>Select a dataset to preview</p>
+          <p>选择数据集以预览 Select a dataset to preview</p>
         </div>
 
         <template v-else>
           <!-- K-line Chart -->
           <div v-if="datasetPreview && selectedDataset?.is_ohlcv" class="preview-section">
-            <h3 class="section-label">Price Chart</h3>
+            <h3 class="section-label">价格图表 Price Chart</h3>
             <CandlestickChart :preview="datasetPreview" />
           </div>
 
           <!-- Dataset Info -->
           <div v-if="selectedDataset" class="preview-section">
-            <h3 class="section-label">Dataset Info</h3>
+            <h3 class="section-label">数据集信息 Dataset Info</h3>
             <div class="info-grid-compact">
               <div class="info-item">
-                <span class="info-key">Symbol</span>
+                <span class="info-key">标的 Symbol</span>
                 <span class="info-val">{{ selectedDataset.symbol }}</span>
               </div>
               <div class="info-item">
-                <span class="info-key">Rows</span>
+                <span class="info-key">行数 Rows</span>
                 <span class="info-val">{{ formatNumber(selectedDataset.rows) }}</span>
               </div>
               <div class="info-item">
-                <span class="info-key">Range</span>
+                <span class="info-key">范围 Range</span>
                 <span class="info-val">{{ formatDate(selectedDataset.start_time) }} ~ {{ formatDate(selectedDataset.end_time) }}</span>
               </div>
             </div>

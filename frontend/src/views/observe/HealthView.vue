@@ -2,20 +2,20 @@
   <div class="observe-health">
     <div class="page-header">
       <div>
-        <h1 class="page-title">Strategy Health</h1>
-        <span class="page-subtitle">策略健康监控</span>
+        <h1 class="page-title">策略健康 Strategy Health</h1>
+        <span class="page-subtitle">策略健康监控 Strategy health monitoring</span>
       </div>
-      <el-button :icon="Refresh" @click="refresh" :loading="loading">刷新</el-button>
+      <el-button :icon="Refresh" @click="refresh" :loading="loading">刷新 Refresh</el-button>
     </div>
 
     <!-- Summary Cards -->
     <div class="summary-grid">
       <el-card class="summary-card" shadow="hover">
-        <div class="metric-label">总策略数</div>
+        <div class="metric-label">总策略数 Total Strategies</div>
         <div class="metric-value">{{ healthList.length }}</div>
       </el-card>
       <el-card class="summary-card" shadow="hover">
-        <div class="metric-label">健康</div>
+        <div class="metric-label">健康 Healthy</div>
         <div class="metric-value text-success">{{ countByStatus('healthy') }}</div>
       </el-card>
       <el-card class="summary-card" shadow="hover">

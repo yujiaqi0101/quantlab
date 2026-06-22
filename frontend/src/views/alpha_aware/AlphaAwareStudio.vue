@@ -3,12 +3,12 @@
     <!-- Header -->
     <div class="studio-header">
       <div class="header-left">
-        <h1 class="studio-title">Execution-Aware Alpha Studio</h1>
-        <span class="studio-subtitle">从"预测收益"到"真实可交易" — 优化市场存活率</span>
+        <h1 class="studio-title">执行感知Alpha工作室 Execution-Aware Alpha Studio</h1>
+        <span class="studio-subtitle">从"预测收益"到"真实可交易" — 优化市场存活率 From "predicted returns" to "truly tradeable" — optimize market survival</span>
       </div>
       <div class="header-right">
         <el-button type="primary" :icon="MagicStick" @click="evaluateAll" :loading="evaluating">
-          一键全流程评估
+          一键全流程评估 Evaluate All
         </el-button>
       </div>
     </div>

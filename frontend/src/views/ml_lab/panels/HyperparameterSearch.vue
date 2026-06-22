@@ -1,52 +1,52 @@
 <template>
   <div class="hyperparameter-search">
     <div class="panel-header">
-      <h2>Hyperparameter Search</h2>
+      <h2>超参搜索 Hyperparameter Search</h2>
     </div>
 
     <el-card>
       <el-form :model="form" label-width="140px" inline>
-        <el-form-item label="Dataset">
-          <el-select v-model="form.dataset_id" placeholder="Select dataset" style="width: 200px">
+        <el-form-item label="数据集 Dataset">
+          <el-select v-model="form.dataset_id" placeholder="选择数据集 Select dataset" style="width: 200px">
             <el-option v-for="d in datasets" :key="d.dataset_id" :label="d.name" :value="d.dataset_id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="FeatureSet">
-          <el-select v-model="form.feature_set_id" placeholder="Optional" style="width: 200px">
+        <el-form-item label="特征集 FeatureSet">
+          <el-select v-model="form.feature_set_id" placeholder="可选 Optional" style="width: 200px">
             <el-option v-for="f in featureSets" :key="f.name" :label="f.name" :value="f.name" />
           </el-select>
         </el-form-item>
-        <el-form-item label="LabelSet">
-          <el-select v-model="form.label_set_id" placeholder="Optional" style="width: 200px">
+        <el-form-item label="标签集 LabelSet">
+          <el-select v-model="form.label_set_id" placeholder="可选 Optional" style="width: 200px">
             <el-option v-for="l in labelSets" :key="l.name" :label="l.name" :value="l.name" />
           </el-select>
         </el-form-item>
-        <el-form-item label="Model">
+        <el-form-item label="模型 Model">
           <el-select v-model="form.model_type" style="width: 200px">
-            <el-option label="Linear" value="LINEAR_REGRESSION" />
-            <el-option label="Random Forest" value="RANDOM_FOREST" />
+            <el-option label="线性回归 Linear" value="LINEAR_REGRESSION" />
+            <el-option label="随机森林 Random Forest" value="RANDOM_FOREST" />
             <el-option label="LightGBM" value="LIGHTGBM" />
             <el-option label="XGBoost" value="XGBOOST" />
           </el-select>
         </el-form-item>
-        <el-form-item label="Search Type">
+        <el-form-item label="搜索类型 Search Type">
           <el-radio-group v-model="searchType">
-            <el-radio-button label="grid">Grid</el-radio-button>
-            <el-radio-button label="random">Random</el-radio-button>
+            <el-radio-button label="grid">网格 Grid</el-radio-button>
+            <el-radio-button label="random">随机 Random</el-radio-button>
           </el-radio-group>
         </el-form-item>
-        <el-form-item label="Metric">
+        <el-form-item label="指标 Metric">
           <el-select v-model="form.metric" style="width: 120px">
             <el-option label="IC" value="ic" />
             <el-option label="RMSE" value="rmse" />
           </el-select>
         </el-form-item>
-        <el-form-item v-if="searchType === 'random'" label="N Trials">
+        <el-form-item v-if="searchType === 'random'" label="试验次数 N Trials">
           <el-input-number v-model="form.n_trials" :min="1" :max="100" />
         </el-form-item>
       </el-form>
 
-      <el-divider content-position="left">Parameter Space (JSON)</el-divider>
+      <el-divider content-position="left">参数空间（JSON）Parameter Space</el-divider>
       <el-input
         v-model="paramJson"
         type="textarea"
@@ -55,7 +55,7 @@
       />
 
       <div style="margin-top: 16px; text-align: right">
-        <el-button type="primary" :loading="running" @click="runSearch">Run Search</el-button>
+        <el-button type="primary" :loading="running" @click="runSearch">运行搜索 Run Search</el-button>
       </div>
     </el-card>
 
@@ -63,32 +63,32 @@
     <el-card v-if="result" style="margin-top: 16px">
       <template #header>
         <div style="display: flex; justify-content: space-between; align-items: center">
-          <span>Search Results ({{ result.n_trials }} trials)</span>
-          <el-tag type="success">Best: {{ result.best_metric?.toFixed(4) }}</el-tag>
+          <span>搜索结果（{{ result.n_trials }} 次试验）Search Results</span>
+          <el-tag type="success">最佳 Best: {{ result.best_metric?.toFixed(4) }}</el-tag>
         </div>
       </template>
 
       <el-descriptions :column="1" border>
-        <el-descriptions-item label="Best Metric">{{ result.best_metric?.toFixed(6) }}</el-descriptions-item>
-        <el-descriptions-item label="Best Params">
+        <el-descriptions-item label="最佳指标 Best Metric">{{ result.best_metric?.toFixed(6) }}</el-descriptions-item>
+        <el-descriptions-item label="最佳参数 Best Params">
           <pre>{{ JSON.stringify(result.best_params, null, 2) }}</pre>
         </el-descriptions-item>
       </el-descriptions>
 
-      <h4>Trials</h4>
+      <h4>试验记录 Trials</h4>
       <el-table :data="result.trials" border size="small">
-        <el-table-column prop="trial_id" label="Trial" width="80" />
-        <el-table-column label="Params">
+        <el-table-column prop="trial_id" label="试验 Trial" width="80" />
+        <el-table-column label="参数 Params">
           <template #default="{ row }">
             <pre style="margin: 0">{{ JSON.stringify(row.params) }}</pre>
           </template>
         </el-table-column>
-        <el-table-column label="Metric" width="120">
+        <el-table-column label="指标 Metric" width="120">
           <template #default="{ row }">
             {{ row.metric_value?.toFixed(4) }}
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="Status" width="100" />
+        <el-table-column prop="status" label="状态 Status" width="100" />
       </el-table>
     </el-card>
   </div>
@@ -135,11 +135,11 @@ async function loadOptions() {
 
 async function runSearch() {
   if (!form.value.dataset_id) {
-    ElMessage.warning('Please select a dataset')
+    ElMessage.warning('请选择数据集 Please select a dataset')
     return
   }
   if (!form.value.feature_set_id || !form.value.label_set_id) {
-    ElMessage.warning('Please select FeatureSet and LabelSet')
+    ElMessage.warning('请选择特征集和标签集 Please select FeatureSet and LabelSet')
     return
   }
 
@@ -147,7 +147,7 @@ async function runSearch() {
   try {
     params = JSON.parse(paramJson.value)
   } catch {
-    ElMessage.error('Invalid JSON')
+    ElMessage.error('无效的JSON Invalid JSON')
     return
   }
 
@@ -165,9 +165,9 @@ async function runSearch() {
     } else {
       result.value = await runRandomSearch({ ...base, param_space: params, n_trials: form.value.n_trials })
     }
-    ElMessage.success('Search completed')
+    ElMessage.success('搜索完成 Search completed')
   } catch (e: any) {
-    ElMessage.error(e.message || 'Search failed')
+    ElMessage.error(e.message || '搜索失败 Search failed')
   } finally {
     running.value = false
   }

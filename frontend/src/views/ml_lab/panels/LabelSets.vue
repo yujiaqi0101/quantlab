@@ -1,59 +1,59 @@
 <template>
   <div class="label-sets">
     <div class="panel-header">
-      <h2>Label Sets</h2>
-      <el-button type="primary" @click="showCreateDialog = true">Create LabelSet</el-button>
+      <h2>标签集 Label Sets</h2>
+      <el-button type="primary" @click="showCreateDialog = true">创建标签集 Create</el-button>
     </div>
 
     <el-table :data="sets" v-loading="loading" border style="width: 100%">
       <el-table-column prop="ls_id" label="ID" width="120" />
-      <el-table-column prop="name" label="Name" width="180" />
-      <el-table-column prop="label_id" label="Label" width="180" />
-      <el-table-column prop="label_type" label="Type" width="120">
+      <el-table-column prop="name" label="名称 Name" width="180" />
+      <el-table-column prop="label_id" label="标签 Label" width="180" />
+      <el-table-column prop="label_type" label="类型 Type" width="120">
         <template #default="{ row }">
           <el-tag :type="row.label_type === 'classification' ? 'warning' : 'success'" size="small">
             {{ row.label_type }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="version" label="Version" width="80" />
-      <el-table-column label="Classes" width="200">
+      <el-table-column prop="version" label="版本 Version" width="80" />
+      <el-table-column label="类别 Classes" width="200">
         <template #default="{ row }">
           <el-tag v-for="c in row.classes" :key="c" size="small" style="margin-right: 4px">{{ c }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="description" label="Description" min-width="150" />
+      <el-table-column prop="description" label="描述 Description" min-width="150" />
     </el-table>
 
-    <el-dialog v-model="showCreateDialog" title="Create LabelSet" width="600px">
+    <el-dialog v-model="showCreateDialog" title="创建标签集 Create LabelSet" width="600px">
       <el-form :model="createForm" label-width="100px">
-        <el-form-item label="Name">
-          <el-input v-model="createForm.name" placeholder="e.g. return_10d" />
+        <el-form-item label="名称 Name">
+          <el-input v-model="createForm.name" placeholder="例如 return_10d" />
         </el-form-item>
-        <el-form-item label="Label">
-          <el-select v-model="createForm.label_id" filterable placeholder="Select label" style="width: 100%">
+        <el-form-item label="标签 Label">
+          <el-select v-model="createForm.label_id" filterable placeholder="选择标签 Select label" style="width: 100%">
             <el-option v-for="l in availableLabels" :key="l.label_id" :label="`${l.name} (${l.label_id})`" :value="l.label_id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="Type">
+        <el-form-item label="类型 Type">
           <el-select v-model="createForm.label_type">
-            <el-option label="Regression" value="regression" />
-            <el-option label="Classification" value="classification" />
+            <el-option label="回归 Regression" value="regression" />
+            <el-option label="分类 Classification" value="classification" />
           </el-select>
         </el-form-item>
-        <el-form-item label="Version">
+        <el-form-item label="版本 Version">
           <el-input v-model="createForm.version" placeholder="1.0" />
         </el-form-item>
-        <el-form-item label="Description">
+        <el-form-item label="描述 Description">
           <el-input v-model="createForm.description" type="textarea" />
         </el-form-item>
-        <el-form-item label="Tags">
+        <el-form-item label="标签 Tags">
           <el-input v-model="tagsInput" placeholder="return, v1" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showCreateDialog = false">Cancel</el-button>
-        <el-button type="primary" @click="createSet">Create</el-button>
+        <el-button @click="showCreateDialog = false">取消 Cancel</el-button>
+        <el-button type="primary" @click="createSet">创建 Create</el-button>
       </template>
     </el-dialog>
   </div>
@@ -86,7 +86,7 @@ async function loadData() {
     sets.value = setsResp.sets
     availableLabels.value = labelsResp.labels
   } catch (e: any) {
-    ElMessage.error(e.message || 'Failed to load')
+    ElMessage.error(e.message || '加载失败 Failed to load')
   } finally {
     loading.value = false
   }
@@ -103,13 +103,13 @@ async function createSet() {
       description: createForm.value.description,
       tags,
     })
-    ElMessage.success('LabelSet created')
+    ElMessage.success('标签集已创建 LabelSet created')
     showCreateDialog.value = false
     createForm.value = { name: '', label_id: '', label_type: 'regression', version: '1.0', description: '', tags: [] }
     tagsInput.value = ''
     await loadData()
   } catch (e: any) {
-    ElMessage.error(e.message || 'Failed to create')
+    ElMessage.error(e.message || '创建失败 Failed to create')
   }
 }
 

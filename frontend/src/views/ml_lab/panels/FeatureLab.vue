@@ -1,27 +1,27 @@
 <template>
   <div class="feature-lab">
     <div class="panel-header">
-      <h2>Feature Lab</h2>
-      <el-select v-model="selectedCategory" placeholder="Filter by category" clearable style="width: 200px">
+      <h2>特征实验室 Feature Lab</h2>
+      <el-select v-model="selectedCategory" placeholder="按类别筛选 Filter by category" clearable style="width: 200px">
         <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
       </el-select>
     </div>
 
     <el-table :data="filteredFeatures" v-loading="loading" border>
       <el-table-column prop="feature_id" label="ID" width="180" />
-      <el-table-column prop="name" label="Name" width="180" />
-      <el-table-column prop="category" label="Category" width="150">
+      <el-table-column prop="name" label="名称 Name" width="180" />
+      <el-table-column prop="category" label="类别 Category" width="150">
         <template #default="{ row }">
           <el-tag size="small">{{ row.category }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="description" label="Description" />
-      <el-table-column label="Params" width="200">
+      <el-table-column prop="description" label="描述 Description" />
+      <el-table-column label="参数 Params" width="200">
         <template #default="{ row }">
           <code>{{ JSON.stringify(row.params) }}</code>
         </template>
       </el-table-column>
-      <el-table-column label="Required" width="200">
+      <el-table-column label="必需列 Required" width="200">
         <template #default="{ row }">
           <el-tag v-for="c in row.required_columns" :key="c" size="small" type="info" style="margin-right: 4px">{{ c }}</el-tag>
         </template>

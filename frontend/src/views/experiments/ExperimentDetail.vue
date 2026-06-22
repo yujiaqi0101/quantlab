@@ -3,13 +3,13 @@
     <!-- Back -->
     <div class="detail-back" @click="router.push('/experiments')">
       <el-icon :size="14"><ArrowLeft /></el-icon>
-      <span>Back to Experiments</span>
+      <span>返回实验 Back to Experiments</span>
     </div>
 
     <!-- Loading -->
     <div v-if="store.loading && !exp" class="loading-state">
       <el-icon class="is-loading" :size="24"><Loading /></el-icon>
-      <span>Loading experiment...</span>
+      <span>加载实验中 Loading experiment...</span>
     </div>
 
     <!-- Error -->
@@ -47,7 +47,7 @@
       <!-- Tabs -->
       <el-tabs v-model="activeTab" class="detail-tabs">
         <!-- ==================== Tab 1: Overview ==================== -->
-        <el-tab-pane label="Overview" name="overview">
+        <el-tab-pane label="概览 Overview" name="overview">
           <div class="metrics-grid">
             <div class="metric-cell" v-for="m in overviewCards" :key="m.key">
               <span class="metric-label">{{ m.label }}</span>
@@ -58,7 +58,7 @@
 
           <!-- Parameters -->
           <div v-if="exp.params && Object.keys(exp.params).length > 0" class="section-block">
-            <div class="section-title">Parameters</div>
+            <div class="section-title">参数 Parameters</div>
             <div class="params-grid">
               <div v-for="(val, key) in exp.params" :key="key" class="param-row">
                 <span class="param-key">{{ key }}</span>
@@ -69,10 +69,10 @@
         </el-tab-pane>
 
         <!-- ==================== Tab 2: Performance ==================== -->
-        <el-tab-pane label="Performance" name="performance">
+        <el-tab-pane label="绩效 Performance" name="performance">
           <!-- Equity + Drawdown -->
           <div class="section-block">
-            <div class="section-title">Equity Curve & Drawdown</div>
+            <div class="section-title">资金曲线与回撤 Equity Curve & Drawdown</div>
             <div class="chart-box">
               <v-chart :option="equityDrawdownOption" autoresize class="chart" />
             </div>

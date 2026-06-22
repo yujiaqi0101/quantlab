@@ -1184,9 +1184,75 @@ Shadow Mode 100 单 paper/live < 5 bps ?
 
 ### 21.9 文档对应
 
-- 完整模块说明：[`README.md` §19](./README.md#19-v35-execution-fidelity-layer), [§20](./README.md#20-v36-execution-aware-alpha-layer)
+- 完整模块说明：[`README.md` §19](./README.md#19-v35-execution-fidelity-layer), [§20](./README.md#20-v36-execution-aware-alpha-layer), [§21](./README.md#21-v44-ml-lab--observe--live-studio)
 - V3.5 API：`quantlab/api/fidelity.py`
 - V3.6 API：`quantlab/api/alpha_aware.py`
+- V4.4 ML Lab API：`quantlab/api/ml_lab.py`
 - V3.5 前端：`/fidelity`
 - V3.6 前端：`/alpha-aware`
+- V4.4 ML Lab 前端：`/ml-lab`
+- V4.4 Observe 前端：`/observe/*`
+- V4.4 Live Studio 前端：`/live`
+
+---
+
+## 22. V4.4 ML 策略开发规范
+
+> 这一节是**对开发流程的进一步扩展**：当你的策略需要用机器学习方法时，走 ML Lab 的 17 Tab 工作流。
+
+### 22.1 ML 策略开发步骤（在 §1 的 8 步基础上）
+
+```
+1.  创建 ML 数据集    ML Lab → Datasets Tab → Create Dataset + Upload CSV
+2.  定义特征          ML Lab → Features Tab → Feature Sets Tab
+3.  定义标签          ML Lab → Labels Tab → Label Sets Tab
+4.  特征诊断          ML Lab → Feature Diagnostics / Label Diagnostics
+5.  模型训练          ML Lab → Training Jobs Tab → Start Training
+6.  Walk Forward 验证 ML Lab → Validation Tab
+7.  模型对比          ML Lab → Model Arena Tab → Run Comparison
+8.  泄露检测          ML Lab → Leakage Detector Tab（必须 PASSED）
+9.  模型注册          ML Lab → Model Registry Tab → Register Version
+10. 构建 ML 策略      ML Lab → Strategy Builder Tab
+11. 回测验证          §1 的 2~8 步
+12. 真实化评估        §21 的 9~12 步
+```
+
+### 22.2 ML 策略硬约束
+
+1. **Leakage Detector 必须 PASSED**
+   - 任何 `shift(-1)` / `rolling(center=True)` 等前瞻偏差必须消除
+   - CRITICAL 级别问题 = 0 个才能注册模型
+
+2. **Walk Forward 验证 IC Stability ≥ 0.5**
+   - IC Stability < 0.5 说明模型对时间窗口敏感，过拟合风险高
+
+3. **Model Arena 对比至少 3 个模型**
+   - 单模型无法判断是否为最优选择
+   - 必须包含 LightGBM / XGBoost 中的至少一个
+
+4. **禁止用 train_test_split**
+   - 时间序列数据**必须**用 Walk Forward 验证
+   - ML Lab 的 Validation Tab 已内置此检查
+
+### 22.3 Live Studio 部署规则
+
+1. **先 Paper 后 Live**
+   - Live Studio 的 Broker 选择中，Binance 实盘当前 disabled
+   - 所有策略必须先在 Paper 模式下运行 ≥ 1 周
+
+2. **Deploy 前必须完成 V3.5/V3.6 评估**
+   - Tradeability Rank ≥ B
+   - True PnL ≥ 0
+
+3. **Observe 监控必须开启**
+   - 部署后立即检查 `/observe/health` 页面
+   - Kill Switch 阈值：日亏损 ≤ 3%，最大回撤 ≤ 15%
+
+### 22.4 严禁的反模式
+
+1. **❌ 跳过 Leakage Detector 直接注册模型** —— 前瞻偏差是 ML 策略最常见的致命问题
+2. **❌ 用 train_test_split 代替 Walk Forward** —— 时间序列泄漏
+3. **❌ 单模型直接上线** —— 必须在 Model Arena 中对比
+4. **❌ ML 策略跳过 V3.5/V3.6 直接 Deploy** —— ML 策略的换手率通常更高，成本影响更大
+5. **❌ 不看 Observe Health 就加仓** —— ML 策略的退化可能很突然
 

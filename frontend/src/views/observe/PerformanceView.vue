@@ -6,7 +6,7 @@
         <div class="control-left">
           <el-select
             v-model="sessionId"
-            placeholder="选择会话"
+            placeholder="选择会话 Select session"
             filterable
             style="width: 280px"
             @change="loadAll"
@@ -18,14 +18,14 @@
               :value="s.session_id"
             />
           </el-select>
-          <el-button @click="loadSessions" :icon="Refresh" plain>刷新会话</el-button>
+          <el-button @click="loadSessions" :icon="Refresh" plain>刷新会话 Refresh</el-button>
           <el-button
             v-if="sessionId"
             @click="loadAll"
             :icon="Refresh"
             type="primary"
           >
-            重新分析
+            重新分析 Re-analyze
           </el-button>
         </div>
         <div class="control-right">

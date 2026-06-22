@@ -3,29 +3,29 @@
     <div class="page-header">
       <div class="page-header-row">
         <div>
-          <h1 class="page-title">Experiments</h1>
-          <p class="page-desc">{{ store.items.length }} experiments recorded</p>
+          <h1 class="page-title">实验 Experiments</h1>
+          <p class="page-desc">{{ store.items.length }} 个实验已记录 experiments recorded</p>
         </div>
         <div class="page-actions">
           <el-input
             v-model="keyword"
-            placeholder="Search experiments..."
+            placeholder="搜索实验 Search experiments..."
             :prefix-icon="Search"
             clearable
             class="search-input"
           />
           <el-select v-model="sortField" class="sort-select" @change="onSort">
-            <el-option label="Sort by Return" value="total_return" />
-            <el-option label="Sort by Sharpe" value="sharpe" />
-            <el-option label="Sort by MaxDD" value="max_drawdown" />
-            <el-option label="Sort by Created" value="created_at" />
+            <el-option label="按收益排序 Sort by Return" value="total_return" />
+            <el-option label="按夏普排序 Sort by Sharpe" value="sharpe" />
+            <el-option label="按回撤排序 Sort by MaxDD" value="max_drawdown" />
+            <el-option label="按时间排序 Sort by Created" value="created_at" />
           </el-select>
-          <el-select v-model="statusFilter" placeholder="Status" clearable class="filter-select" @change="onFilterChange">
-            <el-option label="Normal" value="normal" />
-            <el-option label="Candidate" value="candidate" />
-            <el-option label="Production" value="production" />
+          <el-select v-model="statusFilter" placeholder="状态 Status" clearable class="filter-select" @change="onFilterChange">
+            <el-option label="普通 Normal" value="normal" />
+            <el-option label="候选 Candidate" value="candidate" />
+            <el-option label="生产 Production" value="production" />
           </el-select>
-          <el-select v-model="folderFilter" placeholder="Folder" clearable class="filter-select" @change="onFilterChange">
+          <el-select v-model="folderFilter" placeholder="文件夹 Folder" clearable class="filter-select" @change="onFilterChange">
             <el-option v-for="f in store.folders" :key="f" :label="f" :value="f" />
           </el-select>
           <el-button
@@ -34,7 +34,7 @@
             :icon="DataLine"
             @click="goCompare"
           >
-            Compare ({{ selectedIds.length }})
+            对比 Compare ({{ selectedIds.length }})
           </el-button>
           <el-button :icon="Refresh" circle @click="onRefresh" :loading="store.loading" />
         </div>
@@ -45,14 +45,14 @@
       <!-- Loading -->
       <div v-if="store.loading && store.items.length === 0" class="loading-state">
         <el-icon class="is-loading" :size="24"><Loading /></el-icon>
-        <span>Loading experiments...</span>
+        <span>加载实验中 Loading experiments...</span>
       </div>
 
       <!-- Error -->
       <div v-else-if="store.error" class="error-state">
         <el-icon :size="24" color="#f85149"><CircleCloseFilled /></el-icon>
         <p>{{ store.error }}</p>
-        <el-button type="primary" size="small" @click="onRefresh">Retry</el-button>
+        <el-button type="primary" size="small" @click="onRefresh">重试 Retry</el-button>
       </div>
 
       <!-- Table -->
@@ -65,11 +65,11 @@
         :row-style="{ cursor: 'pointer' }"
         @row-click="onRowClick"
         @selection-change="onSelectionChange"
-        empty-text="No experiments found"
+        empty-text="未找到实验 No experiments found"
       >
         <el-table-column type="selection" width="40" />
 
-        <el-table-column prop="name" label="Experiment" min-width="180">
+        <el-table-column prop="name" label="实验 Experiment" min-width="180">
           <template #default="{ row }">
             <div class="cell-exp">
               <div class="cell-name-row">
@@ -100,13 +100,13 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="strategy" label="Strategy" width="140">
+        <el-table-column prop="strategy" label="策略 Strategy" width="140">
           <template #default="{ row }">
             <span class="cell-strategy">{{ row.strategy }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="total_return" label="Return" width="100" align="right" sortable>
+        <el-table-column prop="total_return" label="收益 Return" width="100" align="right" sortable>
           <template #default="{ row }">
             <span :class="row.total_return >= 0 ? 'cell-positive' : 'cell-negative'">
               {{ row.total_return >= 0 ? '+' : '' }}{{ row.total_return?.toFixed(2) }}%
@@ -114,25 +114,25 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="sharpe" label="Sharpe" width="90" align="right" sortable>
+        <el-table-column prop="sharpe" label="夏普 Sharpe" width="90" align="right" sortable>
           <template #default="{ row }">
             <span class="cell-num">{{ row.sharpe?.toFixed(2) }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="max_drawdown" label="MaxDD" width="90" align="right" sortable>
+        <el-table-column prop="max_drawdown" label="回撤 MaxDD" width="90" align="right" sortable>
           <template #default="{ row }">
             <span class="cell-negative">{{ row.max_drawdown?.toFixed(2) }}%</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="win_rate" label="Win%" width="80" align="right">
+        <el-table-column prop="win_rate" label="胜率 Win%" width="80" align="right">
           <template #default="{ row }">
             <span class="cell-num">{{ row.win_rate?.toFixed(1) }}%</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="trade_count" label="Trades" width="80" align="right">
+        <el-table-column prop="trade_count" label="交易 Trades" width="80" align="right">
           <template #default="{ row }">
             <span class="cell-num">{{ row.trade_count }}</span>
           </template>

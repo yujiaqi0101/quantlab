@@ -322,6 +322,214 @@ async def feature_analysis(req: FeatureAnalysisRequest):
     }
 
 
+@router.get("/feature-analysis/quick")
+async def feature_analysis_quick(dataset_id: str = ""):
+    """基于 dataset 快速计算特征分析（无需训练任务）"""
+    ds_mgr = get_dataset_manager()
+    datasets = ds_mgr.list_datasets()
+    logger.info(f"feature-analysis/quick: found {len(datasets)} datasets")
+
+    # 选择有数据的 dataset
+    ds = None
+    if dataset_id:
+        ds = ds_mgr.get_dataset(dataset_id)
+        logger.info(f"  requested dataset {dataset_id}: found={ds is not None}")
+    if not ds or ds.get_data() is None:
+        # 找第一个有数据的 dataset
+        for d in datasets:
+            ddata = d.get_data()
+            logger.info(f"  checking dataset {d.dataset_id}: data={ddata is not None}")
+            if ddata is not None:
+                ds = d
+                break
+
+    if not ds or ds.get_data() is None:
+        return {"results": [], "correlation_matrix": {}, "source": "no_data"}
+
+    df = ds.get_data()
+    from quantlab.ml.feature import get_feature_registry
+    from quantlab.ml.label import get_label_registry
+    feat_reg = get_feature_registry()
+    label_reg = get_label_registry()
+
+    # 计算所有可用特征
+    feature_data = {}
+    for fid, feat in feat_reg._features.items():
+        try:
+            vals = feat.compute(df)
+            if vals is not None and len(vals) > 0:
+                feature_data[fid] = vals.tolist()
+        except Exception as e:
+            logger.warning(f"Feature {fid} compute failed: {e}")
+
+    # 计算第一个可用标签
+    label_data = []
+    label_name = ""
+    for lid, lab in label_reg._labels.items():
+        try:
+            vals = lab.generate(df)
+            if vals is not None and len(vals) > 0:
+                label_data = vals.tolist()
+                label_name = lid
+                break
+        except Exception as e:
+            logger.warning(f"Label {lid} compute failed: {e}")
+
+    if not feature_data or not label_data:
+        return {"results": [], "correlation_matrix": {}, "source": "no_features"}
+
+    # 对齐长度
+    min_len = min(len(v) for v in feature_data.values())
+    min_len = min(min_len, len(label_data))
+    feature_data = {k: v[:min_len] for k, v in feature_data.items()}
+    label_data = label_data[:min_len]
+
+    features_df = pd.DataFrame(feature_data)
+    label_s = pd.Series(label_data, name=label_name or "label")
+
+    analyzer = FeatureAnalyzer()
+    analysis_results = analyzer.analyze(features_df, label_s)
+    return {
+        "results": [r.to_dict() for r in analysis_results],
+        "correlation_matrix": analyzer.correlation_matrix(features_df).to_dict(),
+        "source": "quick_analysis",
+        "dataset_id": ds.dataset_id,
+        "label": label_name,
+    }
+
+
+@router.get("/feature-analysis/from-job/{job_id}")
+async def feature_analysis_from_job(job_id: str):
+    """基于已完成的训练任务自动计算特征分析"""
+    mgr = get_training_manager()
+    job = mgr.get_job(job_id)
+    if not job:
+        raise HTTPException(404, f"Job not found: {job_id}")
+    result = mgr.get_result(job_id)
+    if not result or result.status != "COMPLETED":
+        raise HTTPException(400, "Job not completed yet")
+
+    # 从 dataset 加载数据
+    ds_mgr = get_dataset_manager()
+    ds = ds_mgr.get_dataset(job.dataset_id)
+    if not ds:
+        raise HTTPException(404, f"Dataset {job.dataset_id} not found")
+
+    try:
+        from quantlab.ml.storage import get_ml_store
+        store = get_ml_store()
+        df = store.load_dataset_data(job.dataset_id)
+    except Exception:
+        # 如果没有实际数据，用 feature importance 生成简化结果
+        fi = result.feature_importance or {}
+        total = sum(fi.values()) or 1
+        results = []
+        for fname, imp in fi.items():
+            results.append({
+                "feature_name": fname,
+                "ic": 0.0,
+                "rank_ic": 0.0,
+                "mutual_info": round(imp / total, 4),
+                "ic_std": 0.0,
+                "ic_ir": 0.0,
+                "n_samples": result.n_test_samples or 0,
+                "importance": imp,
+                "importance_pct": round(imp / total * 100, 2),
+            })
+        return {"results": results, "correlation_matrix": {}, "source": "feature_importance"}
+
+    # 有实际数据时，计算完整分析
+    from quantlab.ml.feature import get_feature_registry
+    from quantlab.ml.label import get_label_registry
+    feat_reg = get_feature_registry()
+    label_reg = get_label_registry()
+
+    feature_data = {}
+    for fid in job.feature_ids:
+        feat = feat_reg.get(fid)
+        if feat:
+            try:
+                feature_data[fid] = feat.compute(df).tolist()
+            except Exception:
+                pass
+
+    label_obj = label_reg.get(job.label_id)
+    label_data = []
+    if label_obj:
+        try:
+            label_data = label_obj.generate(df).tolist()
+        except Exception:
+            pass
+
+    if not feature_data or not label_data:
+        # fallback to feature importance
+        fi = result.feature_importance or {}
+        total = sum(fi.values()) or 1
+        results = []
+        for fname, imp in fi.items():
+            results.append({
+                "feature_name": fname,
+                "ic": 0.0,
+                "rank_ic": 0.0,
+                "mutual_info": round(imp / total, 4),
+                "ic_std": 0.0,
+                "ic_ir": 0.0,
+                "n_samples": result.n_test_samples or 0,
+                "importance": imp,
+                "importance_pct": round(imp / total * 100, 2),
+            })
+        return {"results": results, "correlation_matrix": {}, "source": "feature_importance"}
+
+    min_len = min(len(v) for v in feature_data.values())
+    min_len = min(min_len, len(label_data))
+    feature_data = {k: v[:min_len] for k, v in feature_data.items()}
+    label_data = label_data[:min_len]
+
+    analyzer = FeatureAnalyzer()
+    features_df = pd.DataFrame(feature_data)
+    label_s = pd.Series(label_data, name="label")
+    analysis_results = analyzer.analyze(features_df, label_s)
+    return {
+        "results": [r.to_dict() for r in analysis_results],
+        "correlation_matrix": analyzer.correlation_matrix(features_df).to_dict(),
+        "source": "full_analysis",
+    }
+
+
+@router.get("/feature-importance/from-job/{job_id}")
+async def feature_importance_from_job(job_id: str):
+    """基于已完成的训练任务获取特征重要性"""
+    mgr = get_training_manager()
+    job = mgr.get_job(job_id)
+    if not job:
+        raise HTTPException(404, f"Job not found: {job_id}")
+    result = mgr.get_result(job_id)
+    if not result or result.status != "COMPLETED":
+        raise HTTPException(400, "Job not completed yet")
+
+    fi = result.feature_importance or {}
+    if not fi:
+        raise HTTPException(404, "No feature importance data in this job")
+
+    total = sum(fi.values()) or 1
+    details = []
+    for rank, (fname, imp) in enumerate(sorted(fi.items(), key=lambda x: -x[1]), 1):
+        details.append({
+            "rank": rank,
+            "feature": fname,
+            "importance": imp,
+            "normalized": round(imp / total, 6),
+        })
+
+    return {
+        "gain": {
+            "details": details,
+            "model_type": job.model_type.value if hasattr(job.model_type, 'value') else str(job.model_type),
+            "n_features": len(fi),
+        }
+    }
+
+
 # ==================================================================
 # Model Lab
 # ==================================================================
@@ -800,16 +1008,6 @@ async def list_experiments(
     }
 
 
-@router.get("/experiments/{experiment_id}")
-async def get_experiment(experiment_id: str):
-    """实验详情"""
-    tracker = get_experiment_tracker()
-    exp = tracker.get(experiment_id)
-    if not exp:
-        raise HTTPException(404, f"Experiment not found: {experiment_id}")
-    return exp.to_dict()
-
-
 @router.get("/experiments/leaderboard")
 async def get_experiment_leaderboard(metric: str = "ic", limit: int = 20):
     """实验排行榜"""
@@ -825,6 +1023,16 @@ async def get_experiment_summary():
     """实验统计"""
     tracker = get_experiment_tracker()
     return tracker.get_summary()
+
+
+@router.get("/experiments/{experiment_id}")
+async def get_experiment(experiment_id: str):
+    """实验详情"""
+    tracker = get_experiment_tracker()
+    exp = tracker.get(experiment_id)
+    if not exp:
+        raise HTTPException(404, f"Experiment not found: {experiment_id}")
+    return exp.to_dict()
 
 
 # ==================================================================
@@ -1307,19 +1515,6 @@ async def compare_experiments_api(req: ExperimentCompareRequest):
     return report.to_dict()
 
 
-@router.get("/experiments/leaderboard")
-async def experiment_leaderboard(
-    metric: str = "ic",
-    ascending: bool = False,
-    limit: int = 20,
-):
-    """实验排行榜"""
-    tracker = get_experiment_tracker()
-    return {"leaderboard": tracker.get_leaderboard(metric=metric, ascending=ascending, limit=limit)}
-
-
-@router.get("/experiments/summary")
-async def experiments_summary():
-    """实验汇总"""
-    tracker = get_experiment_tracker()
-    return tracker.get_summary()
+# ==================================================================
+# L15: Feature Importance — 特征重要性
+# ==================================================================

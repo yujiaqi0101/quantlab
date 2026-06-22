@@ -2,20 +2,20 @@
   <div class="leaderboard-page">
     <div class="lb-header">
       <div>
-        <h1 class="lb-title">Strategy Leaderboard</h1>
-        <p class="lb-sub">Top performing experiments ranked by key metrics</p>
+        <h1 class="lb-title">策略排行榜 Strategy Leaderboard</h1>
+        <p class="lb-sub">按关键指标排名的顶级实验 Top performing experiments ranked by key metrics</p>
       </div>
       <div class="lb-actions">
         <el-select v-model="metric" class="metric-select" @change="onRefresh">
-          <el-option label="Sharpe Ratio" value="sharpe" />
-          <el-option label="Total Return" value="total_return" />
-          <el-option label="Max Drawdown" value="max_drawdown" />
-          <el-option label="Win Rate" value="win_rate" />
+          <el-option label="夏普比率 Sharpe Ratio" value="sharpe" />
+          <el-option label="总收益 Total Return" value="total_return" />
+          <el-option label="最大回撤 Max Drawdown" value="max_drawdown" />
+          <el-option label="胜率 Win Rate" value="win_rate" />
         </el-select>
         <el-select v-model="topN" class="top-select" @change="onRefresh">
-          <el-option label="Top 10" :value="10" />
-          <el-option label="Top 20" :value="20" />
-          <el-option label="Top 50" :value="50" />
+          <el-option label="前10 Top 10" :value="10" />
+          <el-option label="前20 Top 20" :value="20" />
+          <el-option label="前50 Top 50" :value="50" />
         </el-select>
         <el-button :icon="Refresh" circle @click="onRefresh" :loading="loading" />
       </div>
@@ -24,7 +24,7 @@
     <!-- Loading -->
     <div v-if="loading && !items.length" class="loading-state">
       <el-icon class="is-loading" :size="24"><Loading /></el-icon>
-      <span>Loading leaderboard...</span>
+      <span>加载排行榜中 Loading leaderboard...</span>
     </div>
 
     <!-- Leaderboard Cards -->
@@ -48,13 +48,13 @@
         </div>
         <div class="lb-card-metrics">
           <div class="lb-metric">
-            <span class="lb-metric-label">Return</span>
+            <span class="lb-metric-label">收益 Return</span>
             <span :class="item.total_return >= 0 ? 'lb-positive' : 'lb-negative'">
               {{ item.total_return >= 0 ? '+' : '' }}{{ item.total_return?.toFixed(2) }}%
             </span>
           </div>
           <div class="lb-metric">
-            <span class="lb-metric-label">Sharpe</span>
+            <span class="lb-metric-label">夏普 Sharpe</span>
             <span class="lb-metric-value">{{ item.sharpe?.toFixed(3) }}</span>
           </div>
           <div class="lb-metric">

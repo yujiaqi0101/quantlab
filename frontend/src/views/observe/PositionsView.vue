@@ -2,16 +2,16 @@
   <div class="observe-positions">
     <div class="page-header">
       <div>
-        <h1 class="page-title">Positions</h1>
-        <span class="page-subtitle">实时持仓</span>
+        <h1 class="page-title">持仓 Positions</h1>
+        <span class="page-subtitle">实时持仓 Live positions</span>
       </div>
-      <el-button :icon="Refresh" @click="refresh" :loading="loading">刷新</el-button>
+      <el-button :icon="Refresh" @click="refresh" :loading="loading">刷新 Refresh</el-button>
     </div>
 
     <el-card shadow="hover">
       <el-table :data="positions" stripe>
-        <el-table-column prop="symbol" label="Symbol" min-width="120" />
-        <el-table-column prop="side" label="方向" width="80">
+        <el-table-column prop="symbol" label="标的 Symbol" min-width="120" />
+        <el-table-column prop="side" label="方向 Side" width="80">
           <template #default="{ row }">
             <el-tag :type="row.side === 'LONG' ? 'success' : 'danger'" size="small">
               {{ row.side || '-' }}

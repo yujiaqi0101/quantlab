@@ -2,32 +2,32 @@
   <div class="observe-trades">
     <div class="page-header">
       <div>
-        <h1 class="page-title">Trades</h1>
-        <span class="page-subtitle">成交分析</span>
+        <h1 class="page-title">成交 Trades</h1>
+        <span class="page-subtitle">成交分析 Trade analysis</span>
       </div>
       <div class="header-actions">
         <el-select v-model="hours" size="small" style="width: 140px">
-          <el-option label="最近24小时" :value="24" />
-          <el-option label="最近7天" :value="168" />
-          <el-option label="最近30天" :value="720" />
+          <el-option label="最近24小时 Last 24h" :value="24" />
+          <el-option label="最近7天 Last 7 days" :value="168" />
+          <el-option label="最近30天 Last 30 days" :value="720" />
         </el-select>
-        <el-button :icon="Refresh" @click="refresh" :loading="loading">刷新</el-button>
+        <el-button :icon="Refresh" @click="refresh" :loading="loading">刷新 Refresh</el-button>
       </div>
     </div>
 
     <!-- Analytics Cards -->
     <div class="analytics-grid" v-if="analytics">
       <el-card class="analytics-card" shadow="hover">
-        <div class="metric-label">总成交</div>
+        <div class="metric-label">总成交 Total Trades</div>
         <div class="metric-value">{{ analytics.n_trades }}</div>
       </el-card>
       <el-card class="analytics-card" shadow="hover">
-        <div class="metric-label">胜率</div>
+        <div class="metric-label">胜率 Win Rate</div>
         <div class="metric-value">{{ (analytics.win_rate * 100).toFixed(1) }}%</div>
         <div class="metric-sub">{{ analytics.n_wins }}胜 / {{ analytics.n_losses }}负</div>
       </el-card>
       <el-card class="analytics-card" shadow="hover">
-        <div class="metric-label">盈亏比</div>
+        <div class="metric-label">盈亏比 P&L Ratio</div>
         <div class="metric-value">{{ analytics.profit_factor.toFixed(2) }}</div>
       </el-card>
       <el-card class="analytics-card" shadow="hover">

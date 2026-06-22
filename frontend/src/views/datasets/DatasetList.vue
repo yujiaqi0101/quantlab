@@ -3,13 +3,13 @@
     <div class="page-header">
       <div class="page-header-row">
         <div>
-          <h1 class="page-title">Datasets</h1>
-          <p class="page-desc">Manage market data and datasets</p>
+          <h1 class="page-title">数据集 Datasets</h1>
+          <p class="page-desc">管理行情数据 Manage market data and datasets</p>
         </div>
         <div class="page-actions">
           <el-input
             v-model="keyword"
-            placeholder="Search datasets..."
+            placeholder="搜索数据集 Search datasets..."
             :prefix-icon="Search"
             clearable
             class="search-input"
@@ -23,14 +23,14 @@
       <!-- Loading -->
       <div v-if="store.loading && store.items.length === 0" class="loading-state">
         <el-icon class="is-loading" :size="24"><Loading /></el-icon>
-        <span>Loading datasets...</span>
+        <span>加载数据集中 Loading datasets...</span>
       </div>
 
       <!-- Error -->
       <div v-else-if="store.error" class="error-state">
         <el-icon :size="24" color="#f85149"><CircleCloseFilled /></el-icon>
         <p>{{ store.error }}</p>
-        <el-button type="primary" size="small" @click="onRefresh">Retry</el-button>
+        <el-button type="primary" size="small" @click="onRefresh">重试 Retry</el-button>
       </div>
 
       <!-- Table -->
@@ -44,43 +44,43 @@
         @row-click="onRowClick"
         empty-text="No datasets found"
       >
-        <el-table-column prop="name" label="Name" min-width="180">
+        <el-table-column prop="name" label="名称 Name" min-width="180">
           <template #default="{ row }">
             <span class="cell-name">{{ row.name }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="symbol" label="Symbol" width="120">
+        <el-table-column prop="symbol" label="标的 Symbol" width="120">
           <template #default="{ row }">
             <span class="cell-id">{{ row.symbol }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="frequency" label="Freq" width="80">
+        <el-table-column prop="frequency" label="频率 Freq" width="80">
           <template #default="{ row }">
             <el-tag size="small" effect="dark" class="freq-tag">{{ row.frequency }}</el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column prop="asset_type" label="Type" width="90">
+        <el-table-column prop="asset_type" label="类型 Type" width="90">
           <template #default="{ row }">
             <span class="cell-muted">{{ row.asset_type }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="start_time" label="Start" width="120">
+        <el-table-column prop="start_time" label="开始 Start" width="120">
           <template #default="{ row }">
             <span class="cell-muted">{{ formatDate(row.start_time) }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="end_time" label="End" width="120">
+        <el-table-column prop="end_time" label="结束 End" width="120">
           <template #default="{ row }">
             <span class="cell-muted">{{ formatDate(row.end_time) }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="rows" label="Rows" width="90" align="right">
+        <el-table-column prop="rows" label="行数 Rows" width="90" align="right">
           <template #default="{ row }">
             <span class="cell-num">{{ formatNumber(row.rows) }}</span>
           </template>

@@ -3,12 +3,12 @@
     <!-- Header -->
     <div class="studio-header">
       <div class="header-left">
-        <h1 class="studio-title">Execution Fidelity Studio</h1>
-        <span class="studio-subtitle">让纸上交易 ≈ 真实交易</span>
+        <h1 class="studio-title">执行保真工作室 Execution Fidelity Studio</h1>
+        <span class="studio-subtitle">让纸上交易 ≈ 真实交易 Make paper trading ≈ real trading</span>
       </div>
       <div class="header-right">
         <el-button-group>
-          <el-button :icon="Refresh" @click="fetchAll" size="small">Refresh</el-button>
+          <el-button :icon="Refresh" @click="fetchAll" size="small">刷新 Refresh</el-button>
         </el-button-group>
       </div>
     </div>
@@ -16,25 +16,25 @@
     <!-- Tabs -->
     <el-tabs v-model="activeTab" class="studio-tabs">
       <!-- Overview -->
-      <el-tab-pane label="Overview" name="overview">
+      <el-tab-pane label="概览 Overview" name="overview">
         <div class="metrics-grid">
           <el-card class="metric-card">
-            <div class="metric-label">Fill Engines</div>
+            <div class="metric-label">成交引擎 Fill Engines</div>
             <div class="metric-value">{{ status.fill_engines?.length || 0 }}</div>
             <div class="metric-sub">symbols</div>
           </el-card>
           <el-card class="metric-card">
-            <div class="metric-label">Avg Cost</div>
+            <div class="metric-label">平均成本 Avg Cost</div>
             <div class="metric-value">{{ (status.cost_stats?.total || 0).toFixed(2) }} bps</div>
             <div class="metric-sub">total execution cost</div>
           </el-card>
           <el-card class="metric-card">
-            <div class="metric-label">Latency</div>
+            <div class="metric-label">延迟 Latency</div>
             <div class="metric-value">{{ (status.latency_stats?.avg_total_ms || 0).toFixed(0) }} ms</div>
             <div class="metric-sub">avg round-trip</div>
           </el-card>
           <el-card class="metric-card">
-            <div class="metric-label">Shadow Alerts</div>
+            <div class="metric-label">影子告警 Shadow Alerts</div>
             <div class="metric-value" :class="{ alert: (status.shadow_summary?.critical || 0) > 0 }">
               {{ status.shadow_summary?.critical || 0 }}
             </div>

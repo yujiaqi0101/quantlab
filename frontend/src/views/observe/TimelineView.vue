@@ -2,11 +2,11 @@
   <div class="observe-timeline">
     <div class="page-header">
       <div>
-        <h1 class="page-title">Event Timeline</h1>
-        <span class="page-subtitle">事件时间线</span>
+        <h1 class="page-title">事件时间线 Event Timeline</h1>
+        <span class="page-subtitle">事件时间线 Event timeline</span>
       </div>
       <div class="header-actions">
-        <el-select v-model="filter.category" placeholder="类别" clearable size="small" style="width: 140px">
+        <el-select v-model="filter.category" placeholder="类别 Category" clearable size="small" style="width: 140px">
           <el-option label="Market" value="market" />
           <el-option label="Signal" value="signal" />
           <el-option label="Order" value="order" />
@@ -14,7 +14,7 @@
           <el-option label="Risk" value="risk" />
           <el-option label="Position" value="position" />
         </el-select>
-        <el-button :icon="Refresh" @click="refresh" :loading="loading">刷新</el-button>
+        <el-button :icon="Refresh" @click="refresh" :loading="loading">刷新 Refresh</el-button>
       </div>
     </div>
 

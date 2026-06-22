@@ -1,47 +1,47 @@
 <template>
   <div class="dataset-center">
     <div class="panel-header">
-      <h2>Dataset Center</h2>
-      <el-button type="primary" @click="showCreateDialog = true">Create Dataset</el-button>
+      <h2>数据集中心 Dataset Center</h2>
+      <el-button type="primary" @click="showCreateDialog = true">创建数据集 Create</el-button>
     </div>
 
     <!-- 数据集列表 -->
     <el-table :data="datasets" v-loading="loading" border style="width: 100%">
       <el-table-column prop="dataset_id" label="ID" width="120" />
-      <el-table-column prop="name" label="Name" width="150" />
-      <el-table-column prop="symbols" label="Symbols" width="200">
+      <el-table-column prop="name" label="名称 Name" width="150" />
+      <el-table-column prop="symbols" label="标的 Symbols" width="200">
         <template #default="{ row }">
           <el-tag v-for="s in row.symbols" :key="s" size="small" style="margin-right: 4px">{{ s }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="frequency" label="Frequency" width="100" />
-      <el-table-column prop="start_date" label="Start" width="120" />
-      <el-table-column prop="end_date" label="End" width="120" />
-      <el-table-column prop="description" label="Description" />
-      <el-table-column label="Actions" width="200">
+      <el-table-column prop="frequency" label="频率 Frequency" width="100" />
+      <el-table-column prop="start_date" label="开始 Start" width="120" />
+      <el-table-column prop="end_date" label="结束 End" width="120" />
+      <el-table-column prop="description" label="描述 Description" />
+      <el-table-column label="操作 Actions" width="200">
         <template #default="{ row }">
-          <el-button size="small" @click="viewStats(row)">Stats</el-button>
+          <el-button size="small" @click="viewStats(row)">统计 Stats</el-button>
           <el-upload
             :show-file-list="false"
             :before-upload="(file: File) => uploadCSV(row.dataset_id, file)"
             accept=".csv"
           >
-            <el-button size="small" type="success">Upload CSV</el-button>
+            <el-button size="small" type="success">上传 Upload</el-button>
           </el-upload>
         </template>
       </el-table-column>
     </el-table>
 
     <!-- 创建数据集对话框 -->
-    <el-dialog v-model="showCreateDialog" title="Create Dataset" width="500px">
+    <el-dialog v-model="showCreateDialog" title="创建数据集 Create Dataset" width="500px">
       <el-form :model="createForm" label-width="100px">
-        <el-form-item label="Name">
+        <el-form-item label="名称 Name">
           <el-input v-model="createForm.name" placeholder="e.g. Crypto_1H" />
         </el-form-item>
-        <el-form-item label="Symbols">
+        <el-form-item label="标的 Symbols">
           <el-input v-model="symbolsInput" placeholder="BTC, ETH, SOL" />
         </el-form-item>
-        <el-form-item label="Frequency">
+        <el-form-item label="频率 Frequency">
           <el-select v-model="createForm.frequency">
             <el-option label="1m" value="1m" />
             <el-option label="5m" value="5m" />
@@ -51,18 +51,18 @@
             <el-option label="1d" value="1d" />
           </el-select>
         </el-form-item>
-        <el-form-item label="Description">
+        <el-form-item label="描述 Description">
           <el-input v-model="createForm.description" type="textarea" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showCreateDialog = false">Cancel</el-button>
-        <el-button type="primary" @click="createDataset">Create</el-button>
+        <el-button @click="showCreateDialog = false">取消 Cancel</el-button>
+        <el-button type="primary" @click="createDataset">创建 Create</el-button>
       </template>
     </el-dialog>
 
     <!-- 统计对话框 -->
-    <el-dialog v-model="showStatsDialog" title="Dataset Statistics" width="600px">
+    <el-dialog v-model="showStatsDialog" title="数据集统计 Dataset Statistics" width="600px">
       <pre v-if="statsData">{{ JSON.stringify(statsData, null, 2) }}</pre>
     </el-dialog>
   </div>

@@ -2,16 +2,16 @@
   <div class="observe-risk">
     <div class="page-header">
       <div>
-        <h1 class="page-title">Risk Dashboard</h1>
-        <span class="page-subtitle">风险控制</span>
+        <h1 class="page-title">风控仪表盘 Risk Dashboard</h1>
+        <span class="page-subtitle">风险控制 Risk control</span>
       </div>
-      <el-button :icon="Refresh" @click="refresh" :loading="loading">刷新</el-button>
+      <el-button :icon="Refresh" @click="refresh" :loading="loading">刷新 Refresh</el-button>
     </div>
 
     <!-- Risk Status Banner -->
     <el-card class="status-banner" :class="statusClass" shadow="hover">
       <div class="status-content">
-        <div class="status-label">风险状态</div>
+        <div class="status-label">风险状态 Risk Status</div>
         <div class="status-value">{{ risk?.status || 'NORMAL' }}</div>
       </div>
       <el-tag v-if="risk?.kill_switch_active" type="danger" effect="dark" size="large">
@@ -22,7 +22,7 @@
     <!-- Risk Metrics -->
     <div class="metrics-grid">
       <el-card class="metric-card" shadow="hover">
-        <div class="metric-label">仓位占比</div>
+        <div class="metric-label">仓位占比 Position Ratio</div>
         <div class="metric-value">{{ (risk?.max_position_pct ?? 0).toFixed(2) }}%</div>
         <el-progress
           :percentage="Math.min(risk?.max_position_pct ?? 0, 100)"

@@ -3,13 +3,13 @@
     <!-- Back -->
     <div class="detail-back" @click="router.push('/strategies')">
       <el-icon :size="14"><ArrowLeft /></el-icon>
-      <span>Back to Strategies</span>
+      <span>返回策略 Back to Strategies</span>
     </div>
 
     <!-- Loading -->
     <div v-if="store.loading" class="loading-state">
       <el-icon class="is-loading" :size="24"><Loading /></el-icon>
-      <span>Loading strategy...</span>
+      <span>加载策略中 Loading strategy...</span>
     </div>
 
     <!-- Error -->
@@ -40,21 +40,21 @@
 
       <!-- Description -->
       <div v-if="strategy.description" class="detail-section">
-        <h3 class="section-title">Description</h3>
+        <h3 class="section-title">描述 Description</h3>
         <p class="section-text">{{ strategy.description }}</p>
       </div>
 
       <!-- Class Path -->
       <div class="detail-section">
-        <h3 class="section-title">Class Path</h3>
+        <h3 class="section-title">类路径 Class Path</h3>
         <code class="code-block">{{ strategy.class_path }}</code>
       </div>
 
       <!-- Parameters -->
       <div class="detail-section">
-        <h3 class="section-title">Parameters</h3>
+        <h3 class="section-title">参数 Parameters</h3>
         <div v-if="(strategy.parameters || []).length === 0" class="empty-params">
-          No configurable parameters
+          无可配置参数 No configurable parameters
         </div>
         <div v-else class="params-grid">
           <div
@@ -68,19 +68,19 @@
             </div>
             <div class="param-body">
               <div class="param-row">
-                <span class="param-label">Default</span>
+                <span class="param-label">默认 Default</span>
                 <span class="param-value">{{ formatDefault(param) }}</span>
               </div>
               <div v-if="param.min_value !== undefined && param.min_value !== null" class="param-row">
-                <span class="param-label">Min</span>
+                <span class="param-label">最小 Min</span>
                 <span class="param-value">{{ param.min_value }}</span>
               </div>
               <div v-if="param.max_value !== undefined && param.max_value !== null" class="param-row">
-                <span class="param-label">Max</span>
+                <span class="param-label">最大 Max</span>
                 <span class="param-value">{{ param.max_value }}</span>
               </div>
               <div v-if="param.choices" class="param-row">
-                <span class="param-label">Choices</span>
+                <span class="param-label">选项 Choices</span>
                 <span class="param-value">{{ param.choices.join(', ') }}</span>
               </div>
               <div v-if="param.description" class="param-desc">
@@ -93,7 +93,7 @@
 
       <!-- Param Space -->
       <div v-if="strategy.param_space && Object.keys(strategy.param_space).length > 0" class="detail-section">
-        <h3 class="section-title">Parameter Space</h3>
+        <h3 class="section-title">参数空间 Parameter Space</h3>
         <div class="param-space-grid">
           <div v-for="(values, key) in strategy.param_space" :key="key" class="param-space-item">
             <span class="ps-key">{{ key }}</span>

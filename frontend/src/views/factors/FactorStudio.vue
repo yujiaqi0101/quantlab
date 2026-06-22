@@ -3,17 +3,17 @@
     <div class="page-header">
       <div class="page-header-row">
         <div>
-          <h1 class="page-title">Factor Studio</h1>
-          <p class="page-desc">Research, visualize, and analyze factors</p>
+          <h1 class="page-title">因子工作室 Factor Studio</h1>
+          <p class="page-desc">研究、可视化和分析因子 Research, visualize, and analyze factors</p>
         </div>
         <div class="page-actions">
-          <el-select v-model="selectedCategory" placeholder="Category" clearable class="filter-select" @change="loadFactors">
+          <el-select v-model="selectedCategory" placeholder="分类 Category" clearable class="filter-select" @change="loadFactors">
             <el-option v-for="cat in categories" :key="cat" :label="cat" :value="cat" />
           </el-select>
-          <el-select v-model="selectedDataset" placeholder="Dataset" class="filter-select" @change="onDatasetChange">
+          <el-select v-model="selectedDataset" placeholder="数据集 Dataset" class="filter-select" @change="onDatasetChange">
             <el-option v-for="ds in datasets" :key="ds.dataset_id" :label="ds.name" :value="ds.dataset_id" />
           </el-select>
-          <el-select v-model="selectedSymbol" placeholder="Symbol" clearable class="filter-select" style="width:140px">
+          <el-select v-model="selectedSymbol" placeholder="标的 Symbol" clearable class="filter-select" style="width:140px">
             <el-option v-for="s in symbols" :key="s" :label="s" :value="s" />
           </el-select>
           <el-button :icon="Refresh" circle @click="loadFactors" :loading="loading" />
@@ -43,21 +43,21 @@
       <div v-if="selectedFactor" class="detail-panel">
         <el-tabs v-model="activeTab" class="q-tabs">
           <!-- Visualization Tab -->
-          <el-tab-pane label="Visualization" name="visualize">
+          <el-tab-pane label="可视化 Visualization" name="visualize">
             <div class="tab-toolbar">
               <el-button type="primary" size="small" :loading="vizLoading" @click="loadVisualization">
-                Load Chart
+                加载图表 Load Chart
               </el-button>
             </div>
             <div v-if="vizData" class="chart-container">
               <div ref="priceChartRef" class="chart-box"></div>
               <div ref="factorChartRef" class="chart-box factor-chart"></div>
             </div>
-            <div v-else class="tab-empty">Select a dataset and click Load Chart to visualize the factor.</div>
+            <div v-else class="tab-empty">选择数据集并点击加载图表来可视化因子 Select a dataset and click Load Chart to visualize the factor.</div>
           </el-tab-pane>
 
           <!-- IC Analysis Tab -->
-          <el-tab-pane label="IC Analysis" name="ic">
+          <el-tab-pane label="IC分析 IC Analysis" name="ic">
             <div class="tab-toolbar">
               <el-select v-model="icForwardPeriod" style="width:160px;margin-right:8px" size="small">
                 <el-option :value="1" label="Forward 1 bar" />

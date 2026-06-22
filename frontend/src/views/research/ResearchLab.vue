@@ -3,8 +3,8 @@
     <div class="page-header">
       <div class="page-header-row">
         <div>
-          <h1 class="page-title">Research Lab</h1>
-          <p class="page-desc">Parameter sweep, heatmap, walk-forward, robustness analysis</p>
+          <h1 class="page-title">研究实验室 Research Lab</h1>
+          <p class="page-desc">参数扫描、热力图、滚动前进、稳健性分析 Parameter sweep, heatmap, walk-forward, robustness analysis</p>
         </div>
       </div>
     </div>
@@ -12,24 +12,24 @@
     <div class="page-content">
       <el-tabs v-model="activeTab" class="q-tabs">
         <!-- ==================== Parameter Sweep ==================== -->
-        <el-tab-pane label="Parameter Sweep" name="sweep">
+        <el-tab-pane label="参数扫描 Parameter Sweep" name="sweep">
           <div class="sweep-layout">
             <!-- Left: Config -->
             <div class="sweep-config">
-              <h3 class="section-title">Sweep Configuration</h3>
+              <h3 class="section-title">扫描配置 Sweep Configuration</h3>
 
               <div class="form-group">
-                <label>Strategy</label>
+                <label>策略 Strategy</label>
                 <el-input v-model="sweepStrategyId" placeholder="e.g. ma_cross" />
               </div>
 
               <div class="form-group">
-                <label>Dataset</label>
+                <label>数据集 Dataset</label>
                 <el-input v-model="sweepDatasetId" placeholder="default" />
               </div>
 
               <div class="form-group">
-                <label>Parameters</label>
+                <label>参数 Parameters</label>
                 <div v-for="(vals, key) in sweepParamSpace" :key="key" class="param-row">
                   <el-input :model-value="key" class="param-key" disabled />
                   <el-input

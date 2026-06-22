@@ -6,8 +6,8 @@
         <el-card shadow="never" class="left-panel">
           <template #header>
             <div class="card-header">
-              <span>会话</span>
-              <el-button size="small" @click="loadSessions">刷新</el-button>
+              <span>会话 Sessions</span>
+              <el-button size="small" @click="loadSessions">刷新 Refresh</el-button>
             </div>
           </template>
           <el-table

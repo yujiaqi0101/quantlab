@@ -2,12 +2,12 @@
   <div class="observe-replay">
     <div class="page-header">
       <div>
-        <h1 class="page-title">Replay Engine</h1>
-        <span class="page-subtitle">还原历史现场 · 理解系统正在发生什么</span>
+        <h1 class="page-title">回放引擎 Replay Engine</h1>
+        <span class="page-subtitle">还原历史现场 · 理解系统正在发生什么 Replay history · understand what the system is doing</span>
       </div>
       <div class="header-actions">
         <el-tag :type="statusTagType" size="large">{{ snapshot?.status || 'IDLE' }}</el-tag>
-        <el-button :icon="Refresh" @click="refreshAll" :loading="loading">刷新</el-button>
+        <el-button :icon="Refresh" @click="refreshAll" :loading="loading">刷新 Refresh</el-button>
       </div>
     </div>
 

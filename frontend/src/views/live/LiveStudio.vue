@@ -3,19 +3,19 @@
     <!-- Header -->
     <div class="studio-header">
       <div class="header-left">
-        <h1 class="studio-title">Live Studio</h1>
-        <span class="studio-subtitle">实时交易工作室 — 看运行过程</span>
+        <h1 class="studio-title">实盘工作室 Live Studio</h1>
+        <span class="studio-subtitle">实时交易工作室 — 看运行过程 Live trading studio — watch the process</span>
       </div>
       <div class="header-right">
-        <el-button @click="loadAll" :icon="Refresh" plain>刷新</el-button>
-        <el-button @click="openDeployDialog" :icon="Plus" type="primary">Deploy Strategy</el-button>
+        <el-button @click="loadAll" :icon="Refresh" plain>刷新 Refresh</el-button>
+        <el-button @click="openDeployDialog" :icon="Plus" type="primary">部署策略 Deploy Strategy</el-button>
       </div>
     </div>
 
     <!-- Tabs -->
     <el-tabs v-model="activeTab" class="studio-tabs">
       <!-- Strategies -->
-      <el-tab-pane label="Strategies" name="strategies">
+      <el-tab-pane label="策略 Strategies" name="strategies">
         <el-card shadow="never">
           <template #header>
             <div class="card-header">
