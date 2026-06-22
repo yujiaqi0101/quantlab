@@ -14,6 +14,8 @@ export interface MLDataset {
   description: string
   tags: string[]
   created_at: string
+  scope_type: string
+  universe_id: string
 }
 
 export interface MLFeature {
@@ -152,6 +154,11 @@ export async function loadMLDatasetCSV(id: string, file: File): Promise<any> {
   const resp = await http.post(`/ml/datasets/${id}/load_csv`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
+  return resp.data
+}
+
+export async function deleteMLDataset(id: string): Promise<any> {
+  const resp = await http.delete(`/ml/datasets/${id}`)
   return resp.data
 }
 

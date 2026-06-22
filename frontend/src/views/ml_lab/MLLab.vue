@@ -3,55 +3,55 @@
     <!-- 顶部导航 -->
     <div class="ml-tabs">
       <el-tabs v-model="activeTab" type="card">
-        <el-tab-pane label="数据集 Datasets" name="datasets">
+        <el-tab-pane label="数据集 Datasets" name="datasets" lazy>
           <DatasetCenter />
         </el-tab-pane>
-        <el-tab-pane label="特征 Features" name="features">
+        <el-tab-pane label="特征 Features" name="features" lazy>
           <FeatureLab />
         </el-tab-pane>
-        <el-tab-pane label="特征集 Feature Sets" name="feature-sets">
+        <el-tab-pane label="特征集 Feature Sets" name="feature-sets" lazy>
           <FeatureSets />
         </el-tab-pane>
-        <el-tab-pane label="标签 Labels" name="labels">
+        <el-tab-pane label="标签 Labels" name="labels" lazy>
           <LabelLab />
         </el-tab-pane>
-        <el-tab-pane label="标签集 Label Sets" name="label-sets">
+        <el-tab-pane label="标签集 Label Sets" name="label-sets" lazy>
           <LabelSets />
         </el-tab-pane>
-        <el-tab-pane label="特征诊断 Feature Diagnostics" name="feature-diagnostics">
+        <el-tab-pane label="特征诊断 Feature Diagnostics" name="feature-diagnostics" lazy>
           <FeatureDiagnostics />
         </el-tab-pane>
-        <el-tab-pane label="标签诊断 Label Diagnostics" name="label-diagnostics">
+        <el-tab-pane label="标签诊断 Label Diagnostics" name="label-diagnostics" lazy>
           <LabelDiagnostics />
         </el-tab-pane>
-        <el-tab-pane label="特征分析 Feature Analysis" name="analysis">
+        <el-tab-pane label="特征分析 Feature Analysis" name="analysis" lazy>
           <FeatureAnalysis />
         </el-tab-pane>
-        <el-tab-pane label="特征重要性 Feature Importance" name="importance">
+        <el-tab-pane label="特征重要性 Feature Importance" name="importance" lazy>
           <FeatureImportance />
         </el-tab-pane>
-        <el-tab-pane label="训练任务 Training Jobs" name="training">
+        <el-tab-pane label="训练任务 Training Jobs" name="training" lazy>
           <TrainingCenter />
         </el-tab-pane>
-        <el-tab-pane label="实验 Experiments" name="experiments">
+        <el-tab-pane label="实验 Experiments" name="experiments" lazy>
           <Experiments />
         </el-tab-pane>
-        <el-tab-pane label="超参搜索 Hyperparameter Search" name="search">
+        <el-tab-pane label="超参搜索 Hyperparameter Search" name="search" lazy>
           <HyperparameterSearch />
         </el-tab-pane>
-        <el-tab-pane label="验证 Validation" name="validation">
+        <el-tab-pane label="验证 Validation" name="validation" lazy>
           <ValidationCenter />
         </el-tab-pane>
-        <el-tab-pane label="模型竞技场 Model Arena" name="arena">
+        <el-tab-pane label="模型竞技场 Model Arena" name="arena" lazy>
           <ModelArena />
         </el-tab-pane>
-        <el-tab-pane label="泄漏检测 Leakage Detector" name="leakage">
+        <el-tab-pane label="泄漏检测 Leakage Detector" name="leakage" lazy>
           <LeakageDetector />
         </el-tab-pane>
-        <el-tab-pane label="模型仓库 Model Registry" name="registry">
+        <el-tab-pane label="模型仓库 Model Registry" name="registry" lazy>
           <ModelRegistry />
         </el-tab-pane>
-        <el-tab-pane label="策略构建 Strategy Builder" name="strategy">
+        <el-tab-pane label="策略构建 Strategy Builder" name="strategy" lazy>
           <StrategyBuilder />
         </el-tab-pane>
       </el-tabs>

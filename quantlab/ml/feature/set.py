@@ -167,14 +167,14 @@ class FeatureSetRegistry:
             ),
             FeatureSet(
                 name="volume_v1",
-                feature_ids=["volume_zscore", "momentum20"],
+                feature_ids=["vol_zscore20", "momentum20"],
                 description="成交量特征集合 v1：VolumeZScore + Momentum",
                 version="1.0",
                 tags=["volume", "builtin"],
             ),
             FeatureSet(
                 name="trend_v1",
-                feature_ids=["rsi14", "macd", "atr14"],
+                feature_ids=["rsi14", "macd_12_26_9", "atr14"],
                 description="趋势特征集合 v1：RSI + MACD + ATR",
                 version="1.0",
                 tags=["trend", "builtin"],

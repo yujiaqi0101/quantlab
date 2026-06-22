@@ -37,7 +37,22 @@
       <div class="info-grid">
         <div class="info-card">
           <span class="info-label">标的 Symbol</span>
-          <span class="info-value mono">{{ dataset.symbol }}</span>
+          <template v-if="dataset.scope_type === 'universe'">
+            <span class="info-value mono">
+              <el-tag type="warning" size="small">Universe</el-tag> {{ dataset.universe_id || '未指定' }}
+            </span>
+            <span class="info-sub">
+              多标的数据集 ({{ dataset.rows }} 行)
+            </span>
+          </template>
+          <template v-else>
+            <span class="info-value mono" :title="dataset.symbol">
+              {{ dataset.symbol && dataset.symbol.length > 30 ? dataset.symbol.slice(0, 30) + '...' : dataset.symbol || '无' }}
+            </span>
+            <span v-if="dataset.symbol && dataset.symbol.split(',').length > 1" class="info-sub">
+              共 {{ dataset.symbol.split(',').length }} 个标的
+            </span>
+          </template>
         </div>
         <div class="info-card">
           <span class="info-label">频率 Frequency</span>
@@ -64,13 +79,44 @@
       <!-- Candlestick Chart -->
       <div v-if="dataset.is_ohlcv && previewData" class="detail-section">
         <h3 class="section-title">价格图表 Price Chart</h3>
-        <CandlestickChart :preview="previewData" />
+        <CandlestickChart :preview="previewData" :active-symbol="activeSymbol" />
       </div>
 
       <!-- Data Preview -->
       <div v-if="previewData" class="detail-section">
         <h3 class="section-title">数据预览 Data Preview</h3>
-        <div class="preview-tabs">
+        <!-- 多标的警告：scope_type=universe 但无 symbol 列 -->
+        <el-alert
+          v-if="dataset.scope_type === 'universe' && (!previewData.symbols || previewData.symbols.length <= 1) && dataset.rows > 1000"
+          type="warning"
+          :closable="false"
+          show-icon
+          style="margin-bottom: 12px"
+        >
+          <template #title>
+            多标的数据集缺少 symbol 列 — CSV 需包含 symbol 列以标识每行所属标的，否则特征计算结果不正确
+          </template>
+        </el-alert>
+        <!-- 多标的：可搜索下拉选择 -->
+        <div v-if="previewData.symbols && previewData.symbols.length > 10" class="symbol-selector">
+          <el-select
+            v-model="activeSymbol"
+            filterable
+            placeholder="搜索标的 Search symbol..."
+            size="small"
+            style="width: 240px"
+          >
+            <el-option
+              v-for="sym in previewData.symbols"
+              :key="sym"
+              :label="sym"
+              :value="sym"
+            />
+          </el-select>
+          <span class="symbol-count">共 {{ previewData.symbols.length }} 个标的</span>
+        </div>
+        <!-- 少量标的：Tab 切换 -->
+        <div v-else class="preview-tabs">
           <div
             v-for="sym in previewData.symbols"
             :key="sym"
@@ -128,9 +174,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useDatasetStore } from '@/stores/dataset'
+import { getDatasetPreview } from '@/api/dataset'
 import { ArrowLeft, Loading, CircleCloseFilled } from '@element-plus/icons-vue'
 import CandlestickChart from '@/components/charts/CandlestickChart.vue'
 
@@ -193,6 +240,24 @@ onMounted(async () => {
     if (store.preview?.symbols?.length) {
       activeSymbol.value = store.preview.symbols[0]
     }
+  }
+})
+
+// 切换 symbol 时重新请求 preview（多标的数据集按需加载）
+// 跳过首次设置（loadDetail 已加载了默认 symbol 的预览）
+const skipWatch = ref(true)
+watch(activeSymbol, async (newSym) => {
+  if (skipWatch.value) {
+    skipWatch.value = false
+    return
+  }
+  if (!newSym || !dataset.value) return
+  const id = dataset.value.dataset_id
+  try {
+    const resp = await getDatasetPreview(id, 100, newSym)
+    store.preview = resp
+  } catch (e) {
+    console.error('Failed to load preview for symbol:', newSym, e)
   }
 })
 </script>
@@ -311,6 +376,25 @@ onMounted(async () => {
 
 .info-value.highlight {
   color: #bc8cff;
+}
+
+.info-sub {
+  font-size: 11px;
+  color: #484f58;
+  margin-top: 2px;
+}
+
+/* Symbol Selector */
+.symbol-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.symbol-count {
+  font-size: 12px;
+  color: #484f58;
 }
 
 /* Sections */

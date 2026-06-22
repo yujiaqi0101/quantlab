@@ -17,12 +17,15 @@ use([EchartsCandlestick, BarChart, GridComponent, TooltipComponent, DataZoomComp
 
 const props = defineProps<{
   preview: PreviewData
+  activeSymbol?: string
 }>()
 
 const chartOption = computed(() => {
   if (!props.preview?.symbols?.length) return {}
 
-  const sym = props.preview.symbols[0]
+  const sym = props.activeSymbol && props.preview.preview[props.activeSymbol]
+    ? props.activeSymbol
+    : props.preview.symbols[0]
   const symData = props.preview.preview[sym]
   if (!symData) return {}
 

@@ -90,16 +90,20 @@ class CreateDatasetRequest(BaseModel):
     frequency: str = "1d"
     description: str = ""
     tags: List[str] = []
+    scope_type: str = "single"     # single / universe
+    universe_id: str = ""          # scope_type=universe 时引用的股票池
 
 
 class ComputeFeatureRequest(BaseModel):
     feature_ids: List[str]
     data: List[Dict[str, Any]] = []
+    symbol_column: str = ""  # 多标的数据集时指定 symbol 列名，为空则视为单标的
 
 
 class GenerateLabelRequest(BaseModel):
     label_id: str
     data: List[Dict[str, Any]] = []
+    symbol_column: str = ""  # 多标的数据集时指定 symbol 列名
 
 
 class FeatureAnalysisRequest(BaseModel):
@@ -201,6 +205,8 @@ async def create_dataset(req: CreateDatasetRequest):
         frequency=req.frequency,
         description=req.description,
         tags=req.tags,
+        scope_type=req.scope_type,
+        universe_id=req.universe_id,
     )
     return ds.to_dict()
 
@@ -223,6 +229,19 @@ async def get_dataset_stats(dataset_id: str):
     if not ds:
         raise HTTPException(404, f"Dataset not found: {dataset_id}")
     return ds.get_stats().to_dict()
+
+
+@router.delete("/datasets/{dataset_id}")
+async def delete_dataset(dataset_id: str):
+    """删除数据集（含元信息和 Parquet 数据）"""
+    mgr = get_dataset_manager()
+    ds = mgr.get_dataset(dataset_id)
+    if not ds:
+        raise HTTPException(404, f"Dataset not found: {dataset_id}")
+    success = mgr.remove_dataset(dataset_id)
+    if not success:
+        raise HTTPException(400, f"Failed to delete dataset: {dataset_id}")
+    return {"status": "ok", "dataset_id": dataset_id}
 
 
 @router.post("/datasets/{dataset_id}/load_csv")
@@ -261,16 +280,35 @@ async def list_features(category: str = ""):
 
 @router.post("/features/compute")
 async def compute_features(req: ComputeFeatureRequest):
-    """计算特征"""
+    """计算特征（支持多标的按 symbol 分组计算）"""
     reg = get_feature_registry()
     df = pd.DataFrame(req.data)
-    if not df.empty and req.feature_ids:
-        result = reg.compute_many(req.feature_ids, df)
+    if df.empty or not req.feature_ids:
+        return {"features": {}, "index": []}
+
+    # 多标的数据集：按 symbol_column 分组计算，避免不同标的的价格序列串在一起
+    if req.symbol_column and req.symbol_column in df.columns:
+        parts = []
+        for _sym, group_df in df.groupby(req.symbol_column):
+            group_result = reg.compute_many(req.feature_ids, group_df)
+            # 把 symbol 列加回去
+            group_result[req.symbol_column] = _sym
+            parts.append(group_result)
+        if not parts:
+            return {"features": {}, "index": []}
+        result = pd.concat(parts)
+        result = result.sort_index()
         return {
             "features": result.to_dict(orient="list"),
             "index": [str(i) for i in result.index],
         }
-    return {"features": {}, "index": []}
+
+    # 单标的：直接计算
+    result = reg.compute_many(req.feature_ids, df)
+    return {
+        "features": result.to_dict(orient="list"),
+        "index": [str(i) for i in result.index],
+    }
 
 
 # ==================================================================
@@ -286,18 +324,38 @@ async def list_labels():
 
 @router.post("/labels/generate")
 async def generate_label(req: GenerateLabelRequest):
-    """生成标签"""
+    """生成标签（支持多标的按 symbol 分组生成）"""
     reg = get_label_registry()
     df = pd.DataFrame(req.data)
-    if not df.empty:
-        label = reg.generate(req.label_id, df)
-        if label is None:
+    if df.empty:
+        return {"label": [], "index": []}
+
+    # 多标的数据集：按 symbol_column 分组生成
+    if req.symbol_column and req.symbol_column in df.columns:
+        parts = []
+        for _sym, group_df in df.groupby(req.symbol_column):
+            label = reg.generate(req.label_id, group_df)
+            if label is not None:
+                label_df = label.to_frame()
+                label_df[req.symbol_column] = _sym
+                parts.append(label_df)
+        if not parts:
             raise HTTPException(404, f"Label not found: {req.label_id}")
+        result = pd.concat(parts).sort_index()
+        label_col = [c for c in result.columns if c != req.symbol_column][0]
         return {
-            "label": label.tolist(),
-            "index": [str(i) for i in label.index],
+            "label": result[label_col].tolist(),
+            "index": [str(i) for i in result.index],
         }
-    return {"label": [], "index": []}
+
+    # 单标的
+    label = reg.generate(req.label_id, df)
+    if label is None:
+        raise HTTPException(404, f"Label not found: {req.label_id}")
+    return {
+        "label": label.tolist(),
+        "index": [str(i) for i in label.index],
+    }
 
 
 # ==================================================================
@@ -347,6 +405,14 @@ async def feature_analysis_quick(dataset_id: str = ""):
         return {"results": [], "correlation_matrix": {}, "source": "no_data"}
 
     df = ds.get_data()
+    # 限制数据量，避免在大数据集上做全量计算导致事件循环阻塞
+    MAX_ROWS_FOR_QUICK_ANALYSIS = 5000
+    if len(df) > MAX_ROWS_FOR_QUICK_ANALYSIS:
+        logger.info(
+            f"feature-analysis/quick: sampling {MAX_ROWS_FOR_QUICK_ANALYSIS} rows "
+            f"from {len(df)} (dataset {ds.dataset_id})"
+        )
+        df = df.tail(MAX_ROWS_FOR_QUICK_ANALYSIS).copy()
     from quantlab.ml.feature import get_feature_registry
     from quantlab.ml.label import get_label_registry
     feat_reg = get_feature_registry()
@@ -439,6 +505,14 @@ async def feature_analysis_from_job(job_id: str):
         return {"results": results, "correlation_matrix": {}, "source": "feature_importance"}
 
     # 有实际数据时，计算完整分析
+    # 限制数据量，避免在大数据集上做全量计算导致事件循环阻塞
+    MAX_ROWS_FOR_JOB_ANALYSIS = 5000
+    if df is not None and len(df) > MAX_ROWS_FOR_JOB_ANALYSIS:
+        logger.info(
+            f"feature-analysis/from-job: sampling {MAX_ROWS_FOR_JOB_ANALYSIS} rows "
+            f"from {len(df)} (dataset {job.dataset_id})"
+        )
+        df = df.tail(MAX_ROWS_FOR_JOB_ANALYSIS).copy()
     from quantlab.ml.feature import get_feature_registry
     from quantlab.ml.label import get_label_registry
     feat_reg = get_feature_registry()

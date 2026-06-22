@@ -84,6 +84,9 @@ class Dataset:
     schema: Dict[str, Any] = field(default_factory=lambda: {"columns": [], "column_names": [], "has_ohlcv": True})
     is_ohlcv: bool = True
     coverage: str = ""
+    # Universe 支持：scope_type=single 时用 symbols，scope_type=universe 时用 universe_id
+    scope_type: str = "single"     # single / universe
+    universe_id: str = ""          # 引用 universe 定义（如 "CSI300", "ALL_A"）
     _data: Optional[pd.DataFrame] = None
     created_at: str = ""
 
@@ -125,6 +128,14 @@ class Dataset:
         n_missing = int(df.isnull().sum().sum())
         total_cells = df.shape[0] * df.shape[1]
 
+        # 动态推断 n_symbols：优先从 symbol 列去重计数，否则取元信息 symbols 长度
+        if "symbol" in df.columns:
+            n_symbols = df["symbol"].nunique()
+        elif len(self.symbols) > 0:
+            n_symbols = len(self.symbols)
+        else:
+            n_symbols = 1
+
         date_range = []
         if isinstance(df.index, pd.DatetimeIndex):
             date_range = [str(df.index.min()), str(df.index.max())]
@@ -132,7 +143,7 @@ class Dataset:
         return DatasetStats(
             n_rows=df.shape[0],
             n_cols=df.shape[1],
-            n_symbols=len(self.symbols),
+            n_symbols=n_symbols,
             n_missing=n_missing,
             missing_pct=n_missing / total_cells if total_cells > 0 else 0,
             columns=list(df.columns),
@@ -170,6 +181,9 @@ class Dataset:
             "schema": self.schema,
             "is_ohlcv": self.is_ohlcv,
             "coverage": self.coverage,
+            # Universe 支持
+            "scope_type": self.scope_type,
+            "universe_id": self.universe_id,
         }
 
 
@@ -208,6 +222,8 @@ class DatasetManager:
         tags: Optional[List[str]] = None,
         asset_type: str = "crypto",
         is_ohlcv: bool = True,
+        scope_type: str = "single",
+        universe_id: str = "",
     ) -> Dataset:
         """创建数据集"""
         ds = Dataset(
@@ -218,6 +234,8 @@ class DatasetManager:
             tags=tags or [],
             asset_type=asset_type,
             is_ohlcv=is_ohlcv,
+            scope_type=scope_type,
+            universe_id=universe_id,
         )
         self._datasets[ds.dataset_id] = ds
         if self._persist and self._store:
@@ -238,14 +256,19 @@ class DatasetManager:
         return list(self._datasets.values())
 
     def remove_dataset(self, dataset_id: str) -> bool:
-        if dataset_id in self._datasets:
+        # 从内存移除
+        removed = dataset_id in self._datasets
+        if removed:
             self._datasets.pop(dataset_id)
-            if self._persist and self._store:
-                self._store.delete_dataset(dataset_id)
-            if self._parquet:
-                self._parquet.delete_dataset_data(dataset_id)
-            return True
-        return False
+        # 从 SQLite 移除
+        if self._persist and self._store:
+            self._store.delete_dataset(dataset_id)
+            removed = True
+        # 从 Parquet 移除
+        if self._parquet:
+            if self._parquet.delete_dataset_data(dataset_id):
+                removed = True
+        return removed
 
     def load_csv(self, dataset_id: str, filepath: str) -> bool:
         """从 CSV 加载数据"""
@@ -253,8 +276,10 @@ class DatasetManager:
         if not ds:
             return False
         try:
-            df = pd.read_csv(filepath, index_col=0, parse_dates=True)
+            df = self._read_csv_smart(filepath)
             ds.set_data(df)
+            self._infer_symbols(ds, df)
+            self._check_multi_symbol(ds, df)
             if self._persist and self._parquet:
                 self._parquet.save_dataset_data(dataset_id, df)
                 if self._store:
@@ -271,11 +296,87 @@ class DatasetManager:
         if not ds:
             return False
         ds.set_data(df)
+        self._infer_symbols(ds, df)
+        self._check_multi_symbol(ds, df)
         if self._persist and self._parquet:
             self._parquet.save_dataset_data(dataset_id, df)
             if self._store:
                 self._store.update_dataset_has_data(dataset_id, True)
         return True
+
+    def _infer_symbols(self, ds: Dataset, df: pd.DataFrame) -> None:
+        """从数据自动推断 symbols：如果元信息为空且数据含 symbol 列，则自动填充"""
+        if ds.symbols or "symbol" not in df.columns:
+            return
+        # 过滤 NaN（NaN 是 float，不能和 str 一起 sorted）
+        inferred = sorted([s for s in df["symbol"].unique().tolist() if pd.notna(s)])
+        ds.symbols = inferred
+        logger.info(f"Inferred {len(inferred)} symbols for dataset {ds.dataset_id}")
+
+    def _read_csv_smart(self, filepath: str) -> pd.DataFrame:
+        """智能读取 CSV：自动检测时间列作为索引，保留 symbol 列
+
+        支持的 CSV 格式：
+        1. 第一列是时间（单标的）: datetime,open,close,...
+        2. 有 trade_date/date/datetime 列（多标的）: symbol,trade_date,open,close,...
+        3. 第一列是 symbol（多标的）: symbol,trade_date,open,close,...
+        """
+        # 先不带 index_col 读取，检查列结构
+        df = pd.read_csv(filepath, nrows=5)
+
+        time_col_candidates = ["trade_date", "date", "datetime", "time", "timestamp"]
+
+        # 找到时间列
+        time_col = None
+        for col in time_col_candidates:
+            if col in df.columns:
+                time_col = col
+                break
+
+        # 重新完整读取
+        if time_col:
+            # 有明确的时间列：用时间列做索引，保留其他所有列（包括 symbol）
+            df = pd.read_csv(filepath, parse_dates=[time_col])
+            df = df.set_index(time_col)
+        else:
+            # 没有明确时间列：检查第一列是否像时间
+            first_col = df.columns[0]
+            try:
+                test = pd.read_csv(filepath, nrows=2)
+                pd.to_datetime(test[first_col])
+                # 第一列是时间，用 index_col=0
+                df = pd.read_csv(filepath, index_col=0, parse_dates=True)
+            except (ValueError, TypeError):
+                # 第一列不是时间（可能是 symbol 等），不设索引
+                df = pd.read_csv(filepath)
+
+        return df
+
+    def _check_multi_symbol(self, ds: Dataset, df: pd.DataFrame) -> None:
+        """检测多标的数据：如果同一天有多行但没有 symbol 列，发出警告并自动设置 scope_type"""
+        if "symbol" in df.columns:
+            # 有 symbol 列，根据标的数量自动设置 scope_type
+            n_symbols = df["symbol"].nunique()
+            if n_symbols > 1 and ds.scope_type == "single":
+                ds.scope_type = "universe"
+                logger.info(f"Auto-set scope_type=universe for dataset {ds.dataset_id} ({n_symbols} symbols)")
+            return
+
+        # 没有 symbol 列，但可能是多标的堆叠数据
+        # 检测方式：如果 index 是日期，同一天有多行
+        if isinstance(df.index, pd.DatetimeIndex) and len(df) > 0:
+            dup_dates = df.index.duplicated().sum()
+            if dup_dates > 0:
+                n_per_date = df.groupby(df.index.date).size()
+                avg_per_date = n_per_date.mean()
+                logger.warning(
+                    f"Dataset {ds.dataset_id} appears to be multi-symbol "
+                    f"(avg {avg_per_date:.0f} rows/date, {dup_dates} duplicate dates) "
+                    f"but has no 'symbol' column. "
+                    f"Feature computation will produce INCORRECT results. "
+                    f"Please add a 'symbol' column to identify each row's instrument."
+                )
+                ds.scope_type = "universe"
 
     def get_stats(self, dataset_id: str) -> Optional[DatasetStats]:
         ds = self._datasets.get(dataset_id)
@@ -338,6 +439,8 @@ class DatasetManager:
                 schema=row.get("schema", {"columns": [], "column_names": [], "has_ohlcv": True}),
                 is_ohlcv=row.get("is_ohlcv", True),
                 coverage=row.get("coverage", ""),
+                scope_type=row.get("scope_type", "single"),
+                universe_id=row.get("universe_id", ""),
             )
             # 覆盖为 DB 中的 id 和时间戳，保持一致
             ds.dataset_id = row["dataset_id"]
@@ -413,6 +516,7 @@ class DatasetManager:
         if df is None:
             return False
         ds.set_data(df)
+        self._infer_symbols(ds, df)
         return True
 
 

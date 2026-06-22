@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
+import pandas as pd
 from fastapi import APIRouter, HTTPException, Query
 
 from ..ml.dataset import get_dataset_manager
@@ -29,15 +30,43 @@ def _ds_to_dict(ds) -> dict:
     """将 Dataset 对象转换为前端期望的响应格式（兼容原 datasets.db 结构）"""
     symbols = ds.symbols if isinstance(ds.symbols, list) else [ds.symbols]
     symbol_str = ",".join(symbols)
+
+    # 动态计算行数
+    df = ds.get_data()
+    row_count = len(df) if df is not None else 0
+
+    # 动态计算日期范围
+    start_time = ds.start_date
+    end_time = ds.end_date
+    if df is not None:
+        # 优先从 DatetimeIndex 推断
+        if isinstance(df.index, pd.DatetimeIndex) and len(df) > 0:
+            if not start_time:
+                start_time = str(df.index.min())
+            if not end_time:
+                end_time = str(df.index.max())
+        # 其次从 trade_date / date 列推断
+        for col in ("trade_date", "date", "datetime"):
+            if col in df.columns and len(df) > 0:
+                try:
+                    dates = pd.to_datetime(df[col])
+                    if not start_time:
+                        start_time = str(dates.min())
+                    if not end_time:
+                        end_time = str(dates.max())
+                except Exception:
+                    pass
+                break
+
     return {
         "dataset_id": ds.dataset_id,
         "name": ds.name,
         "symbol": symbol_str,
         "frequency": ds.frequency,
         "asset_type": ds.asset_type,
-        "start_time": ds.start_date,
-        "end_time": ds.end_date,
-        "rows": 0,  # 实际行数在加载后才有
+        "start_time": start_time,
+        "end_time": end_time,
+        "rows": row_count,
         "storage_path": ds.storage_path,
         "storage_format": ds.storage_format,
         "schema": ds.schema,
@@ -46,7 +75,9 @@ def _ds_to_dict(ds) -> dict:
         "coverage": ds.coverage,
         "description": ds.description,
         "created_at": ds.created_at,
-        "has_data": ds.get_data() is not None,
+        "has_data": df is not None,
+        "scope_type": ds.scope_type,
+        "universe_id": ds.universe_id,
     }
 
 
@@ -59,9 +90,15 @@ async def list_datasets(q: Optional[str] = None, tag: Optional[str] = None):
     result = []
     for ds in datasets:
         d = _ds_to_dict(ds)
-        # 过滤
+        # 过滤：搜索 name / symbols / universe_id
         if q:
-            if q.lower() not in ds.name.lower() and q.lower() not in ",".join(ds.symbols).lower():
+            q_lower = q.lower()
+            match = (
+                q_lower in ds.name.lower()
+                or q_lower in ",".join(ds.symbols).lower()
+                or q_lower in ds.universe_id.lower()
+            )
+            if not match:
                 continue
         if tag:
             if tag not in ds.tags:
@@ -79,12 +116,21 @@ async def get_dataset(dataset_id: str):
     ds = mgr.get_dataset(dataset_id)
     if not ds:
         raise HTTPException(404, f"Dataset {dataset_id} not found")
+
+    # 尝试加载数据，确保详情页能显示行数和日期范围
+    if ds.get_data() is None:
+        mgr.load_dataset_data(dataset_id)
+
     return _ds_to_dict(ds)
 
 
 @router.get("/{dataset_id}/preview")
-async def get_preview(dataset_id: str, n: int = 100):
-    """数据预览"""
+async def get_preview(dataset_id: str, n: int = 100, symbol: Optional[str] = None):
+    """数据预览（按 symbol 分组，匹配前端 PreviewData 结构）
+
+    - symbol 参数：指定要预览的标的，为空时返回第一个标的的预览
+    - 多标的数据集只返回单个标的的预览，避免响应体过大
+    """
     mgr = get_dataset_manager()
     ds = mgr.get_dataset(dataset_id)
     if not ds:
@@ -99,20 +145,48 @@ async def get_preview(dataset_id: str, n: int = 100):
     if df is None or len(df) == 0:
         return {
             "dataset_id": dataset_id,
-            "symbols": ds.symbols,
+            "symbols": ds.symbols if ds.symbols else [],
             "preview": {},
         }
 
-    preview_data = df.head(n)
+    # 多标的数据集：按 symbol 分组
+    if "symbol" in df.columns:
+        all_symbols = sorted([s for s in df["symbol"].unique().tolist() if pd.notna(s)])
+        # 只预览请求的 symbol，默认取第一个
+        target_symbol = symbol if symbol and symbol in all_symbols else (all_symbols[0] if all_symbols else None)
+        preview = {}
+        if target_symbol:
+            group_df = df[df["symbol"] == target_symbol].head(n)
+            display_df = group_df.drop(columns=["symbol"])
+            preview[target_symbol] = {
+                "columns": list(display_df.columns),
+                "dtypes": {c: str(display_df[c].dtype) for c in display_df.columns},
+                "rows": display_df.values.tolist(),
+                "index": [str(idx) for idx in group_df.index.tolist()],
+            }
+        return {
+            "dataset_id": dataset_id,
+            "symbols": all_symbols,
+            "preview": preview,
+        }
+
+    # 单标的数据集
+    preview_df = df.head(n)
+    key = ds.symbols[0] if ds.symbols else ds.name
+    preview = {
+        key: {
+            "columns": list(preview_df.columns),
+            "dtypes": {c: str(preview_df[c].dtype) for c in preview_df.columns},
+            "rows": preview_df.values.tolist(),
+            "index": [str(idx) for idx in preview_df.index.tolist()],
+        }
+    }
+    symbols = ds.symbols if ds.symbols else [key]
+
     return {
         "dataset_id": dataset_id,
-        "symbols": ds.symbols,
-        "preview": {
-            "columns": list(df.columns),
-            "dtypes": {c: str(df[c].dtype) for c in df.columns},
-            "rows": preview_data.values.tolist(),
-            "index": [str(idx) for idx in preview_data.index.tolist()],
-        },
+        "symbols": symbols,
+        "preview": preview,
     }
 
 

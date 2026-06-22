@@ -21,6 +21,8 @@ export interface DatasetInfo {
   tags: string[]
   is_ohlcv: boolean
   coverage: string
+  scope_type: string
+  universe_id: string
 }
 
 export interface PreviewData {
@@ -47,8 +49,10 @@ export async function getDataset(id: string): Promise<DatasetInfo> {
   return resp.data
 }
 
-export async function getDatasetPreview(id: string, n: number = 100): Promise<PreviewData> {
-  const resp = await http.get<PreviewData>(`/datasets/${id}/preview`, { params: { n } })
+export async function getDatasetPreview(id: string, n: number = 100, symbol?: string): Promise<PreviewData> {
+  const params: Record<string, any> = { n }
+  if (symbol) params.symbol = symbol
+  const resp = await http.get<PreviewData>(`/datasets/${id}/preview`, { params })
   return resp.data
 }
 

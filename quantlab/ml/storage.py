@@ -138,6 +138,8 @@ class MLStore:
             ("tags_json", "TEXT DEFAULT '[]'"),
             ("is_ohlcv", "INTEGER DEFAULT 1"),
             ("coverage", "TEXT DEFAULT ''"),
+            ("scope_type", "TEXT DEFAULT 'single'"),
+            ("universe_id", "TEXT DEFAULT ''"),
         ]
         for col_name, col_def in new_columns:
             try:
@@ -273,6 +275,9 @@ class MLStore:
                 "schema": schema,
                 "is_ohlcv": bool(d.get("is_ohlcv", 1)),
                 "coverage": d.get("coverage", ""),
+                # Universe 支持
+                "scope_type": d.get("scope_type", "single"),
+                "universe_id": d.get("universe_id", ""),
             }
             result.append(mapped)
         return result
@@ -283,8 +288,9 @@ class MLStore:
                 """INSERT OR REPLACE INTO datasets
                 (dataset_id, name, symbols, frequency, start_date, end_date,
                  description, row_count, created_at,
-                 asset_type, storage_path, storage_format, schema_json, tags_json, is_ohlcv, coverage)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                 asset_type, storage_path, storage_format, schema_json, tags_json, is_ohlcv, coverage,
+                 scope_type, universe_id)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 [
                     data.get("dataset_id", ""),
                     data.get("name", ""),
@@ -302,6 +308,8 @@ class MLStore:
                     json.dumps(data.get("tags", [])),
                     1 if data.get("is_ohlcv", True) else 0,
                     data.get("coverage", ""),
+                    data.get("scope_type", "single"),
+                    data.get("universe_id", ""),
                 ],
             )
 
@@ -335,7 +343,8 @@ class ParquetStore:
 
     def save(self, category: str, key: str, df: pd.DataFrame) -> str:
         path = self._path(category, key)
-        df.to_parquet(path, index=False)
+        # 保留索引（如 trade_date DatetimeIndex），加载时恢复
+        df.to_parquet(path, index=True)
         logger.info(f"Parquet saved: {path} ({len(df)} rows)")
         return path
 
@@ -343,7 +352,14 @@ class ParquetStore:
         path = self._path(category, key)
         if not os.path.exists(path):
             return None
-        return pd.read_parquet(path)
+        df = pd.read_parquet(path)
+        # 恢复 DatetimeIndex：如果索引名是时间列，转为 DatetimeIndex
+        if df.index.name in ("trade_date", "date", "datetime", "time", "timestamp"):
+            try:
+                df.index = pd.to_datetime(df.index)
+            except (ValueError, TypeError):
+                pass
+        return df
 
     def exists(self, category: str, key: str) -> bool:
         return os.path.exists(self._path(category, key))
@@ -372,6 +388,9 @@ class ParquetStore:
 
     def load_dataset_data(self, dataset_id: str) -> Optional[pd.DataFrame]:
         return self.load("datasets", dataset_id)
+
+    def delete_dataset_data(self, dataset_id: str) -> bool:
+        return self.delete("datasets", dataset_id)
 
 
 # ------------------------------------------------------------------

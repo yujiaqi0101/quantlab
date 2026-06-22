@@ -52,7 +52,12 @@
 
         <el-table-column prop="symbol" label="标的 Symbol" width="120">
           <template #default="{ row }">
-            <span class="cell-id">{{ row.symbol }}</span>
+            <template v-if="row.scope_type === 'universe'">
+              <el-tag type="warning" size="small" effect="dark" class="freq-tag">{{ row.universe_id }}</el-tag>
+            </template>
+            <template v-else>
+              <span class="cell-id">{{ row.symbol }}</span>
+            </template>
           </template>
         </el-table-column>
 
@@ -120,6 +125,7 @@ const filteredItems = computed(() => {
     (d) =>
       d.name.toLowerCase().includes(q) ||
       d.symbol.toLowerCase().includes(q) ||
+      (d.universe_id || '').toLowerCase().includes(q) ||
       d.dataset_id.toLowerCase().includes(q) ||
       (d.tags || []).some((t) => t.toLowerCase().includes(q)),
   )
