@@ -31,21 +31,20 @@ def _ds_to_dict(ds) -> dict:
     symbols = ds.symbols if isinstance(ds.symbols, list) else [ds.symbols]
     symbol_str = ",".join(symbols)
 
-    # 动态计算行数
-    df = ds.get_data()
-    row_count = len(df) if df is not None else 0
-
-    # 动态计算日期范围
+    # 用 has_data 标志判断，不触发 Parquet 加载（避免列表接口卡死）
+    row_count = 0
     start_time = ds.start_date
     end_time = ds.end_date
-    if df is not None:
-        # 优先从 DatetimeIndex 推断
+
+    # 仅当内存已有数据时才动态计算行数和日期范围
+    if ds._data is not None:
+        df = ds._data
+        row_count = len(df)
         if isinstance(df.index, pd.DatetimeIndex) and len(df) > 0:
             if not start_time:
                 start_time = str(df.index.min())
             if not end_time:
                 end_time = str(df.index.max())
-        # 其次从 trade_date / date 列推断
         for col in ("trade_date", "date", "datetime"):
             if col in df.columns and len(df) > 0:
                 try:
@@ -75,7 +74,7 @@ def _ds_to_dict(ds) -> dict:
         "coverage": ds.coverage,
         "description": ds.description,
         "created_at": ds.created_at,
-        "has_data": df is not None,
+        "has_data": ds._has_data_flag or ds._data is not None,
         "scope_type": ds.scope_type,
         "universe_id": ds.universe_id,
     }

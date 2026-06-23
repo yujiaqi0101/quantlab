@@ -88,6 +88,7 @@ class Dataset:
     scope_type: str = "single"     # single / universe
     universe_id: str = ""          # 引用 universe 定义（如 "CSI300", "ALL_A"）
     _data: Optional[pd.DataFrame] = None
+    _has_data_flag: bool = False  # DB 持久化的 has_data 标志（不依赖内存）
     created_at: str = ""
 
     def __post_init__(self) -> None:
@@ -97,6 +98,7 @@ class Dataset:
     def set_data(self, df: pd.DataFrame) -> None:
         """设置数据"""
         self._data = df
+        self._has_data_flag = df is not None and len(df) > 0
         if df is not None and len(df) > 0:
             # 自动推断日期范围
             if isinstance(df.index, pd.DatetimeIndex):
@@ -173,7 +175,7 @@ class Dataset:
             "description": self.description,
             "tags": self.tags,
             "created_at": self.created_at,
-            "has_data": self._data is not None,
+            "has_data": self._has_data_flag or self._data is not None,
             # 统一存储扩展字段
             "asset_type": self.asset_type,
             "storage_path": self.storage_path,
@@ -283,7 +285,8 @@ class DatasetManager:
             if self._persist and self._parquet:
                 self._parquet.save_dataset_data(dataset_id, df)
                 if self._store:
-                    self._store.update_dataset_has_data(dataset_id, True)
+                    # 回写完整元信息（symbols/start_date/end_date/has_data）
+                    self._store.save_dataset(ds.to_dict(), has_data=True)
             logger.info(f"CSV loaded: {filepath} → {ds.dataset_id} ({df.shape})")
             return True
         except Exception as e:
@@ -301,7 +304,7 @@ class DatasetManager:
         if self._persist and self._parquet:
             self._parquet.save_dataset_data(dataset_id, df)
             if self._store:
-                self._store.update_dataset_has_data(dataset_id, True)
+                self._store.save_dataset(ds.to_dict(), has_data=True)
         return True
 
     def _infer_symbols(self, ds: Dataset, df: pd.DataFrame) -> None:
@@ -447,6 +450,7 @@ class DatasetManager:
             ds.created_at = row["created_at"]
             ds.start_date = row["start_date"]
             ds.end_date = row["end_date"]
+            ds._has_data_flag = row.get("has_data", False)
             self._datasets[ds.dataset_id] = ds
             count += 1
         logger.info(f"Loaded {count} datasets from store")
@@ -500,10 +504,49 @@ class DatasetManager:
             ds.coverage = f"{start} ~ {end}"
             self._datasets[ds_id] = ds
             if self._persist and self._store:
-                self._store.save_dataset(ds.to_dict(), has_data=False)
+                # 生成模拟 OHLCV 数据并保存到 Parquet
+                df = self._generate_sample_ohlcv(symbols_list, freq, start, end)
+                ds.set_data(df)
+                self._parquet.save_dataset_data(ds_id, df)
+                self._store.save_dataset(ds.to_dict(), has_data=True)
             count += 1
         logger.info(f"Seeded {count} sample datasets")
         return count
+
+    def _generate_sample_ohlcv(
+        self, symbols: List[str], freq: str, start: str, end: str
+    ) -> pd.DataFrame:
+        """生成模拟 OHLCV 数据（用于示例数据集）"""
+        freq_map = {"5m": "5min", "15m": "15min", "1h": "1H", "4h": "4H", "1d": "1D"}
+        pd_freq = freq_map.get(freq, "1H")
+        # 限制行数，避免生成过多数据
+        max_rows = 2000
+        dates = pd.date_range(start=start, end=end, freq=pd_freq)
+        if len(dates) > max_rows:
+            dates = dates[-max_rows:]
+        rows = []
+        for sym in symbols:
+            base_price = 100.0 if sym != "BTCUSDT" else 30000.0
+            # 随机游走 + 轻微趋势
+            np.random.seed(hash(sym) % 2**31)
+            returns = np.random.normal(0.0002, 0.02, len(dates))
+            prices = base_price * np.exp(np.cumsum(returns))
+            for i, dt in enumerate(dates):
+                close = prices[i]
+                open_ = close * (1 + np.random.uniform(-0.005, 0.005))
+                high = max(open_, close) * (1 + np.random.uniform(0, 0.01))
+                low = min(open_, close) * (1 - np.random.uniform(0, 0.01))
+                volume = np.random.uniform(1e6, 1e8)
+                rows.append({
+                    "symbol": sym,
+                    "open": open_,
+                    "high": high,
+                    "low": low,
+                    "close": close,
+                    "volume": volume,
+                })
+        df = pd.DataFrame(rows, index=pd.DatetimeIndex(dates.repeat(len(symbols)), name="trade_date"))
+        return df
 
     def load_dataset_data(self, dataset_id: str) -> bool:
         """从 Parquet 加载 Dataset 数据到内存（按需加载）"""

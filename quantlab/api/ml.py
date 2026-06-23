@@ -392,14 +392,15 @@ async def feature_analysis_quick(dataset_id: str = ""):
     if dataset_id:
         ds = ds_mgr.get_dataset(dataset_id)
         logger.info(f"  requested dataset {dataset_id}: found={ds is not None}")
-    if not ds or ds.get_data() is None:
-        # 找第一个有数据的 dataset
-        for d in datasets:
-            ddata = d.get_data()
-            logger.info(f"  checking dataset {d.dataset_id}: data={ddata is not None}")
-            if ddata is not None:
-                ds = d
-                break
+    if not ds or not ds._has_data_flag:
+        # 用 _has_data_flag 筛选（不触发 Parquet 加载），优先选小数据集
+        candidates = [d for d in datasets if d._has_data_flag]
+        # 优先选非 HS300 的大数据集（示例数据集通常 2000 行）
+        candidates.sort(key=lambda d: 0 if d.dataset_id != "DS-7e2f0c69" else 1)
+        for d in candidates:
+            logger.info(f"  checking dataset {d.dataset_id}: flag={d._has_data_flag}")
+            ds = d
+            break
 
     if not ds or ds.get_data() is None:
         return {"results": [], "correlation_matrix": {}, "source": "no_data"}
