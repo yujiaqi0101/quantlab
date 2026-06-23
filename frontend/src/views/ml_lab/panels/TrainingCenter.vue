@@ -32,6 +32,16 @@
       </el-table-column>
       <el-table-column prop="label_id" label="标签 Label" width="150" />
       <el-table-column prop="model_type" label="模型 Model" width="150" />
+      <el-table-column label="方法 Methods" width="200">
+        <template #default="{ row }">
+          <el-tag v-for="m in (row.methods || ['gain'])" :key="m" size="small" :type="methodTagType(m)" style="margin-right: 4px">{{ m }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="训练比例 Train Ratio" width="120">
+        <template #default="{ row }">
+          <span>{{ ((row.train_ratio || 0) * 100).toFixed(0) }}%</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="status" label="状态 Status" width="120">
         <template #default="{ row }">
           <el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag>
@@ -73,6 +83,13 @@
         <el-form-item label="训练比例 Train Ratio">
           <el-slider v-model="trainForm.train_ratio" :min="0.5" :max="0.9" :step="0.05" show-input />
         </el-form-item>
+        <el-form-item label="方法 Methods">
+          <el-checkbox-group v-model="trainForm.methods">
+            <el-checkbox label="gain">增益 Gain</el-checkbox>
+            <el-checkbox label="permutation">置换 Permutation</el-checkbox>
+            <el-checkbox label="shap">SHAP</el-checkbox>
+          </el-checkbox-group>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="showTrainDialog = false">取消 Cancel</el-button>
@@ -110,12 +127,20 @@ const trainForm = ref({
   is_classifier: false,
   train_ratio: 0.7,
   val_ratio: 0.15,
+  methods: ['gain'],
 })
 
 function statusType(s: string): string {
   if (s === 'COMPLETED') return 'success'
   if (s === 'FAILED') return 'danger'
   if (s === 'RUNNING') return 'warning'
+  return 'info'
+}
+
+function methodTagType(m: string): string {
+  if (m === 'gain') return 'success'
+  if (m === 'permutation') return 'warning'
+  if (m === 'shap') return 'danger'
   return 'info'
 }
 

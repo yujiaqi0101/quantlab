@@ -37,6 +37,7 @@ from ..label import LabelRegistry, get_label_registry, LabelSetRegistry, get_lab
 from ..model import Model, ModelType, ModelMetrics, create_model
 from ..pipeline import TrainingDataset, MLPipeline, get_pipeline
 from ..experiment import Experiment, get_experiment_tracker
+from ..feature_analysis import FeatureImportanceAnalyzer
 
 logger = logging.getLogger("quantlab.ml.training")
 
@@ -55,6 +56,7 @@ class TrainingResult:
     status: TrainingStatus = TrainingStatus.PENDING
     metrics: Optional[ModelMetrics] = None
     feature_importance: Dict[str, float] = field(default_factory=dict)
+    feature_importance_by_method: Dict[str, Dict[str, float]] = field(default_factory=dict)
     n_train_samples: int = 0
     n_test_samples: int = 0
     train_time: float = 0.0
@@ -69,6 +71,7 @@ class TrainingResult:
             "status": self.status.value,
             "metrics": self.metrics.to_dict() if self.metrics else None,
             "feature_importance": self.feature_importance,
+            "feature_importance_by_method": self.feature_importance_by_method,
             "n_train_samples": self.n_train_samples,
             "n_test_samples": self.n_test_samples,
             "train_time": round(self.train_time, 4),
@@ -117,6 +120,9 @@ class TrainingJob:
     train_ratio: float = 0.7
     val_ratio: float = 0.15
 
+    # 特征重要性方法（gain / permutation / shap），默认 gain
+    methods: List[str] = field(default_factory=lambda: ["gain"])
+
     # 元信息
     name: str = ""
     tags: List[str] = field(default_factory=list)
@@ -150,6 +156,7 @@ class TrainingJob:
             "is_classifier": self.is_classifier,
             "train_ratio": self.train_ratio,
             "val_ratio": self.val_ratio,
+            "methods": self.methods,
             "tags": self.tags,
             "notes": self.notes,
             "created_at": self.created_at,
@@ -219,13 +226,30 @@ class TrainingJob:
             val_metrics = model.evaluate(X_val, y_val) if len(X_val) > 0 else ModelMetrics()
             test_metrics = model.evaluate(X_test, y_test) if len(X_test) > 0 else ModelMetrics()
 
-            # 5. 特征重要性
-            fi = model.feature_importance()
-            fi_dict = fi.to_dict() if fi is not None else {}
+            # 5. 特征重要性（按 methods 计算）
+            methods = self.methods if self.methods else ["gain"]
+            analyzer = FeatureImportanceAnalyzer()
+            analysis = analyzer.analyze(model, X=X_test, y=y_test, methods=methods)
+
+            # 按方法存储：{method: {feature: importance}}
+            fi_by_method: Dict[str, Dict[str, float]] = {}
+            for method_name, imp_result in analysis.items():
+                fi_by_method[method_name] = {
+                    imp_result.feature_names[i]: float(imp_result.importances[i])
+                    for i in range(len(imp_result.feature_names))
+                }
+
+            # 兼容老字段：feature_importance 默认存 gain
+            fi_dict = fi_by_method.get("gain", {})
+            if not fi_dict and fi_by_method:
+                # 没有 gain 时取第一个方法
+                first_method = next(iter(fi_by_method))
+                fi_dict = fi_by_method[first_method]
 
             result.status = TrainingStatus.COMPLETED
             result.metrics = test_metrics
             result.feature_importance = fi_dict
+            result.feature_importance_by_method = fi_by_method
             result.n_train_samples = len(X_train)
             result.n_test_samples = len(X_test)
             result.train_time = time.time() - start

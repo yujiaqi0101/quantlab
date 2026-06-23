@@ -47,9 +47,11 @@ class TrainingManager:
             if result:
                 job_dict["status"] = result.status.value
                 job_dict["metrics"] = result.metrics.to_dict() if result.metrics else None
+                job_dict["feature_importance_by_method"] = result.feature_importance_by_method
             else:
                 job_dict["status"] = TrainingStatus.PENDING.value
                 job_dict["metrics"] = None
+                job_dict["feature_importance_by_method"] = {}
 
             if status and job_dict["status"] != status.value:
                 continue

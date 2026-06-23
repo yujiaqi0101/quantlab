@@ -225,6 +225,7 @@ export async function submitTraining(data: {
   is_classifier?: boolean
   train_ratio?: number
   val_ratio?: number
+  methods?: string[]
 }): Promise<TrainingResult> {
   const resp = await http.post('/ml/training/jobs', data)
   return resp.data

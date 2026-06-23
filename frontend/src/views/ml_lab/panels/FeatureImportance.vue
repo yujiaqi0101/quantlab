@@ -36,6 +36,16 @@
             <el-checkbox label="shap">SHAP</el-checkbox>
           </el-checkbox-group>
         </el-form-item>
+        <el-form-item label="训练任务 Job">
+          <el-select v-model="selectedJobId" placeholder="选择训练任务（按时间倒序）" style="width: 320px" @change="onJobChange" clearable>
+            <el-option
+              v-for="j in availableJobs"
+              :key="j.job_id"
+              :label="formatJobLabel(j)"
+              :value="j.job_id"
+            />
+          </el-select>
+        </el-form-item>
       </el-form>
 
       <div style="margin-top: 16px; text-align: right">
@@ -44,15 +54,19 @@
     </el-card>
 
     <!-- 结果 -->
-    <el-card v-if="results" style="margin-top: 16px">
+    <el-card v-if="results || selectedJob" style="margin-top: 16px">
+      <div v-if="jobSource" class="job-source">
+        <el-tag type="info" size="small">结果来源 Source</el-tag>
+        <span class="source-text">{{ jobSource }}</span>
+      </div>
       <el-tabs v-model="activeMethod">
         <el-tab-pane
-          v-for="method in Object.keys(results)"
+          v-for="method in Object.keys(results || {})"
           :key="method"
           :label="method.toUpperCase()"
           :name="method"
         >
-          <div v-if="results[method]">
+          <div v-if="results && results[method]">
             <el-table :data="results[method].details" border size="small">
               <el-table-column prop="rank" label="排名 Rank" width="80" sortable />
               <el-table-column prop="feature" label="特征 Feature" />
@@ -75,7 +89,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { http } from '@/api/http'
 import {
@@ -94,6 +108,9 @@ const running = ref(false)
 const results = ref<Record<string, any> | null>(null)
 const activeMethod = ref('')
 
+const allJobs = ref<any[]>([])
+const selectedJobId = ref<string>('')
+
 const form = ref({
   dataset_id: '',
   feature_set_id: '',
@@ -102,17 +119,49 @@ const form = ref({
   methods: ['gain', 'permutation'] as string[],
 })
 
+// 当前 dataset 下所有 COMPLETED job，按 created_at 倒序
+const availableJobs = computed(() => {
+  return allJobs.value
+    .filter((j: any) => j.status === 'COMPLETED' && j.dataset_id === form.value.dataset_id)
+    .sort((a: any, b: any) => (b.created_at || '').localeCompare(a.created_at || ''))
+})
+
+const selectedJob = computed(() =>
+  allJobs.value.find((j: any) => j.job_id === selectedJobId.value) || null
+)
+
+const jobSource = computed(() => {
+  const j = selectedJob.value
+  if (!j) return ''
+  const time = (j.created_at || '').replace('T', ' ').slice(0, 19)
+  const methods = (j.methods || []).join(', ') || '(none)'
+  return `${j.name} | ${time} | 模型 ${j.model_type} | 方法 ${methods} | job_id=${j.job_id}`
+})
+
+function formatJobLabel(j: any): string {
+  const time = (j.created_at || '').replace('T', ' ').slice(5, 16) // MM-DD HH:MM
+  const methods = (j.methods || ['gain']).join('+')
+  return `${time} | ${j.model_type} | methods: ${methods} | ${j.name}`
+}
+
 async function loadOptions() {
-  const [ds, fs, ls] = await Promise.all([getMLDatasets(), getFeatureSets(), getLabelSets()])
+  const [ds, fs, ls, jobsResp] = await Promise.all([
+    getMLDatasets(),
+    getFeatureSets(),
+    getLabelSets(),
+    http.get('/ml/training/jobs'),
+  ])
   datasets.value = ds.datasets
   featureSets.value = fs.sets
   labelSets.value = ls.sets
+  allJobs.value = jobsResp.data?.jobs || []
 
   await autoLoadFromJob()
 }
 
 async function autoLoadFromJob() {
   try {
+    // 优先用 quick 分析
     const quickResp = await http.get('/ml/feature-analysis/quick')
     const quickResults = quickResp.data?.results || []
     if (quickResults.length > 0 && quickResults.some((r: any) => r.importance !== undefined)) {
@@ -132,13 +181,20 @@ async function autoLoadFromJob() {
       }
     }
 
-    const jobsResp = await http.get('/ml/training/jobs')
-    const jobs = jobsResp.data?.jobs || []
-    const completed = jobs.filter((j: any) => j.status === 'COMPLETED')
-    if (completed.length === 0) return
+    // 找该 dataset 下的最新 job 并选中
+    if (availableJobs.value.length > 0) {
+      selectedJobId.value = availableJobs.value[0].job_id
+      await loadJobResults(selectedJobId.value)
+    }
+  } catch (e: any) {
+    // 静默失败
+  }
+}
 
-    const latestJob = completed[completed.length - 1]
-    const resp = await http.get(`/ml/feature-importance/from-job/${latestJob.job_id}`)
+async function loadJobResults(jobId: string) {
+  if (!jobId) return
+  try {
+    const resp = await http.get(`/ml/feature-importance/from-job/${jobId}`)
     if (resp.data) {
       results.value = resp.data
       const methods = Object.keys(resp.data)
@@ -149,35 +205,46 @@ async function autoLoadFromJob() {
   }
 }
 
-async function onDatasetChange() {}
+function onDatasetChange() {
+  // dataset 切换时重置 job 选择，自动选最新
+  selectedJobId.value = ''
+  results.value = null
+  if (availableJobs.value.length > 0) {
+    selectedJobId.value = availableJobs.value[0].job_id
+    loadJobResults(selectedJobId.value)
+  }
+}
 
-async function onFeatureSetChange() {}
+function onJobChange(jobId: string) {
+  if (jobId) loadJobResults(jobId)
+}
+
+function onFeatureSetChange() {}
 
 async function runAnalysis() {
   if (!form.value.dataset_id || !form.value.feature_set_id || !form.value.label_set_id) {
     ElMessage.warning('请选择数据集、特征集和标签集 Please select dataset, FeatureSet, and LabelSet')
     return
   }
+  // 若已选 job，直接重新加载
+  if (selectedJobId.value) {
+    running.value = true
+    try {
+      await loadJobResults(selectedJobId.value)
+    } finally {
+      running.value = false
+    }
+    return
+  }
+  // fallback：找最新匹配 job
+  if (availableJobs.value.length === 0) {
+    ElMessage.info('未找到该数据集的已完成训练任务，请先训练模型 No completed training job found for this dataset.')
+    return
+  }
+  selectedJobId.value = availableJobs.value[0].job_id
   running.value = true
   try {
-    const jobsResp = await http.get('/ml/training/jobs')
-    const jobs = jobsResp.data?.jobs || []
-    const matched = jobs.find((j: any) =>
-      j.status === 'COMPLETED' && j.dataset_id === form.value.dataset_id
-    )
-    if (matched) {
-      const resp = await http.get(`/ml/feature-importance/from-job/${matched.job_id}`)
-      if (resp.data) {
-        results.value = resp.data
-        const methods = Object.keys(resp.data)
-        if (methods.length > 0) activeMethod.value = methods[0]
-        ElMessage.success('已从训练结果加载特征重要性 Feature importance loaded from training result')
-      }
-    } else {
-      ElMessage.info('未找到该数据集的已完成训练任务，请先训练模型 No completed training job found for this dataset.')
-    }
-  } catch (e: any) {
-    ElMessage.error(e.message || '分析失败 Analysis failed')
+    await loadJobResults(selectedJobId.value)
   } finally {
     running.value = false
   }
@@ -195,5 +262,22 @@ onMounted(loadOptions)
 }
 .panel-header h2 {
   margin: 0;
+}
+.job-source {
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  background: rgba(64, 158, 255, 0.08);
+  border-left: 3px solid #409eff;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #909399;
+}
+.job-source .source-text {
+  color: #303133;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  word-break: break-all;
 }
 </style>

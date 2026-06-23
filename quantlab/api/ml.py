@@ -121,6 +121,7 @@ class TrainRequest(BaseModel):
     is_classifier: bool = False
     train_ratio: float = 0.7
     val_ratio: float = 0.15
+    methods: List[str] = ["gain"]  # 特征重要性方法: gain / permutation / shap
 
 
 class WalkForwardRequest(BaseModel):
@@ -573,7 +574,7 @@ async def feature_analysis_from_job(job_id: str):
 
 @router.get("/feature-importance/from-job/{job_id}")
 async def feature_importance_from_job(job_id: str):
-    """基于已完成的训练任务获取特征重要性"""
+    """基于已完成的训练任务获取特征重要性（按训练时选择的方法）"""
     mgr = get_training_manager()
     job = mgr.get_job(job_id)
     if not job:
@@ -582,27 +583,38 @@ async def feature_importance_from_job(job_id: str):
     if not result or result.status != "COMPLETED":
         raise HTTPException(400, "Job not completed yet")
 
-    fi = result.feature_importance or {}
-    if not fi:
-        raise HTTPException(404, "No feature importance data in this job")
+    # 优先使用新的按方法存储
+    fi_by_method = result.feature_importance_by_method or {}
+    if not fi_by_method:
+        # 兼容老数据：把 feature_importance 当作 gain
+        fi_old = result.feature_importance or {}
+        if not fi_old:
+            raise HTTPException(404, "No feature importance data in this job")
+        fi_by_method = {"gain": fi_old}
 
-    total = sum(fi.values()) or 1
-    details = []
-    for rank, (fname, imp) in enumerate(sorted(fi.items(), key=lambda x: -x[1]), 1):
-        details.append({
-            "rank": rank,
-            "feature": fname,
-            "importance": imp,
-            "normalized": round(imp / total, 6),
-        })
-
-    return {
-        "gain": {
+    model_type_str = job.model_type.value if hasattr(job.model_type, 'value') else str(job.model_type)
+    out: Dict[str, Any] = {}
+    for method_name, fi in fi_by_method.items():
+        if not fi:
+            continue
+        total = sum(fi.values()) or 1
+        details = []
+        for rank, (fname, imp) in enumerate(sorted(fi.items(), key=lambda x: -x[1]), 1):
+            details.append({
+                "rank": rank,
+                "feature": fname,
+                "importance": float(imp),
+                "normalized": round(float(imp) / total, 6),
+            })
+        out[method_name] = {
             "details": details,
-            "model_type": job.model_type.value if hasattr(job.model_type, 'value') else str(job.model_type),
+            "model_type": model_type_str,
             "n_features": len(fi),
         }
-    }
+
+    if not out:
+        raise HTTPException(404, "No feature importance data in this job")
+    return out
 
 
 # ==================================================================
@@ -636,6 +648,7 @@ async def submit_training(req: TrainRequest):
         is_classifier=req.is_classifier,
         train_ratio=req.train_ratio,
         val_ratio=req.val_ratio,
+        methods=req.methods,
     )
     mgr = get_training_manager()
     result = mgr.submit(job)
