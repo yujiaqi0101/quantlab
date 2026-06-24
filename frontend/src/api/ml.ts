@@ -223,8 +223,10 @@ export async function getMLModels(): Promise<{ models: MLModel[] }> {
 
 export async function submitTraining(data: {
   dataset_id: string
-  feature_ids: string[]
-  label_id: string
+  feature_ids?: string[]
+  label_id?: string
+  feature_set_id?: string
+  label_set_id?: string
   model_type: string
   model_params?: Record<string, any>
   is_classifier?: boolean
@@ -285,6 +287,17 @@ export async function checkLeakageOverlap(data: {
   test_index: string[]
 }): Promise<LeakageReport> {
   const resp = await http.post('/ml/leakage/check-overlap', data, { timeout: ML_TIMEOUT })
+  return resp.data
+}
+
+export async function checkLeakageDataset(data: {
+  dataset_id: string
+  feature_set_id?: string
+  label_set_id?: string
+  feature_ids?: string[]
+  label_id?: string
+}): Promise<LeakageReport> {
+  const resp = await http.post('/ml/leakage/check-dataset', data, { timeout: ML_TIMEOUT })
   return resp.data
 }
 
@@ -457,6 +470,8 @@ export interface MLExperiment {
   status: string
   tags: string[]
   created_at: string
+  job_id?: string
+  model_version_id?: string
 }
 
 export async function getExperiments(params?: {

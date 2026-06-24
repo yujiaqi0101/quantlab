@@ -311,6 +311,30 @@ class StrategyBuilder:
             f"({strategy.config.name}) model={req.model_version_id or 'inline'} "
             f"fs={feature_set_id or 'inherited'}"
         )
+
+        # 9. 自动注册到 AssetRegistry + 建立血缘
+        try:
+            from ...asset import (
+                register_strategy_asset, add_strategy_lineage,
+                register_model_asset, AssetType,
+            )
+            # 查找关联的 Model 资产
+            model_asset_id = ""
+            if model_version:
+                # 通过 model_package_id 查找
+                from ...asset import get_asset_registry
+                reg = get_asset_registry()
+                for asset in reg.list_assets(asset_type=AssetType.MODEL_PACKAGE):
+                    if getattr(asset, "model_package_id", "") == model_version.version_id:
+                        model_asset_id = asset.asset_id
+                        break
+
+            strategy_asset_id = register_strategy_asset(strategy.config, model_asset_id)
+            if strategy_asset_id and model_asset_id:
+                add_strategy_lineage(strategy_asset_id, model_asset_id)
+        except Exception as e:
+            logger.warning(f"Failed to auto-register Strategy asset: {e}")
+
         return strategy
 
     # ------------------------------------------------------------------

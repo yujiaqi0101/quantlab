@@ -38,6 +38,19 @@
           </template>
         </el-table-column>
         <el-table-column prop="status" label="状态 Status" width="120" />
+        <el-table-column label="操作 Action" width="140" fixed="right">
+          <template #default="{ row }">
+            <el-button
+              v-if="row.status === 'COMPLETED'"
+              type="primary"
+              size="small"
+              @click="useForTraining(row)"
+            >
+              用此模型训练
+            </el-button>
+            <span v-else style="color: #c0c4cc; font-size: 12px;">—</span>
+          </template>
+        </el-table-column>
       </el-table>
     </el-card>
 
@@ -90,6 +103,7 @@ import {
   type MLFeatureSet,
   type MLLabelSet,
 } from '@/api/ml'
+import { useMlTrainingStore } from '@/stores/mlTraining'
 
 const leaderboard = ref<ModelLeaderboardEntry[]>([])
 const loading = ref(false)
@@ -98,6 +112,8 @@ const showRunDialog = ref(false)
 const datasets = ref<MLDataset[]>([])
 const featureSets = ref<MLFeatureSet[]>([])
 const labelSets = ref<MLLabelSet[]>([])
+
+const mlTrainingStore = useMlTrainingStore()
 
 const form = ref({
   dataset_id: '',
@@ -151,6 +167,17 @@ async function runComparison() {
   } finally {
     running.value = false
   }
+}
+
+function useForTraining(row: ModelLeaderboardEntry) {
+  // 将 Arena 的配置写入 store，触发 MLLab 切到 training tab + TrainingCenter 预填充
+  mlTrainingStore.setPrefill({
+    dataset_id: form.value.dataset_id,
+    feature_set_id: form.value.feature_set_id,
+    label_set_id: form.value.label_set_id,
+    model_type: row.model_type,
+  })
+  ElMessage.success(`已选择 ${row.model_type}，即将跳转到训练`)
 }
 
 onMounted(() => {

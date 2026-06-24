@@ -114,8 +114,11 @@ class FeatureAnalysisRequest(BaseModel):
 
 class TrainRequest(BaseModel):
     dataset_id: str
-    feature_ids: List[str]
-    label_id: str
+    feature_ids: List[str] = []
+    label_id: str = ""
+    # 模式2（集合，推荐）：与 Model Arena 一致
+    feature_set_id: str = ""
+    label_set_id: str = ""
     model_type: str = "LINEAR_REGRESSION"
     model_params: Dict[str, Any] = {}
     is_classifier: bool = False
@@ -181,8 +184,8 @@ class StrategyPredictRequest(BaseModel):
     data: List[Dict[str, Any]] = []
 
 
-# 全局策略存储（内存）
-_strategies: Dict[str, MLStrategy] = {}
+# 注：旧的全局 _strategies 字典已移除
+# 策略现在通过 Strategy Studio + PackageRegistry 持久化存储
 
 
 # ==================================================================
@@ -643,6 +646,8 @@ async def submit_training(req: TrainRequest):
         dataset_id=req.dataset_id,
         feature_ids=req.feature_ids,
         label_id=req.label_id,
+        feature_set_id=req.feature_set_id,
+        label_set_id=req.label_set_id,
         model_type=model_type,
         model_params=req.model_params,
         is_classifier=req.is_classifier,
@@ -811,6 +816,50 @@ async def leakage_check_data(req: LeakageCheckDataRequest):
     return report.to_dict()
 
 
+class LeakageCheckDatasetRequest(BaseModel):
+    """数据集泄漏检测请求 — 通过 dataset_id + feature_set_id + label_set_id 构建"""
+    dataset_id: str
+    feature_set_id: str = ""
+    label_set_id: str = ""
+    # 模式1（可选）
+    feature_ids: List[str] = []
+    label_id: str = ""
+
+
+@router.post("/leakage/check-dataset")
+async def leakage_check_dataset(req: LeakageCheckDatasetRequest):
+    """数据集泄漏检测 — 通过 FeatureSet/LabelSet 构建数据后检测"""
+    from quantlab.ml.pipeline import get_pipeline
+
+    pipeline = get_pipeline()
+
+    if req.feature_set_id and req.label_set_id:
+        tds = pipeline.build(
+            dataset_id=req.dataset_id,
+            feature_set_id=req.feature_set_id,
+            label_set_id=req.label_set_id,
+        )
+    elif req.feature_ids and req.label_id:
+        ds_mgr = get_dataset_manager()
+        ds = ds_mgr.get_dataset(req.dataset_id)
+        if not ds:
+            raise HTTPException(404, f"Dataset not found: {req.dataset_id}")
+        df = ds.get_data()
+        if df is None:
+            raise HTTPException(400, f"Dataset has no data: {req.dataset_id}")
+        tds = pipeline.build_from_raw(
+            df=df,
+            feature_ids=req.feature_ids,
+            label_id=req.label_id,
+        )
+    else:
+        raise HTTPException(400, "Must specify (feature_set_id + label_set_id) or (feature_ids + label_id)")
+
+    detector = LeakageDetector()
+    report = detector.check_data(tds.X, tds.y)
+    return report.to_dict()
+
+
 @router.post("/leakage/check-overlap")
 async def leakage_check_overlap(req: LeakageCheckOverlapRequest):
     """时间重叠检测"""
@@ -870,91 +919,45 @@ async def get_model_version(version_id: str):
 
 
 # ==================================================================
-# ML Strategy Builder
+# ML Strategy Builder (DEPRECATED — 已迁移至 Strategy Studio)
+# 旧端点保留向后兼容，内部转发到 /api/strategy-studio/*
+# 新代码请直接使用 Strategy Studio API
 # ==================================================================
 
-@router.post("/strategies")
-async def build_strategy(req: BuildStrategyRequest):
-    """构建 ML 策略"""
-    try:
-        model_type = ModelType(req.model_type)
-    except ValueError:
-        raise HTTPException(400, f"Unknown model type: {req.model_type}")
-
-    df = pd.DataFrame(req.train_data)
-    if df.empty:
-        raise HTTPException(400, "train_data is required")
-
-    builder = MLStrategyBuilder()
-    try:
-        model = builder.train(
-            df=df,
-            feature_ids=req.feature_ids,
-            label_id=req.label_id,
-            model_type=model_type,
-            model_params=req.model_params,
-            is_classifier=req.is_classifier,
-        )
-    except Exception as e:
-        raise HTTPException(400, f"Training failed: {e}")
-
-    strategy = builder.build(
-        feature_ids=req.feature_ids,
-        label_id=req.label_id,
-        model=model,
-        model_type=model_type,
-        is_classifier=req.is_classifier,
-        long_threshold=req.long_threshold,
-        short_threshold=req.short_threshold,
-        use_short=req.use_short,
-        position_scale=req.position_scale,
-        name=req.name,
+@router.post("/strategies", deprecated=True)
+async def build_strategy_legacy(req: BuildStrategyRequest):
+    """[已废弃] 旧 ML 策略构建端点。请使用 POST /api/strategy-studio/compose"""
+    raise HTTPException(
+        410,
+        "This endpoint is deprecated. Use POST /api/strategy-studio/compose instead. "
+        "Strategy Builder has been refactored to Strategy Studio (Assembler).",
     )
 
-    _strategies[strategy.strategy_id] = strategy
-    return strategy.to_dict()
+
+@router.post("/strategies/predict", deprecated=True)
+async def strategy_predict_legacy(req: StrategyPredictRequest):
+    """[已废弃] 旧策略预测端点。请使用 Strategy Runtime"""
+    raise HTTPException(
+        410,
+        "This endpoint is deprecated. Use Strategy Runtime (quantlab.strategy_studio.runtime) instead.",
+    )
 
 
-@router.post("/strategies/predict")
-async def strategy_predict(req: StrategyPredictRequest):
-    """策略预测"""
-    strategy = _strategies.get(req.strategy_id)
-    if not strategy:
-        raise HTTPException(404, f"Strategy not found: {req.strategy_id}")
-
-    df = pd.DataFrame(req.data)
-    if df.empty:
-        raise HTTPException(400, "data is required")
-
-    preds = strategy.predict(df)
-    signals = strategy.signal(df)
-    positions = strategy.position(df)
-
-    return {
-        "predictions": preds.tolist(),
-        "signals": signals.tolist(),
-        "positions": positions.tolist(),
-        "index": [str(i) for i in preds.index],
-    }
+@router.get("/strategies", deprecated=True)
+async def list_strategies_legacy():
+    """[已废弃] 旧策略列表端点。请使用 GET /api/strategy-studio/strategies"""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/api/strategy-studio/strategies", status_code=307)
 
 
-@router.get("/strategies")
-async def list_strategies():
-    """策略列表"""
-    return {
-        "strategies": [
-            s.to_dict() for s in _strategies.values()
-        ]
-    }
-
-
-@router.get("/strategies/{strategy_id}")
-async def get_strategy(strategy_id: str):
-    """策略详情"""
-    strategy = _strategies.get(strategy_id)
-    if not strategy:
-        raise HTTPException(404, f"Strategy not found: {strategy_id}")
-    return strategy.to_dict()
+@router.get("/strategies/{strategy_id}", deprecated=True)
+async def get_strategy_legacy(strategy_id: str):
+    """[已废弃] 旧策略详情端点。请使用 GET /api/strategy-studio/strategies/{name}/{version}"""
+    raise HTTPException(
+        410,
+        f"This endpoint is deprecated. Use GET /api/strategy-studio/strategies/<name>/<version> instead. "
+        f"Strategy IDs are now name@version format.",
+    )
 
 
 # ==================================================================
@@ -1629,6 +1632,9 @@ from quantlab.ml.challenge import (
 
 class ValidationPipelineRequest(BaseModel):
     """验证流水线请求"""
+    # 方式1（推荐）：从 Experiment 加载（Training→Validation 链路）
+    experiment_id: str = ""
+    # 方式2（高级模式）：手动提供原始数据
     feature_data: Dict[str, List[float]] = {}
     label_data: List[float] = []
     index: List[str] = []
@@ -1652,7 +1658,6 @@ class ValidationPipelineRequest(BaseModel):
     label_id: str = ""
     label_set_id: str = ""
     name: str = ""
-    experiment_id: str = ""
 
 
 @router.post("/validation/pipeline/run")
@@ -1662,36 +1667,18 @@ async def run_validation_pipeline(req: ValidationPipelineRequest):
 
     Raw Model → Validation Pipeline → PASS/FAIL
 
+    两种入口：
+      方式1（推荐）：experiment_id — 从 Experiment 加载 Raw Model + 重建数据
+      方式2（高级模式）：feature_data + label_data — 手动提供原始数据
+
     包含 6 级 Gate：
       L1 Data / L2 Training / L3 Leakage / L3 WalkForward / L4 Trading / L5 Robustness / L6 Benchmark
+
+    结果处理：
+      PASS → Raw Model 状态升级 DRAFT → CANDIDATE，注册到 ModelRegistry
+      FAIL → Raw Model 保留但标记验证失败（不升级）
     """
-    if not req.feature_data or not req.label_data:
-        raise HTTPException(400, "feature_data and label_data are required")
-
-    try:
-        model_type = ModelType(req.model_type)
-    except ValueError:
-        raise HTTPException(400, f"Unknown model type: {req.model_type}")
-
-    # 构建数据
-    index = pd.to_datetime(req.index) if req.index else None
-    features = pd.DataFrame(req.feature_data, index=index)
-    labels = pd.Series(req.label_data, index=index, name="label")
-
-    # 构建模型
-    from quantlab.ml.model import create_model
-    model = create_model(model_type, req.model_params, is_classifier=req.is_classifier)
-
-    # 训练模型（如果未提供 predictions）
-    predictions = None
-    if req.predictions:
-        predictions = pd.Series(req.predictions, index=index)
-    else:
-        n = len(features)
-        train_end = int(n * 0.7)
-        X_train, y_train = features.iloc[:train_end], labels.iloc[:train_end]
-        model.fit(X_train, y_train)
-        predictions = pd.Series(model.predict(features), index=features.index)
+    from quantlab.ml.validation.pipeline.core import build_context_from_experiment
 
     # 构建 Walk Forward 配置
     from quantlab.ml.validation import ValidationConfig
@@ -1703,24 +1690,61 @@ async def run_validation_pipeline(req: ValidationPipelineRequest):
         gap=req.gap,
     )
 
-    # 构建验证上下文
-    ctx = MLValidationContext(
-        raw_model=model,
-        model_type=req.model_type,
-        model_params=req.model_params,
-        features=features,
-        labels=labels,
-        predictions=predictions,
-        is_classifier=req.is_classifier,
-        dataset_id=req.dataset_id,
-        feature_ids=req.feature_ids,
-        feature_set_id=req.feature_set_id,
-        label_id=req.label_id,
-        label_set_id=req.label_set_id,
-        walk_forward_config=wf_config,
-        name=req.name,
-        experiment_id=req.experiment_id,
-    )
+    # ---- 构建 ValidationContext ----
+    if req.experiment_id:
+        # 方式1：从 Experiment 加载（Training→Validation 链路）
+        try:
+            ctx = build_context_from_experiment(
+                experiment_id=req.experiment_id,
+                walk_forward_config=wf_config,
+            )
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+    elif req.feature_data and req.label_data:
+        # 方式2：手动提供原始数据（高级模式）
+        try:
+            model_type = ModelType(req.model_type)
+        except ValueError:
+            raise HTTPException(400, f"Unknown model type: {req.model_type}")
+
+        index = pd.to_datetime(req.index) if req.index else None
+        features = pd.DataFrame(req.feature_data, index=index)
+        labels = pd.Series(req.label_data, index=index, name="label")
+
+        from quantlab.ml.model import create_model
+        model = create_model(model_type, req.model_params, is_classifier=req.is_classifier)
+
+        predictions = None
+        if req.predictions:
+            predictions = pd.Series(req.predictions, index=index)
+        else:
+            n = len(features)
+            train_end = int(n * 0.7)
+            X_train, y_train = features.iloc[:train_end], labels.iloc[:train_end]
+            model.fit(X_train, y_train)
+            predictions = pd.Series(model.predict(features), index=features.index)
+
+        ctx = MLValidationContext(
+            raw_model=model,
+            model_type=req.model_type,
+            model_params=req.model_params,
+            features=features,
+            labels=labels,
+            predictions=predictions,
+            is_classifier=req.is_classifier,
+            dataset_id=req.dataset_id,
+            feature_ids=req.feature_ids,
+            feature_set_id=req.feature_set_id,
+            label_id=req.label_id,
+            label_set_id=req.label_set_id,
+            walk_forward_config=wf_config,
+            name=req.name,
+        )
+    else:
+        raise HTTPException(
+            400,
+            "Must provide either experiment_id or (feature_data + label_data)"
+        )
 
     # 创建 Pipeline
     pipeline = create_default_pipeline()
@@ -1739,7 +1763,124 @@ async def run_validation_pipeline(req: ValidationPipelineRequest):
     # 运行
     result = pipeline.run(ctx)
 
+    # ---- 状态升级：PASS → CANDIDATE + 注册，FAIL → 标记 ----
+    _upgrade_raw_model_status(ctx, result)
+
     return result.to_dict()
+
+
+def _upgrade_raw_model_status(ctx, result):
+    """
+    Validation 完成后处理 Raw Model 状态
+
+    PASS → DRAFT → CANDIDATE，注册到 ModelRegistry
+    FAIL → 保留 DRAFT，metadata 标记 validation_failed
+    """
+    from quantlab.ml.registry.model_store import get_model_store
+    from quantlab.ml.registry import LifecycleStatus, ModelRegistry, get_model_registry
+
+    # 从 context 获取 model_version_id
+    model_version_id = ""
+    if ctx.training_result is not None:
+        model_version_id = getattr(ctx.training_result, "model_version_id", "")
+
+    if not model_version_id:
+        # 手动模式（方式2）没有 model_version_id，跳过状态升级
+        return
+
+    store = get_model_store()
+    version, model = store.load(model_version_id)
+    if version is None:
+        return
+
+    if result.passed:
+        # PASS → 升级 DRAFT → CANDIDATE，注册到 ModelRegistry
+        version.lifecycle = LifecycleStatus.CANDIDATE
+        version.set_model(model) if model else None
+        store.save(version)
+        # 注册到 ModelRegistry
+        registry = get_model_registry()
+        registry.register(version)
+        logger.info(
+            f"Raw Model {model_version_id} PASSED → upgraded to CANDIDATE, "
+            f"registered to ModelRegistry"
+        )
+
+        # 注册到 AssetRegistry + 建立血缘
+        try:
+            from quantlab.asset import (
+                register_model_asset, add_model_lineage,
+                register_dataset_asset, register_feature_set_asset,
+                register_label_set_asset, AssetType,
+            )
+            from quantlab.ml.dataset import get_dataset_manager
+            from quantlab.ml.feature import get_feature_set_registry
+            from quantlab.ml.label import get_label_set_registry
+
+            # 计算验证分数和等级
+            val_score = float(result.score) if hasattr(result, "score") else 0.0
+            val_grade = result.grade if hasattr(result, "grade") else "F"
+
+            model_asset_id = register_model_asset(
+                version,
+                validation_passed=True,
+                validation_score=val_score,
+                validation_grade=val_grade,
+            )
+
+            if model_asset_id:
+                # 查找关联的 Dataset/FeatureSet/LabelSet 资产
+                dataset_asset_id = ""
+                feature_set_asset_id = ""
+                label_set_asset_id = ""
+
+                # Dataset
+                if version.dataset_id:
+                    dm = get_dataset_manager()
+                    ds = dm.get_dataset(version.dataset_id)
+                    if ds:
+                        dataset_asset_id = register_dataset_asset(ds) or ""
+
+                # FeatureSet（通过 feature_ids 查找）
+                if version.feature_ids:
+                    fs_reg = get_feature_set_registry()
+                    for fs in fs_reg.list_all():
+                        if set(fs.feature_ids) == set(version.feature_ids):
+                            feature_set_asset_id = register_feature_set_asset(fs) or ""
+                            break
+
+                # LabelSet（通过 label_id 查找）
+                if version.label_id:
+                    ls_reg = get_label_set_registry()
+                    for ls in ls_reg.list_all():
+                        if ls.label_id == version.label_id:
+                            label_set_asset_id = register_label_set_asset(ls) or ""
+                            break
+
+                # 建立血缘
+                add_model_lineage(
+                    model_asset_id=model_asset_id,
+                    dataset_asset_id=dataset_asset_id,
+                    feature_set_asset_id=feature_set_asset_id,
+                    label_set_asset_id=label_set_asset_id,
+                )
+                logger.info(
+                    f"Model {model_version_id} registered to AssetRegistry "
+                    f"as {model_asset_id}, lineage established"
+                )
+        except Exception as e:
+            logger.warning(f"Failed to register Model to AssetRegistry: {e}")
+    else:
+        # FAIL → 保留，metadata 标记验证失败
+        version.lifecycle = LifecycleStatus.DRAFT
+        version.tags = [t for t in version.tags if t != "validation_failed"]
+        version.tags.append("validation_failed")
+        version.set_model(model) if model else None
+        store.save(version)
+        logger.info(
+            f"Raw Model {model_version_id} FAILED → kept as DRAFT, "
+            f"tagged validation_failed"
+        )
 
 
 @router.get("/validation/pipeline/config")

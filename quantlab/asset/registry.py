@@ -18,11 +18,14 @@ AssetRegistry — 资产注册中心统一入口
   1. Registry 是索引，不保存真正数据（数据在 Storage）
   2. MODEL_PACKAGE 类型强制检查 validation_passed
   3. 向后兼容现有 ModelRegistry API
+  4. 启动时从文件系统恢复索引（_load_from_storage）
 """
 
 from __future__ import annotations
 
+import json
 import logging
+import os
 from typing import Any, Dict, List, Optional, Union
 
 from .base import (
@@ -31,6 +34,12 @@ from .base import (
     AssetType,
     QuantAsset,
     ModelPackageAsset,
+    DatasetAsset,
+    FeatureSetAsset,
+    LabelSetAsset,
+    StrategyPackageAsset,
+    RiskProfileAsset,
+    DeploymentProfileAsset,
 )
 from .champion import ChampionManager, ChampionPointer
 from .lineage import LineageManager, LineageNode
@@ -38,6 +47,18 @@ from .storage import AssetStorage, get_asset_storage
 from .version import SemanticVersion, VersionManager
 
 logger = logging.getLogger("quantlab.asset.registry")
+
+
+# manifest asset_type 字符串 → 资产类
+_MANIFEST_TO_CLASS = {
+    AssetType.DATASET.value: DatasetAsset,
+    AssetType.FEATURE_SET.value: FeatureSetAsset,
+    AssetType.LABEL_SET.value: LabelSetAsset,
+    AssetType.MODEL_PACKAGE.value: ModelPackageAsset,
+    AssetType.STRATEGY_PACKAGE.value: StrategyPackageAsset,
+    AssetType.RISK_PROFILE.value: RiskProfileAsset,
+    AssetType.DEPLOYMENT_PROFILE.value: DeploymentProfileAsset,
+}
 
 
 class AssetRegistry:
@@ -59,6 +80,161 @@ class AssetRegistry:
         self.champion_manager = ChampionManager()
         # asset_id → QuantAsset（内存索引）
         self._assets: Dict[str, QuantAsset] = {}
+        # 从文件系统恢复索引（启动时）
+        self._load_from_storage()
+
+    # ------------------------------------------------------------------
+    # 持久化恢复
+    # ------------------------------------------------------------------
+
+    def _load_from_storage(self) -> None:
+        """
+        启动时从文件系统恢复索引
+
+        1. 扫描 storage.list_assets() 获取所有 manifest
+        2. 重建内存索引 _assets
+        3. 重建 VersionManager / LineageManager 节点
+        4. 加载 _state/state.json 恢复 Lineage 边和 Champion 指针
+        """
+        try:
+            manifests = self.storage.list_assets()
+        except Exception as e:
+            logger.warning(f"Failed to list assets from storage: {e}")
+            return
+
+        n_restored = 0
+        for manifest in manifests:
+            asset = self._manifest_to_asset(manifest)
+            if asset is None:
+                continue
+            # 跳过未通过验证的 MODEL_PACKAGE（保持与 register 一致）
+            self._assets[asset.asset_id] = asset
+
+            # 重建版本管理
+            version = SemanticVersion.try_parse(asset.version)
+            if version:
+                self.version_manager.register(asset.family, version)
+
+            # 重建血缘节点（边在 state.json 中恢复）
+            self.lineage_manager.add_node(
+                asset_id=asset.asset_id,
+                name=asset.name,
+                asset_type=asset.asset_type.value,
+                version=asset.version,
+            )
+            n_restored += 1
+
+        # 恢复 Lineage 边和 Champion 指针
+        self._load_state()
+
+        if n_restored > 0:
+            logger.info(f"AssetRegistry restored {n_restored} assets from storage")
+
+    def _manifest_to_asset(self, manifest: Dict[str, Any]) -> Optional[QuantAsset]:
+        """从 manifest 字典重建资产对象"""
+        asset_type_str = manifest.get("asset_type", "")
+        cls = _MANIFEST_TO_CLASS.get(asset_type_str)
+        if cls is None:
+            logger.warning(f"Unknown asset_type in manifest: {asset_type_str}")
+            return None
+
+        try:
+            # 基础字段
+            kwargs = {
+                "asset_id": manifest.get("asset_id", ""),
+                "name": manifest.get("name", ""),
+                "family": manifest.get("family", ""),
+                "version": manifest.get("version", "1.0.0"),
+                "status": AssetStatus(manifest.get("status", "DRAFT")),
+                "created_at": manifest.get("created_at", ""),
+                "author": manifest.get("author", ""),
+                "tags": manifest.get("tags", []),
+                "description": manifest.get("description", ""),
+                "hash": manifest.get("hash", ""),
+                "location": manifest.get("location", ""),
+            }
+
+            # manifest 子字段（资产特有）
+            sub = manifest.get("manifest", {})
+            if isinstance(sub, dict):
+                for k, v in sub.items():
+                    if k != "description":
+                        kwargs[k] = v
+
+            return cls(**kwargs)
+        except Exception as e:
+            logger.warning(f"Failed to rebuild asset from manifest: {e}")
+            return None
+
+    def _state_path(self) -> str:
+        """state.json 路径"""
+        return os.path.join(self.storage.root_dir, "_state", "state.json")
+
+    def _load_state(self) -> None:
+        """加载 Lineage 边和 Champion 指针"""
+        path = self._state_path()
+        if not os.path.exists(path):
+            return
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                state = json.load(f)
+        except Exception as e:
+            logger.warning(f"Failed to load state: {e}")
+            return
+
+        # 恢复 Lineage 边
+        for edge in state.get("lineage_edges", []):
+            relation_str = edge.get("relation", "DERIVED_FROM")
+            try:
+                relation = AssetRelation(relation_str)
+            except ValueError:
+                relation = AssetRelation.DERIVED_FROM
+            self.lineage_manager.add_edge(
+                from_asset_id=edge.get("from_asset_id", ""),
+                to_asset_id=edge.get("to_asset_id", ""),
+                relation=relation,
+                note=edge.get("note", ""),
+                created_at=edge.get("created_at", ""),
+            )
+
+        # 恢复 Champion 指针
+        for family, ptr in state.get("champions", {}).items():
+            pointer = ChampionPointer(
+                family=ptr.get("family", family),
+                champion_asset_id=ptr.get("champion_asset_id", ""),
+                promoted_at=ptr.get("promoted_at", ""),
+                previous_champion_id=ptr.get("previous_champion_id", ""),
+                promotion_reason=ptr.get("promotion_reason", ""),
+            )
+            self.champion_manager._champions[pointer.family] = pointer
+
+        logger.info(
+            f"State restored: "
+            f"{len(state.get('lineage_edges', []))} edges, "
+            f"{len(state.get('champions', {}))} champions"
+        )
+
+    def _save_state(self) -> None:
+        """持久化 Lineage 边和 Champion 指针"""
+        path = self._state_path()
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+
+        state = {
+            "lineage_edges": [
+                e.to_dict()
+                for edges in self.lineage_manager._children.values()
+                for e in edges
+            ],
+            "champions": {
+                family: ptr.to_dict()
+                for family, ptr in self.champion_manager._champions.items()
+            },
+        }
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(state, f, indent=2, ensure_ascii=False, default=str)
+        except Exception as e:
+            logger.warning(f"Failed to save state: {e}")
 
     # ------------------------------------------------------------------
     # 注册 / 获取
@@ -179,12 +355,14 @@ class AssetRegistry:
         asset = self._assets.get(asset_id)
         if asset is None:
             raise ValueError(f"Asset not found: {asset_id}")
-        return self.champion_manager.promote(
+        pointer = self.champion_manager.promote(
             family=family,
             asset_id=asset_id,
             reason=reason,
             asset=asset,
         )
+        self._save_state()
+        return pointer
 
     def get_champion(self, family: str) -> Optional[QuantAsset]:
         """获取 Champion 资产"""
@@ -223,12 +401,15 @@ class AssetRegistry:
         note: str = "",
     ) -> bool:
         """添加血缘关系"""
-        return self.lineage_manager.add_edge(
+        ok = self.lineage_manager.add_edge(
             from_asset_id=parent_asset_id,
             to_asset_id=child_asset_id,
             relation=relation,
             note=note,
         )
+        if ok:
+            self._save_state()
+        return ok
 
     def get_lineage(self, asset_id: str) -> Dict[str, Any]:
         """获取资产血缘树"""

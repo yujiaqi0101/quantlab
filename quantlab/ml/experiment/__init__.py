@@ -61,6 +61,9 @@ class Experiment:
     dataset_id: str = ""
     feature_set_id: str = ""
     label_set_id: str = ""
+    # 模式1（传统）：feature_ids + label_id
+    feature_ids: List[str] = field(default_factory=list)
+    label_id: str = ""
     model_type: str = ""
     model_params: Dict[str, Any] = field(default_factory=dict)
     is_classifier: bool = False
@@ -93,6 +96,8 @@ class Experiment:
             "dataset_id": self.dataset_id,
             "feature_set_id": self.feature_set_id,
             "label_set_id": self.label_set_id,
+            "feature_ids": self.feature_ids,
+            "label_id": self.label_id,
             "model_type": self.model_type,
             "model_params": self.model_params,
             "is_classifier": self.is_classifier,
@@ -119,6 +124,8 @@ CREATE TABLE IF NOT EXISTS experiments (
     dataset_id         TEXT DEFAULT '',
     feature_set_id     TEXT DEFAULT '',
     label_set_id       TEXT DEFAULT '',
+    feature_ids        TEXT DEFAULT '[]',
+    label_id           TEXT DEFAULT '',
     model_type         TEXT DEFAULT '',
     model_params       TEXT DEFAULT '{}',
     is_classifier      INTEGER DEFAULT 0,
@@ -174,6 +181,15 @@ class ExperimentTracker:
                 cur.execute("ALTER TABLE experiments ADD COLUMN feature_importance_by_method TEXT DEFAULT '{}'")
             except Exception:
                 pass  # 列已存在，跳过
+            # 迁移：为旧表添加 feature_ids / label_id 列（模式1支持）
+            try:
+                cur.execute("ALTER TABLE experiments ADD COLUMN feature_ids TEXT DEFAULT '[]'")
+            except Exception:
+                pass
+            try:
+                cur.execute("ALTER TABLE experiments ADD COLUMN label_id TEXT DEFAULT ''")
+            except Exception:
+                pass
 
     def save(self, exp: Experiment) -> str:
         """保存实验（内存 + SQLite）"""
@@ -193,24 +209,30 @@ class ExperimentTracker:
             cur.execute(
                 """INSERT INTO experiments
                    (experiment_id, name, dataset_id, feature_set_id, label_set_id,
+                    feature_ids, label_id,
                     model_type, model_params, is_classifier, metrics, feature_importance,
                     feature_importance_by_method,
                     train_samples, test_samples, train_time, status, notes, tags,
                     created_at, job_id, model_version_id)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(experiment_id) DO UPDATE SET
                      name=excluded.name,
                      metrics=excluded.metrics,
                      feature_importance=excluded.feature_importance,
                      feature_importance_by_method=excluded.feature_importance_by_method,
                      status=excluded.status,
-                     train_time=excluded.train_time""",
+                     train_time=excluded.train_time,
+                     feature_ids=excluded.feature_ids,
+                     label_id=excluded.label_id,
+                     model_version_id=excluded.model_version_id""",
                 (
                     exp.experiment_id,
                     exp.name,
                     exp.dataset_id,
                     exp.feature_set_id,
                     exp.label_set_id,
+                    json.dumps(exp.feature_ids, ensure_ascii=False),
+                    exp.label_id,
                     exp.model_type,
                     json.dumps(exp.model_params, ensure_ascii=False, default=str),
                     1 if exp.is_classifier else 0,
@@ -339,6 +361,8 @@ class ExperimentTracker:
                 dataset_id=row["dataset_id"],
                 feature_set_id=row["feature_set_id"],
                 label_set_id=row["label_set_id"],
+                feature_ids=json.loads(row["feature_ids"] or "[]"),
+                label_id=row["label_id"] if "label_id" in row.keys() else "",
                 model_type=row["model_type"],
                 model_params=json.loads(row["model_params"] or "{}"),
                 is_classifier=bool(row["is_classifier"]),

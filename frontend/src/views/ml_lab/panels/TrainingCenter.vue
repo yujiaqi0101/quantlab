@@ -52,6 +52,21 @@
           <span v-if="row.metrics">IC: {{ row.metrics.ic?.toFixed(4) }}, RMSE: {{ row.metrics.rmse?.toFixed(4) }}</span>
         </template>
       </el-table-column>
+      <el-table-column label="Raw Model" width="140">
+        <template #default="{ row }">
+          <el-tag v-if="row.model_version_id" type="warning" size="small">
+            {{ row.model_version_id }}
+          </el-tag>
+          <span v-else style="color: #c0c4cc; font-size: 12px;">无</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="实验 Experiment" width="140">
+        <template #default="{ row }">
+          <el-tag v-if="row.experiment_id" size="small">
+            {{ row.experiment_id }}
+          </el-tag>
+        </template>
+      </el-table-column>
     </el-table>
 
     <!-- 训练对话框 -->
@@ -62,16 +77,36 @@
             <el-option v-for="ds in datasets" :key="ds.dataset_id" :label="ds.name" :value="ds.dataset_id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="特征 Features">
-          <el-select v-model="trainForm.feature_ids" multiple placeholder="选择特征 Select features" style="width: 100%">
-            <el-option v-for="f in features" :key="f.feature_id" :label="f.name" :value="f.feature_id" />
-          </el-select>
+        <el-form-item label="输入模式 Mode">
+          <el-radio-group v-model="trainMode">
+            <el-radio label="set">特征集 FeatureSet（推荐）</el-radio>
+            <el-radio label="raw">单个特征 Features</el-radio>
+          </el-radio-group>
         </el-form-item>
-        <el-form-item label="标签 Label">
-          <el-select v-model="trainForm.label_id" placeholder="选择标签 Select label" style="width: 100%">
-            <el-option v-for="l in labels" :key="l.label_id" :label="l.name" :value="l.label_id" />
-          </el-select>
-        </el-form-item>
+        <template v-if="trainMode === 'set'">
+          <el-form-item label="特征集 FeatureSet">
+            <el-select v-model="trainForm.feature_set_id" placeholder="选择特征集 Select feature set" style="width: 100%">
+              <el-option v-for="f in featureSets" :key="f.name" :label="f.name" :value="f.name" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="标签集 LabelSet">
+            <el-select v-model="trainForm.label_set_id" placeholder="选择标签集 Select label set" style="width: 100%">
+              <el-option v-for="l in labelSets" :key="l.name" :label="l.name" :value="l.name" />
+            </el-select>
+          </el-form-item>
+        </template>
+        <template v-else>
+          <el-form-item label="特征 Features">
+            <el-select v-model="trainForm.feature_ids" multiple placeholder="选择特征 Select features" style="width: 100%">
+              <el-option v-for="f in features" :key="f.feature_id" :label="f.name" :value="f.feature_id" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="标签 Label">
+            <el-select v-model="trainForm.label_id" placeholder="选择标签 Select label" style="width: 100%">
+              <el-option v-for="l in labels" :key="l.label_id" :label="l.name" :value="l.label_id" />
+            </el-select>
+          </el-form-item>
+        </template>
         <el-form-item label="模型 Model">
           <el-select v-model="trainForm.model_type" style="width: 100%">
             <el-option v-for="m in models" :key="m.type" :label="m.name" :value="m.type" />
@@ -100,13 +135,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   getTrainingJobs, submitTraining,
   getMLDatasets, getMLFeatures, getMLLabels, getMLModels,
+  getFeatureSets, getLabelSets,
   type MLDataset, type MLFeature, type MLLabel, type MLModel,
+  type MLFeatureSet, type MLLabelSet,
 } from '@/api/ml'
+import { useMlTrainingStore } from '@/stores/mlTraining'
 
 const jobs = ref<any[]>([])
 const status = ref<any>(null)
@@ -118,16 +156,25 @@ const datasets = ref<MLDataset[]>([])
 const features = ref<MLFeature[]>([])
 const labels = ref<MLLabel[]>([])
 const models = ref<MLModel[]>([])
+const featureSets = ref<MLFeatureSet[]>([])
+const labelSets = ref<MLLabelSet[]>([])
+
+// 输入模式：set=特征集（推荐，与 Arena 一致），raw=单个特征
+const trainMode = ref<'set' | 'raw'>('set')
+
+const mlTrainingStore = useMlTrainingStore()
 
 const trainForm = ref({
   dataset_id: '',
   feature_ids: [] as string[],
   label_id: '',
+  feature_set_id: '',
+  label_set_id: '',
   model_type: 'LINEAR_REGRESSION',
   is_classifier: false,
   train_ratio: 0.7,
   val_ratio: 0.15,
-  methods: ['gain'],
+  methods: [] as string[],
 })
 
 function statusType(s: string): string {
@@ -147,12 +194,14 @@ function methodTagType(m: string): string {
 async function loadData() {
   loading.value = true
   try {
-    const [jobsResp, dsResp, featResp, labelResp, modelResp] = await Promise.all([
+    const [jobsResp, dsResp, featResp, labelResp, modelResp, fsResp, lsResp] = await Promise.all([
       getTrainingJobs(),
       getMLDatasets(),
       getMLFeatures(),
       getMLLabels(),
       getMLModels(),
+      getFeatureSets(),
+      getLabelSets(),
     ])
     jobs.value = jobsResp.jobs || []
     status.value = jobsResp.status
@@ -160,6 +209,8 @@ async function loadData() {
     features.value = featResp.features || []
     labels.value = labelResp.labels || []
     models.value = modelResp.models || []
+    featureSets.value = fsResp.sets || []
+    labelSets.value = lsResp.sets || []
   } catch (e) {
     ElMessage.error('加载数据失败 Failed to load data')
   } finally {
@@ -168,8 +219,23 @@ async function loadData() {
 }
 
 async function startTraining() {
-  if (!trainForm.value.dataset_id || trainForm.value.feature_ids.length === 0 || !trainForm.value.label_id) {
-    ElMessage.warning('请填写所有必填项 Please fill all fields')
+  if (!trainForm.value.dataset_id) {
+    ElMessage.warning('请选择数据集 Please select dataset')
+    return
+  }
+  if (trainMode.value === 'set') {
+    if (!trainForm.value.feature_set_id || !trainForm.value.label_set_id) {
+      ElMessage.warning('请选择特征集和标签集 Please select FeatureSet and LabelSet')
+      return
+    }
+  } else {
+    if (trainForm.value.feature_ids.length === 0 || !trainForm.value.label_id) {
+      ElMessage.warning('请选择特征和标签 Please select features and label')
+      return
+    }
+  }
+  if (trainForm.value.methods.length === 0) {
+    ElMessage.warning('请至少选择一种特征重要性方法 Please select at least one method')
     return
   }
   training.value = true
@@ -188,6 +254,19 @@ async function startTraining() {
     training.value = false
   }
 }
+
+// Arena → TrainingCenter 联动：预填充就绪后填充表单并打开对话框
+watch(() => mlTrainingStore.prefill.ready, (ready) => {
+  if (!ready) return
+  const p = mlTrainingStore.prefill
+  trainMode.value = 'set'
+  trainForm.value.dataset_id = p.dataset_id
+  trainForm.value.feature_set_id = p.feature_set_id
+  trainForm.value.label_set_id = p.label_set_id
+  trainForm.value.model_type = p.model_type
+  showTrainDialog.value = true
+  mlTrainingStore.consume()
+})
 
 onMounted(() => {
   loadData()

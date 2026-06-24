@@ -56,6 +56,15 @@ from .registry import (
 from .adapter import (
     ModelAssetAdapter,
 )
+from .auto_register import (
+    register_dataset_asset,
+    register_feature_set_asset,
+    register_label_set_asset,
+    register_model_asset,
+    register_strategy_asset,
+    add_model_lineage,
+    add_strategy_lineage,
+)
 
 __all__ = [
     # 基类
@@ -92,4 +101,12 @@ __all__ = [
     "get_asset_registry",
     # 适配器
     "ModelAssetAdapter",
+    # 自动注册
+    "register_dataset_asset",
+    "register_feature_set_asset",
+    "register_label_set_asset",
+    "register_model_asset",
+    "register_strategy_asset",
+    "add_model_lineage",
+    "add_strategy_lineage",
 ]

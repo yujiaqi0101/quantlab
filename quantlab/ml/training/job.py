@@ -64,6 +64,7 @@ class TrainingResult:
     model: Optional[Model] = None
     completed_at: str = ""
     experiment_id: str = ""              # 关联的实验 ID
+    model_version_id: str = ""           # 关联的 Raw Model 版本 ID（持久化到 ModelStore）
 
     def to_dict(self) -> Dict:
         return {
@@ -78,6 +79,7 @@ class TrainingResult:
             "error": self.error,
             "completed_at": self.completed_at,
             "experiment_id": self.experiment_id,
+            "model_version_id": self.model_version_id,
         }
 
 
@@ -256,13 +258,57 @@ class TrainingJob:
             result.model = model
             result.completed_at = pd.Timestamp.now().isoformat()
 
-            # 6. 保存实验
+            # 6. 持久化 Raw Model（状态=DRAFT，未验证的裸模型）
+            # Training Center 产出 = Raw Model + Experiment
+            # Validation Pipeline 的输入 = Experiment ID → 加载 Raw Model
+            try:
+                from ..registry import ModelVersion, LifecycleStatus
+                from ..registry.model_store import get_model_store
+
+                family = f"{self.model_type.value}_{self.name}"
+                store = get_model_store()
+                # 计算下一个版本号（扫描文件系统已有版本）
+                existing = store.list_files(family)
+                next_vn = max(
+                    [f["version_number"] for f in existing],
+                    default=0,
+                ) + 1
+
+                raw_version = ModelVersion(
+                    name=f"{family}_v{next_vn}",
+                    model_type=self.model_type,
+                    params=self.model_params,
+                    metrics=test_metrics.to_dict(),
+                    dataset_id=self.dataset_id,
+                    feature_ids=self.feature_ids,
+                    label_id=self.label_id,
+                    is_classifier=self.is_classifier,
+                    family=family,
+                    version_number=next_vn,
+                    lifecycle=LifecycleStatus.DRAFT,
+                    tags=self.tags + ["raw_model"],
+                    description=f"Raw model from training job {self.job_id}",
+                )
+                raw_version.set_model(model)
+                store.save(raw_version)
+                result.model_version_id = raw_version.version_id
+                logger.info(
+                    f"Raw Model persisted: {raw_version.version_id} "
+                    f"({raw_version.name}, family={family}, DRAFT)"
+                )
+            except Exception as e:
+                logger.error(f"Failed to persist Raw Model: {e}", exc_info=True)
+                # 持久化失败不阻断训练流程，但标记 model_version_id 为空
+
+            # 7. 保存实验
             if self.save_experiment:
                 exp = Experiment(
                     name=self.name,
                     dataset_id=self.dataset_id,
                     feature_set_id=self.feature_set_id,
                     label_set_id=self.label_set_id,
+                    feature_ids=self.feature_ids,
+                    label_id=self.label_id,
                     model_type=self.model_type.value,
                     model_params=self.model_params,
                     is_classifier=self.is_classifier,
@@ -276,6 +322,7 @@ class TrainingJob:
                     tags=self.tags,
                     notes=self.notes,
                     job_id=self.job_id,
+                    model_version_id=result.model_version_id,
                 )
                 tracker = self._experiment_tracker or get_experiment_tracker()
                 tracker.save(exp)
@@ -301,6 +348,8 @@ class TrainingJob:
                     dataset_id=self.dataset_id,
                     feature_set_id=self.feature_set_id,
                     label_set_id=self.label_set_id,
+                    feature_ids=self.feature_ids,
+                    label_id=self.label_id,
                     model_type=self.model_type.value,
                     model_params=self.model_params,
                     is_classifier=self.is_classifier,

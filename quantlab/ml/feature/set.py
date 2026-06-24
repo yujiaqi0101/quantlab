@@ -189,6 +189,14 @@ class FeatureSetRegistry:
         if self._persist and self._store:
             self._store.save_feature_set(fs.to_dict())
         logger.info(f"FeatureSet registered: {fs.name} ({len(fs.feature_ids)} features)")
+
+        # 自动注册到 AssetRegistry
+        try:
+            from ...asset import register_feature_set_asset
+            register_feature_set_asset(fs)
+        except Exception as e:
+            logger.warning(f"Failed to auto-register FeatureSet asset: {e}")
+
         return fs.name
 
     def get(self, name: str) -> Optional[FeatureSet]:

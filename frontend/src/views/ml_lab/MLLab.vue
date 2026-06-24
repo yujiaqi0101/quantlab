@@ -81,6 +81,9 @@
 
       <!-- Stage 4: Training Center -->
       <template v-else-if="activeStage === 'training'">
+        <el-tab-pane label="模型横评 Model Arena" name="arena" lazy>
+          <ModelArena />
+        </el-tab-pane>
         <el-tab-pane label="训练任务 Training Jobs" name="training" lazy>
           <TrainingCenter />
         </el-tab-pane>
@@ -109,9 +112,6 @@
         </el-tab-pane>
         <el-tab-pane label="模型仓库 Model Registry" name="registry" lazy>
           <ModelRegistry />
-        </el-tab-pane>
-        <el-tab-pane label="模型竞技场 Model Arena" name="arena" lazy>
-          <ModelArena />
         </el-tab-pane>
       </template>
 
@@ -145,16 +145,19 @@ import LeakageDetector from './panels/LeakageDetector.vue'
 import ModelRegistry from './panels/ModelRegistry.vue'
 import StrategyBuilder from './panels/StrategyBuilder.vue'
 import AssetExplorer from './panels/AssetExplorer.vue'
+import { useMlTrainingStore } from '@/stores/mlTraining'
 
 const activeStage = ref<'dataset' | 'feature' | 'label' | 'training' | 'validation' | 'registry' | 'strategy'>('dataset')
 const activeSubTab = ref('datasets')
+
+const mlTrainingStore = useMlTrainingStore()
 
 // 切换 stage 时自动选中第一个 sub-tab
 const stageFirstTab: Record<string, string> = {
   dataset: 'datasets',
   feature: 'features',
   label: 'labels',
-  training: 'training',
+  training: 'arena',
   validation: 'validation',
   registry: 'explorer',
   strategy: 'strategy',
@@ -162,6 +165,14 @@ const stageFirstTab: Record<string, string> = {
 
 watch(activeStage, (newStage) => {
   activeSubTab.value = stageFirstTab[newStage] || 'datasets'
+})
+
+// Arena → Training Jobs 联动：预填充就绪后切到 training tab
+watch(() => mlTrainingStore.prefill.ready, (ready) => {
+  if (ready) {
+    activeStage.value = 'training'
+    activeSubTab.value = 'training'
+  }
 })
 </script>
 

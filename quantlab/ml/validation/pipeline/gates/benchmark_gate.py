@@ -80,9 +80,9 @@ class BenchmarkGate(ValidationGate):
 
         from ....metrics import compute_ic, compute_sharpe
 
-        # ML 模型指标（compute_ic/compute_sharpe 需要 pd.Series）
-        labels_s = pd.Series(labels.values)
-        preds_s = pd.Series(predictions.values)
+        # ML 模型指标（保留原始索引，避免对齐问题）
+        labels_s = labels
+        preds_s = predictions
         ml_ic = compute_ic(labels_s, preds_s)
         ml_sharpe = compute_sharpe(labels_s, preds_s) if len(predictions) > 1 else 0.0
 

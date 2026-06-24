@@ -386,3 +386,139 @@ def create_default_pipeline() -> ValidationPipeline:
     pipeline.add_gate(BenchmarkGate())
 
     return pipeline
+
+
+def build_context_from_experiment(
+    experiment_id: str,
+    walk_forward_config: Any = None,
+) -> ValidationContext:
+    """
+    从 Experiment 构建 ValidationContext
+
+    打通 Training → Validation 链路：
+      1. 从 ExperimentTracker 加载 Experiment
+      2. 从 experiment.model_version_id 调用 ModelStore.load() 加载 Raw Model
+      3. 从 experiment.dataset_id + feature_set_id + label_set_id 重建 TrainingDataset
+      4. 用 Raw Model 对 features 做预测
+      5. 组装 ValidationContext
+
+    Args:
+        experiment_id: 实验 ID（如 EXP-xxx）
+        walk_forward_config: Walk Forward 配置（可选）
+
+    Returns:
+        ValidationContext
+
+    Raises:
+        ValueError: Experiment 不存在、model_version_id 为空、Raw Model 加载失败
+    """
+    from ...experiment import get_experiment_tracker
+    from ...registry.model_store import get_model_store
+    from ...pipeline import get_pipeline
+    from ...model import ModelType
+
+    # 1. 加载 Experiment
+    tracker = get_experiment_tracker()
+    exp = tracker.get(experiment_id)
+    if exp is None:
+        raise ValueError(f"Experiment not found: {experiment_id}")
+
+    if not exp.model_version_id:
+        raise ValueError(
+            f"Experiment {experiment_id} has no model_version_id. "
+            f"This Experiment was created before Training→Validation linkage. "
+            f"Please retrain to persist Raw Model."
+        )
+
+    # 2. 加载 Raw Model
+    store = get_model_store()
+    version, model = store.load(exp.model_version_id)
+    if model is None:
+        raise ValueError(
+            f"Failed to load Raw Model: {exp.model_version_id} "
+            f"(version={version.name if version else 'None'})"
+        )
+
+    # 3. 重建 TrainingDataset（支持两种模式）
+    pipeline = get_pipeline()
+    if exp.feature_set_id and exp.label_set_id:
+        # 模式2：FeatureSet + LabelSet
+        tds = pipeline.build(
+            dataset_id=exp.dataset_id,
+            feature_set_id=exp.feature_set_id,
+            label_set_id=exp.label_set_id,
+        )
+    elif exp.feature_ids and exp.label_id:
+        # 模式1：传统模式（feature_ids + label_id）
+        from ...dataset import get_dataset_manager
+        ds_mgr = get_dataset_manager()
+        ds = ds_mgr.get_dataset(exp.dataset_id)
+        if not ds:
+            raise ValueError(f"Dataset not found: {exp.dataset_id}")
+        df = ds.get_data()
+        if df is None:
+            raise ValueError(f"Dataset has no data: {exp.dataset_id}")
+        tds = pipeline.build_from_raw(
+            df=df,
+            feature_ids=exp.feature_ids,
+            label_id=exp.label_id,
+        )
+    else:
+        raise ValueError(
+            f"Experiment {experiment_id} has neither (feature_set_id + label_set_id) "
+            f"nor (feature_ids + label_id). Cannot rebuild TrainingDataset."
+        )
+    if len(tds) == 0:
+        raise ValueError("Rebuilt TrainingDataset is empty")
+
+    # 4. 用 Raw Model 做预测
+    predictions = pd.Series(
+        model.predict(tds.X),
+        index=tds.X.index,
+    )
+
+    # 5. 解析 model_type
+    try:
+        model_type_enum = ModelType(exp.model_type)
+    except ValueError:
+        model_type_enum = ModelType.LIGHTGBM
+
+    # 6. 组装 ValidationContext
+    ctx = ValidationContext(
+        raw_model=model,
+        model_type=exp.model_type,
+        model_params=exp.model_params,
+        features=tds.X,
+        labels=tds.y,
+        predictions=predictions,
+        dataset_id=exp.dataset_id,
+        feature_set_id=exp.feature_set_id,
+        label_set_id=exp.label_set_id,
+        is_classifier=exp.is_classifier,
+        walk_forward_config=walk_forward_config,
+        experiment_id=experiment_id,
+        name=exp.name,
+    )
+
+    # 填充 training_result（L2 Gate 用）
+    from ...training.job import TrainingResult, TrainingStatus
+    from ...model import ModelMetrics
+    ctx.training_result = TrainingResult(
+        job_id=exp.job_id,
+        status=TrainingStatus.COMPLETED,
+        metrics=ModelMetrics(**exp.metrics) if exp.metrics else None,
+        feature_importance=exp.feature_importance,
+        feature_importance_by_method=exp.feature_importance_by_method,
+        n_train_samples=exp.train_samples,
+        n_test_samples=exp.test_samples,
+        train_time=exp.train_time,
+        experiment_id=experiment_id,
+        model_version_id=exp.model_version_id,
+    )
+
+    logger.info(
+        f"ValidationContext built from Experiment {experiment_id}: "
+        f"model={version.name}, samples={len(tds)}, features={tds.X.shape[1]}"
+    )
+
+    return ctx

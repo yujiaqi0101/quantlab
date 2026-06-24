@@ -32,48 +32,77 @@
       <!-- 运行验证 -->
       <el-tab-pane label="运行验证 Run Pipeline" name="run">
         <el-form :model="runForm" label-width="160px" style="max-width: 800px">
-          <el-divider content-position="left">数据输入 Data Input</el-divider>
-          <el-form-item label="模型类型 Model">
-            <el-select v-model="runForm.model_type" style="width: 100%">
-              <el-option label="线性回归 Linear" value="LINEAR_REGRESSION" />
-              <el-option label="随机森林 Random Forest" value="RANDOM_FOREST" />
-              <el-option label="LightGBM" value="LIGHTGBM" />
-              <el-option label="XGBoost" value="XGBOOST" />
+          <!-- 方式1：从 Experiment 加载（推荐） -->
+          <el-divider content-position="left">选择实验 Select Experiment（推荐）</el-divider>
+          <el-form-item label="实验 Experiment">
+            <el-select
+              v-model="selectedExperimentId"
+              filterable
+              clearable
+              placeholder="选择已训练的实验（Training Center 产出）"
+              style="width: 100%"
+              @change="onExperimentChange"
+            >
+              <el-option
+                v-for="exp in experiments"
+                :key="exp.experiment_id"
+                :label="`${exp.name} (${exp.experiment_id})`"
+                :value="exp.experiment_id"
+              />
             </el-select>
           </el-form-item>
-          <el-form-item label="分类器 Classifier">
-            <el-switch v-model="runForm.is_classifier" />
+          <el-form-item v-if="selectedExperiment" label="实验信息">
+            <el-descriptions :column="2" border size="small">
+              <el-descriptions-item label="数据集">{{ selectedExperiment.dataset_id }}</el-descriptions-item>
+              <el-descriptions-item label="特征集">{{ selectedExperiment.feature_set_id }}</el-descriptions-item>
+              <el-descriptions-item label="标签集">{{ selectedExperiment.label_set_id }}</el-descriptions-item>
+              <el-descriptions-item label="模型类型">{{ selectedExperiment.model_type }}</el-descriptions-item>
+              <el-descriptions-item label="Raw Model">
+                <el-tag v-if="selectedExperiment.model_version_id" type="warning" size="small">
+                  {{ selectedExperiment.model_version_id }}
+                </el-tag>
+                <span v-else style="color: #f56c6c;">无（需重新训练）</span>
+              </el-descriptions-item>
+              <el-descriptions-item label="状态">
+                <el-tag :type="selectedExperiment.status === 'COMPLETED' ? 'success' : 'danger'" size="small">
+                  {{ selectedExperiment.status }}
+                </el-tag>
+              </el-descriptions-item>
+            </el-descriptions>
           </el-form-item>
-          <el-form-item label="特征数据 Feature Data">
-            <el-input v-model="featureDataText" type="textarea" :rows="6" placeholder='JSON 格式: {"f1": [1,2,3], "f2": [4,5,6]}' />
-          </el-form-item>
-          <el-form-item label="标签数据 Label Data">
-            <el-input v-model="labelDataText" type="textarea" :rows="3" placeholder='JSON 格式: [0.1, 0.2, 0.3]' />
-          </el-form-item>
-          <el-form-item label="时间索引 Index (可选)">
-            <el-input v-model="indexText" type="textarea" :rows="2" placeholder='JSON 格式: ["2024-01-01", "2024-01-02"]' />
-          </el-form-item>
+          <el-alert
+            v-if="selectedExperiment && !selectedExperiment.model_version_id"
+            type="error"
+            :closable="false"
+            show-icon
+            style="margin-bottom: 12px"
+          >
+            该实验没有关联的 Raw Model（可能是旧实验），请在 Training Center 重新训练后再验证。
+          </el-alert>
 
+          <!-- Walk Forward 配置 -->
           <el-divider content-position="left">Walk Forward 配置</el-divider>
           <el-row :gutter="16">
-            <el-col :span="6">
+            <el-col :span="12">
               <el-form-item label="折数 Splits">
                 <el-input-number v-model="runForm.n_splits" :min="2" :max="20" />
               </el-form-item>
             </el-col>
-            <el-col :span="6">
+            <el-col :span="12">
+              <el-form-item label="间隔 Gap">
+                <el-input-number v-model="runForm.gap" :min="0" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="16">
+            <el-col :span="12">
               <el-form-item label="训练大小 Train">
                 <el-input-number v-model="runForm.train_size" :min="30" />
               </el-form-item>
             </el-col>
-            <el-col :span="6">
+            <el-col :span="12">
               <el-form-item label="测试大小 Test">
                 <el-input-number v-model="runForm.test_size" :min="10" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="6">
-              <el-form-item label="间隔 Gap">
-                <el-input-number v-model="runForm.gap" :min="0" />
               </el-form-item>
             </el-col>
           </el-row>
@@ -83,8 +112,44 @@
           </el-form-item>
 
           <el-form-item>
-            <el-button type="primary" :loading="running" @click="runPipeline">运行验证流水线 Run Pipeline</el-button>
+            <el-button
+              type="primary"
+              :loading="running"
+              :disabled="!selectedExperimentId || (selectedExperiment && !selectedExperiment.model_version_id)"
+              @click="runPipeline"
+            >
+              运行验证流水线 Run Pipeline
+            </el-button>
           </el-form-item>
+
+          <!-- 高级模式：手动输入数据 -->
+          <el-collapse>
+            <el-collapse-item title="高级模式：手动输入数据 Advanced: Manual Data Input" name="advanced">
+              <el-form-item label="模型类型 Model">
+                <el-select v-model="runForm.model_type" style="width: 100%">
+                  <el-option label="线性回归 Linear" value="LINEAR_REGRESSION" />
+                  <el-option label="随机森林 Random Forest" value="RANDOM_FOREST" />
+                  <el-option label="LightGBM" value="LIGHTGBM" />
+                  <el-option label="XGBoost" value="XGBOOST" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="分类器 Classifier">
+                <el-switch v-model="runForm.is_classifier" />
+              </el-form-item>
+              <el-form-item label="特征数据 Feature Data">
+                <el-input v-model="featureDataText" type="textarea" :rows="6" placeholder='JSON 格式: {"f1": [1,2,3], "f2": [4,5,6]}' />
+              </el-form-item>
+              <el-form-item label="标签数据 Label Data">
+                <el-input v-model="labelDataText" type="textarea" :rows="3" placeholder='JSON 格式: [0.1, 0.2, 0.3]' />
+              </el-form-item>
+              <el-form-item label="时间索引 Index (可选)">
+                <el-input v-model="indexText" type="textarea" :rows="2" placeholder='JSON 格式: ["2024-01-01", "2024-01-02"]' />
+              </el-form-item>
+              <el-form-item>
+                <el-button :loading="running" @click="runPipelineManual">手动模式运行</el-button>
+              </el-form-item>
+            </el-collapse-item>
+          </el-collapse>
         </el-form>
       </el-tab-pane>
 
@@ -265,19 +330,28 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   listGates,
   runValidationPipeline,
   runChampionChallenge,
+  getExperiments,
   type GateConfig,
   type PipelineResult,
   type ChallengeResult,
+  type MLExperiment,
 } from '@/api/ml'
 
 const activeSubTab = ref('config')
 const gateConfigs = ref<GateConfig[]>([])
+
+// Experiment 选择（方式1：推荐）
+const experiments = ref<MLExperiment[]>([])
+const selectedExperimentId = ref('')
+const selectedExperiment = computed(() =>
+  experiments.value.find(e => e.experiment_id === selectedExperimentId.value)
+)
 
 // Run form
 const running = ref(false)
@@ -320,12 +394,52 @@ async function loadGates() {
   }
 }
 
+async function loadExperiments() {
+  try {
+    const resp = await getExperiments({ status: 'COMPLETED' })
+    experiments.value = resp.experiments
+  } catch (e: any) {
+    ElMessage.error(e.message || '加载实验列表失败')
+  }
+}
+
+function onExperimentChange() {
+  // 切换实验时清空之前的结果
+  pipelineResult.value = null
+}
+
 async function updateGateConfig(row: GateConfig) {
   // 实时更新 Gate 配置（前端状态，实际更新通过 API）
   ElMessage.success(`Gate ${row.name} 配置已更新`)
 }
 
 async function runPipeline() {
+  if (!selectedExperimentId.value) {
+    ElMessage.warning('请先选择实验')
+    return
+  }
+
+  running.value = true
+  try {
+    const result = await runValidationPipeline({
+      experiment_id: selectedExperimentId.value,
+      n_splits: runForm.value.n_splits,
+      train_size: runForm.value.train_size,
+      test_size: runForm.value.test_size,
+      gap: runForm.value.gap,
+      stop_on_fail: runForm.value.stop_on_fail,
+    })
+    pipelineResult.value = result
+    activeSubTab.value = 'results'
+    ElMessage.success(`验证完成: Score ${result.overall_score.toFixed(1)} (${result.overall_grade})`)
+  } catch (e: any) {
+    ElMessage.error(e.message || '验证流水线运行失败')
+  } finally {
+    running.value = false
+  }
+}
+
+async function runPipelineManual() {
   let feature_data: Record<string, number[]>
   let label_data: number[]
   let index: string[] | undefined
@@ -423,6 +537,7 @@ function decisionTagType(decision: string): any {
 
 onMounted(() => {
   loadGates()
+  loadExperiments()
 })
 </script>
 

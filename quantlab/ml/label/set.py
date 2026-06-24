@@ -176,6 +176,14 @@ class LabelSetRegistry:
         if self._persist and self._store:
             self._store.save_label_set(ls.to_dict())
         logger.info(f"LabelSet registered: {ls.name}")
+
+        # 自动注册到 AssetRegistry
+        try:
+            from ...asset import register_label_set_asset
+            register_label_set_asset(ls)
+        except Exception as e:
+            logger.warning(f"Failed to auto-register LabelSet asset: {e}")
+
         return ls.name
 
     def get(self, name: str) -> Optional[LabelSet]:

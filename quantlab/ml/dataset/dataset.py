@@ -243,6 +243,14 @@ class DatasetManager:
         if self._persist and self._store:
             self._store.save_dataset(ds.to_dict(), has_data=False)
         logger.info(f"Dataset created: {ds.dataset_id} ({name})")
+
+        # 自动注册到 AssetRegistry
+        try:
+            from ...asset import register_dataset_asset
+            register_dataset_asset(ds)
+        except Exception as e:
+            logger.warning(f"Failed to auto-register Dataset asset: {e}")
+
         return ds
 
     def get_dataset(self, dataset_id: str) -> Optional[Dataset]:
