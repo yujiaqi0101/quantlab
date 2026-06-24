@@ -27,6 +27,31 @@ from .report import (
     build_validation_report,
 )
 
+# Pipeline 架构（质量控制中心）
+from .pipeline import (
+    ValidationPipeline,
+    ValidationContext,
+    PipelineResult,
+    ValidationGate,
+    GateResult,
+    GateStatus,
+    ValidationLevel,
+    ValidationScore,
+    OverallScore,
+    ValidationArtifactStore,
+    generate_html_report,
+    create_default_pipeline,
+    get_gate_registry,
+    # Gates
+    DataGate,
+    TrainingGate,
+    LeakageGate,
+    WalkForwardGate,
+    TradingGate,
+    RobustnessGate,
+    BenchmarkGate,
+)
+
 __all__ = [
     # Walk Forward
     "WalkForward",
@@ -59,4 +84,26 @@ __all__ = [
     "ValidationItem",
     "ValidationStatus",
     "build_validation_report",
+    # Pipeline 架构
+    "ValidationPipeline",
+    "ValidationContext",
+    "PipelineResult",
+    "ValidationGate",
+    "GateResult",
+    "GateStatus",
+    "ValidationLevel",
+    "ValidationScore",
+    "OverallScore",
+    "ValidationArtifactStore",
+    "generate_html_report",
+    "create_default_pipeline",
+    "get_gate_registry",
+    # Gates
+    "DataGate",
+    "TrainingGate",
+    "LeakageGate",
+    "WalkForwardGate",
+    "TradingGate",
+    "RobustnessGate",
+    "BenchmarkGate",
 ]

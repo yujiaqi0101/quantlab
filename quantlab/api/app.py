@@ -26,6 +26,7 @@ from .ml import router as ml_router
 from .experiments import router as experiments_router
 from .datasets import router as datasets_router
 from .strategies import router as strategies_router
+from .asset import router as asset_router
 
 
 # ---- App 创建 ----
@@ -54,6 +55,7 @@ app.include_router(ml_router)
 app.include_router(experiments_router)
 app.include_router(datasets_router)
 app.include_router(strategies_router)
+app.include_router(asset_router)
 
 
 # ---- WebSocket 任务推送 ----

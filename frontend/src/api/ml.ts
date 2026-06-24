@@ -1,5 +1,9 @@
 import { http } from './http'
 
+// ML 计算密集型请求的超时配置（5分钟）
+// 大数据集 + SHAP 等方法训练可能超过 30s，需要更长超时
+const ML_TIMEOUT = 300000
+
 // ==================================================================
 // Types
 // ==================================================================
@@ -153,6 +157,7 @@ export async function loadMLDatasetCSV(id: string, file: File): Promise<any> {
   formData.append('file', file)
   const resp = await http.post(`/ml/datasets/${id}/load_csv`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: ML_TIMEOUT,
   })
   return resp.data
 }
@@ -172,7 +177,7 @@ export async function getMLFeatures(): Promise<{ total: number; features: MLFeat
 }
 
 export async function computeMLFeatures(featureIds: string[], data: any[]): Promise<any> {
-  const resp = await http.post('/ml/features/compute', { feature_ids: featureIds, data })
+  const resp = await http.post('/ml/features/compute', { feature_ids: featureIds, data }, { timeout: ML_TIMEOUT })
   return resp.data
 }
 
@@ -186,7 +191,7 @@ export async function getMLLabels(): Promise<{ total: number; labels: MLLabel[] 
 }
 
 export async function generateMLLabel(labelId: string, data: any[]): Promise<any> {
-  const resp = await http.post('/ml/labels/generate', { label_id: labelId, data })
+  const resp = await http.post('/ml/labels/generate', { label_id: labelId, data }, { timeout: ML_TIMEOUT })
   return resp.data
 }
 
@@ -199,7 +204,7 @@ export async function analyzeFeatures(data: {
   label_data: number[]
   index?: string[]
 }): Promise<{ results: FeatureAnalysisResult[]; correlation_matrix: any }> {
-  const resp = await http.post('/ml/feature-analysis', data)
+  const resp = await http.post('/ml/feature-analysis', data, { timeout: ML_TIMEOUT })
   return resp.data
 }
 
@@ -227,7 +232,7 @@ export async function submitTraining(data: {
   val_ratio?: number
   methods?: string[]
 }): Promise<TrainingResult> {
-  const resp = await http.post('/ml/training/jobs', data)
+  const resp = await http.post('/ml/training/jobs', data, { timeout: ML_TIMEOUT })
   return resp.data
 }
 
@@ -258,7 +263,7 @@ export async function runWalkForward(data: {
   step_size?: number
   gap?: number
 }): Promise<WalkForwardResult> {
-  const resp = await http.post('/ml/validation/walk-forward', data)
+  const resp = await http.post('/ml/validation/walk-forward', data, { timeout: ML_TIMEOUT })
   return resp.data
 }
 
@@ -271,7 +276,7 @@ export async function checkLeakageData(data: {
   label_data: number[]
   index?: string[]
 }): Promise<LeakageReport> {
-  const resp = await http.post('/ml/leakage/check-data', data)
+  const resp = await http.post('/ml/leakage/check-data', data, { timeout: ML_TIMEOUT })
   return resp.data
 }
 
@@ -279,7 +284,7 @@ export async function checkLeakageOverlap(data: {
   train_index: string[]
   test_index: string[]
 }): Promise<LeakageReport> {
-  const resp = await http.post('/ml/leakage/check-overlap', data)
+  const resp = await http.post('/ml/leakage/check-overlap', data, { timeout: ML_TIMEOUT })
   return resp.data
 }
 
@@ -332,7 +337,7 @@ export async function buildMLStrategy(data: {
   name?: string
   train_data: any[]
 }): Promise<MLStrategy> {
-  const resp = await http.post('/ml/strategies', data)
+  const resp = await http.post('/ml/strategies', data, { timeout: ML_TIMEOUT })
   return resp.data
 }
 
@@ -517,7 +522,7 @@ export async function runGridSearch(data: {
   train_ratio?: number
   val_ratio?: number
 }): Promise<SearchResult> {
-  const resp = await http.post('/ml/search/grid', data)
+  const resp = await http.post('/ml/search/grid', data, { timeout: ML_TIMEOUT })
   return resp.data
 }
 
@@ -535,7 +540,7 @@ export async function runRandomSearch(data: {
   train_ratio?: number
   val_ratio?: number
 }): Promise<SearchResult> {
-  const resp = await http.post('/ml/search/random', data)
+  const resp = await http.post('/ml/search/random', data, { timeout: ML_TIMEOUT })
   return resp.data
 }
 
@@ -563,7 +568,7 @@ export async function runModelComparison(data: {
   train_ratio?: number
   val_ratio?: number
 }): Promise<{ leaderboard: ModelLeaderboardEntry[]; total: number }> {
-  const resp = await http.post('/ml/comparison/run', data)
+  const resp = await http.post('/ml/comparison/run', data, { timeout: ML_TIMEOUT })
   return resp.data
 }
 
@@ -611,7 +616,7 @@ export async function computeFeatureImportance(data: {
   methods?: string[]
   train_ratio?: number
 }): Promise<{ method: string[]; results: Record<string, ImportanceResult> }> {
-  const resp = await http.post('/ml/feature-importance', data)
+  const resp = await http.post('/ml/feature-importance', data, { timeout: ML_TIMEOUT })
   return resp.data
 }
 
@@ -702,7 +707,7 @@ export async function runFeatureDiagnostics(data: {
   feature_data: Record<string, number[]>
   index?: string[]
 }): Promise<FeatureDiagnosticsReport> {
-  const resp = await http.post('/ml/diagnostics/features', data)
+  const resp = await http.post('/ml/diagnostics/features', data, { timeout: ML_TIMEOUT })
   return resp.data
 }
 
@@ -711,7 +716,7 @@ export async function runLabelDiagnostics(data: {
   index?: string[]
   label_type?: string
 }): Promise<LabelDiagnosticsReport> {
-  const resp = await http.post('/ml/diagnostics/labels', data)
+  const resp = await http.post('/ml/diagnostics/labels', data, { timeout: ML_TIMEOUT })
   return resp.data
 }
 
@@ -727,6 +732,147 @@ export async function runTrainingDatasetDiagnostics(data: {
   feature_diagnostics: FeatureDiagnosticsReport
   label_diagnostics: LabelDiagnosticsReport
 }> {
-  const resp = await http.post('/ml/diagnostics/training-dataset', data)
+  const resp = await http.post('/ml/diagnostics/training-dataset', data, { timeout: ML_TIMEOUT })
+  return resp.data
+}
+
+// ==================================================================
+// L16: Validation Pipeline — 质量控制中心
+// ==================================================================
+
+export interface GateConfig {
+  name: string
+  level: string
+  enabled: boolean
+  weight: number
+  description: string
+}
+
+export interface GateResult {
+  gate_name: string
+  level: string
+  status: 'PASS' | 'WARNING' | 'FAIL' | 'SKIP' | 'ERROR'
+  score: number
+  grade: string
+  summary: string
+  details: Record<string, any>
+  artifacts: string[]
+  execution_time: number
+  error: string
+}
+
+export interface PipelineResult {
+  validation_id: string
+  gate_results: GateResult[]
+  overall_score: number
+  overall_grade: string
+  overall_status: 'PASS' | 'WARNING' | 'FAIL' | 'SKIP' | 'ERROR'
+  passed: boolean
+  stopped_at: string
+  context_summary: Record<string, any>
+  created_at: string
+  total_execution_time: number
+}
+
+export async function runValidationPipeline(data: {
+  feature_data: Record<string, number[]>
+  label_data: number[]
+  index?: string[]
+  model_type: string
+  model_params?: Record<string, any>
+  is_classifier?: boolean
+  predictions?: number[]
+  gates_config?: Record<string, { enabled?: boolean; weight?: number }>
+  stop_on_fail?: boolean
+  n_splits?: number
+  train_size?: number
+  test_size?: number
+  step_size?: number
+  gap?: number
+  dataset_id?: string
+  feature_ids?: string[]
+  feature_set_id?: string
+  label_id?: string
+  label_set_id?: string
+  name?: string
+  experiment_id?: string
+}): Promise<PipelineResult> {
+  const resp = await http.post('/ml/validation/pipeline/run', data, { timeout: ML_TIMEOUT })
+  return resp.data
+}
+
+export async function getPipelineConfig(): Promise<{
+  name: string
+  stop_on_fail: boolean
+  stop_on_error: boolean
+  gates: GateConfig[]
+}> {
+  const resp = await http.get('/ml/validation/pipeline/config')
+  return resp.data
+}
+
+export async function updatePipelineConfig(gates_config: Record<string, { enabled?: boolean; weight?: number }>): Promise<any> {
+  const resp = await http.put('/ml/validation/pipeline/config', gates_config)
+  return resp.data
+}
+
+export async function listGates(): Promise<{ gates: GateConfig[] }> {
+  const resp = await http.get('/ml/validation/gates')
+  return resp.data
+}
+
+// ==================================================================
+// L17: Champion Challenge — 冠军挑战
+// ==================================================================
+
+export interface MetricComparison {
+  metric: string
+  candidate_value: number
+  champion_value: number
+  delta: number
+  higher_is_better: boolean
+  candidate_wins: boolean
+}
+
+export interface ChallengeResult {
+  challenge_id: string
+  family: string
+  candidate_id: string
+  champion_id: string
+  comparisons: MetricComparison[]
+  decision: 'PROMOTE' | 'REJECT' | 'INCONCLUSIVE'
+  reason: string
+  n_wins: number
+  n_total: number
+  win_ratio: number
+  threshold: number
+  created_at: string
+}
+
+export async function runChampionChallenge(data: {
+  candidate_id: string
+  family?: string
+  candidate_metrics: Record<string, number>
+  champion_metrics?: Record<string, number>
+  metrics?: string[]
+  threshold?: number
+  win_threshold?: number
+  auto_promote?: boolean
+}): Promise<ChallengeResult> {
+  const resp = await http.post('/ml/challenge/run', data)
+  return resp.data
+}
+
+export async function getChallengeHistory(family?: string): Promise<{ total: number; challenges: ChallengeResult[] }> {
+  const params: Record<string, string> = {}
+  if (family) params.family = family
+  const resp = await http.get('/ml/challenge/history', { params })
+  return resp.data
+}
+
+export async function getLatestChallenge(family?: string): Promise<ChallengeResult> {
+  const params: Record<string, string> = {}
+  if (family) params.family = family
+  const resp = await http.get('/ml/challenge/latest', { params })
   return resp.data
 }

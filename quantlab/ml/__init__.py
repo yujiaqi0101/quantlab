@@ -102,7 +102,7 @@ from .leakage import (
     FeatureLeakageScanner,
 )
 
-# L12: Model Registry (M4 升级：完整生命周期管理)
+# L12: Model Registry (M4 升级 + M6 Model Package 架构)
 from .registry import (
     ModelVersion, ModelRegistry, LifecycleStatus, get_model_registry,
     ModelStore, get_model_store, DEFAULT_MODELS_DIR,
@@ -111,6 +111,16 @@ from .registry import (
     ModelComparator, ComparisonRow, ComparisonReport,
     LifecycleManager, LifecycleEvent, VALID_TRANSITIONS,
     ModelAuditLog, AuditEntry, AuditAction, get_audit_log,
+    # M6 新增
+    ModelPackage, ModelManifest,
+    FeatureSetSnapshot, LabelSetSnapshot,
+    SnapshotManager, get_snapshot_manager,
+    ArtifactStore,
+    ChampionPointer, ChampionHistoryEntry,
+    ModelPackageBuilder, get_package_builder,
+    export_package, export_from_store,
+    import_package, import_to_registry,
+    QLMODEL_EXTENSION,
 )
 
 # L13: Strategy Builder (L10 升级)
@@ -145,6 +155,25 @@ from .metrics import (
 # L8 升级: Experiment Comparator（M2 第六部分）
 from .experiment import (
     ExperimentComparator, ComparisonRow, ComparisonReport, compare_experiments,
+)
+
+# L16: Validation Pipeline（质量控制中心）
+from .validation import (
+    ValidationPipeline, ValidationContext, PipelineResult,
+    ValidationGate, GateResult, GateStatus, ValidationLevel,
+    ValidationScore, OverallScore,
+    ValidationArtifactStore, generate_html_report,
+    create_default_pipeline, get_gate_registry,
+    DataGate, TrainingGate, LeakageGate,
+    WalkForwardGate, TradingGate, RobustnessGate, BenchmarkGate,
+)
+
+# L17: Champion Challenge（冠军挑战）
+from .challenge import (
+    ChampionChallenge, ChallengeResult, ChallengeDecision,
+    ComparisonMetric, MetricComparison,
+    ChallengeComparator, DecisionEngine,
+    get_champion_challenge,
 )
 
 __all__ = [
@@ -191,7 +220,7 @@ __all__ = [
     # L11: Leakage
     "LeakageDetector", "LeakageReport", "LeakageType", "LeakageIssue",
     "FeatureLeakageScanner",
-    # L12: Model Registry (M4)
+    # L12: Model Registry (M4 + M6)
     "ModelVersion", "ModelRegistry", "LifecycleStatus", "get_model_registry",
     "ModelStore", "get_model_store", "DEFAULT_MODELS_DIR",
     "ModelLineage", "LineageNode", "LineageChange",
@@ -199,6 +228,16 @@ __all__ = [
     "ModelComparator", "ComparisonRow", "ComparisonReport",
     "LifecycleManager", "LifecycleEvent", "VALID_TRANSITIONS",
     "ModelAuditLog", "AuditEntry", "AuditAction", "get_audit_log",
+    # M6: Model Package 架构
+    "ModelPackage", "ModelManifest",
+    "FeatureSetSnapshot", "LabelSetSnapshot",
+    "SnapshotManager", "get_snapshot_manager",
+    "ArtifactStore",
+    "ChampionPointer", "ChampionHistoryEntry",
+    "ModelPackageBuilder", "get_package_builder",
+    "export_package", "export_from_store",
+    "import_package", "import_to_registry",
+    "QLMODEL_EXTENSION",
     # L13: Strategy Builder
     "MLStrategy", "MLStrategyBuilder", "MLStrategyConfig",
     # L13b: ML Strategy (M5)
@@ -220,4 +259,17 @@ __all__ = [
     "compute_all_metrics", "MetricsResult",
     # Experiment Comparator
     "ExperimentComparator", "ComparisonRow", "ComparisonReport", "compare_experiments",
+    # L16: Validation Pipeline
+    "ValidationPipeline", "ValidationContext", "PipelineResult",
+    "ValidationGate", "GateResult", "GateStatus", "ValidationLevel",
+    "ValidationScore", "OverallScore",
+    "ValidationArtifactStore", "generate_html_report",
+    "create_default_pipeline", "get_gate_registry",
+    "DataGate", "TrainingGate", "LeakageGate",
+    "WalkForwardGate", "TradingGate", "RobustnessGate", "BenchmarkGate",
+    # L17: Champion Challenge
+    "ChampionChallenge", "ChallengeResult", "ChallengeDecision",
+    "ComparisonMetric", "MetricComparison",
+    "ChallengeComparator", "DecisionEngine",
+    "get_champion_challenge",
 ]

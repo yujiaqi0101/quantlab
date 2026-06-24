@@ -66,6 +66,7 @@ class Experiment:
     is_classifier: bool = False
     metrics: Dict[str, Any] = field(default_factory=dict)
     feature_importance: Dict[str, float] = field(default_factory=dict)
+    feature_importance_by_method: Dict[str, Dict[str, float]] = field(default_factory=dict)
     train_samples: int = 0
     test_samples: int = 0
     train_time: float = 0.0
@@ -97,6 +98,7 @@ class Experiment:
             "is_classifier": self.is_classifier,
             "metrics": self.metrics,
             "feature_importance": self.feature_importance,
+            "feature_importance_by_method": self.feature_importance_by_method,
             "train_samples": self.train_samples,
             "test_samples": self.test_samples,
             "train_time": round(self.train_time, 4),
@@ -122,6 +124,7 @@ CREATE TABLE IF NOT EXISTS experiments (
     is_classifier      INTEGER DEFAULT 0,
     metrics            TEXT DEFAULT '{}',
     feature_importance TEXT DEFAULT '{}',
+    feature_importance_by_method TEXT DEFAULT '{}',
     train_samples      INTEGER DEFAULT 0,
     test_samples       INTEGER DEFAULT 0,
     train_time         REAL DEFAULT 0.0,
@@ -166,6 +169,11 @@ class ExperimentTracker:
             return
         with self._store._cursor() as cur:
             cur.executescript(EXPERIMENT_SCHEMA)
+            # 迁移：为旧表添加 feature_importance_by_method 列
+            try:
+                cur.execute("ALTER TABLE experiments ADD COLUMN feature_importance_by_method TEXT DEFAULT '{}'")
+            except Exception:
+                pass  # 列已存在，跳过
 
     def save(self, exp: Experiment) -> str:
         """保存实验（内存 + SQLite）"""
@@ -186,13 +194,15 @@ class ExperimentTracker:
                 """INSERT INTO experiments
                    (experiment_id, name, dataset_id, feature_set_id, label_set_id,
                     model_type, model_params, is_classifier, metrics, feature_importance,
+                    feature_importance_by_method,
                     train_samples, test_samples, train_time, status, notes, tags,
                     created_at, job_id, model_version_id)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(experiment_id) DO UPDATE SET
                      name=excluded.name,
                      metrics=excluded.metrics,
                      feature_importance=excluded.feature_importance,
+                     feature_importance_by_method=excluded.feature_importance_by_method,
                      status=excluded.status,
                      train_time=excluded.train_time""",
                 (
@@ -206,6 +216,7 @@ class ExperimentTracker:
                     1 if exp.is_classifier else 0,
                     json.dumps(exp.metrics, ensure_ascii=False, default=str),
                     json.dumps(exp.feature_importance, ensure_ascii=False, default=str),
+                    json.dumps(exp.feature_importance_by_method, ensure_ascii=False, default=str),
                     exp.train_samples,
                     exp.test_samples,
                     exp.train_time,
@@ -333,6 +344,7 @@ class ExperimentTracker:
                 is_classifier=bool(row["is_classifier"]),
                 metrics=json.loads(row["metrics"] or "{}"),
                 feature_importance=json.loads(row["feature_importance"] or "{}"),
+                feature_importance_by_method=json.loads(row["feature_importance_by_method"] or "{}"),
                 train_samples=row["train_samples"],
                 test_samples=row["test_samples"],
                 train_time=row["train_time"],

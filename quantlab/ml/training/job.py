@@ -268,6 +268,7 @@ class TrainingJob:
                     is_classifier=self.is_classifier,
                     metrics=test_metrics.to_dict(),
                     feature_importance=fi_dict,
+                    feature_importance_by_method=fi_by_method,
                     train_samples=len(X_train),
                     test_samples=len(X_test),
                     train_time=result.train_time,

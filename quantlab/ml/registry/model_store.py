@@ -346,6 +346,206 @@ class ModelStore:
             retired_at=data.get("retired_at", ""),
         )
 
+    # ------------------------------------------------------------------
+    # M6 新增：ModelPackage 支持
+    # ------------------------------------------------------------------
+
+    def save_package(self, pkg: "ModelPackage") -> str:
+        """
+        保存完整 ModelPackage
+
+        目录结构：
+          {family}/v{version}/
+          ├── manifest.yaml
+          ├── model.pkl
+          ├── metrics.json
+          ├── validation.json
+          ├── training.yaml
+          ├── lineage.json
+          ├── snapshot/
+          │   ├── feature_set.yaml
+          │   └── label_set.yaml
+          └── artifacts/
+
+        Args:
+            pkg: ModelPackage 对象
+
+        Returns:
+            保存的版本目录路径
+        """
+        from .package import ModelPackage
+
+        version_dir = self._version_dir(
+            pkg.manifest.family, pkg.manifest.version
+        )
+        pkg.save(version_dir)
+
+        # 同时保存兼容的 metadata.json（供旧 API 使用）
+        metadata = {
+            "version_id": pkg.version_id,
+            "name": pkg.manifest.id,
+            "family": pkg.manifest.family,
+            "version_number": pkg.manifest.version,
+            "model_type": pkg.manifest.model_type,
+            "params": pkg.manifest.params,
+            "metrics": pkg.metrics,
+            "dataset_id": pkg.manifest.dataset_id,
+            "feature_ids": (
+                pkg.feature_set_snapshot.feature_ids
+                if pkg.feature_set_snapshot else []
+            ),
+            "label_id": (
+                pkg.label_set_snapshot.label_id
+                if pkg.label_set_snapshot else ""
+            ),
+            "is_classifier": pkg.manifest.is_classifier,
+            "created_at": pkg.manifest.created_at,
+            "lifecycle": pkg.manifest.status,
+            "has_model": pkg.model is not None,
+            "has_package": True,
+        }
+        metadata_path = self._metadata_path(
+            pkg.manifest.family, pkg.manifest.version
+        )
+        with open(metadata_path, "w", encoding="utf-8") as f:
+            json.dump(metadata, f, indent=2, ensure_ascii=False, default=str)
+
+        return version_dir
+
+    def load_package(
+        self,
+        version_id: str,
+        load_model: bool = True,
+    ) -> Optional["ModelPackage"]:
+        """
+        根据 version_id 加载 ModelPackage
+
+        Args:
+            version_id: 如 "MV-abc123"
+            load_model: 是否加载 model.pkl
+
+        Returns:
+            ModelPackage 或 None
+        """
+        from .package import ModelPackage
+
+        # 先找 metadata.json 定位目录
+        metadata_path = self._find_metadata(version_id)
+        if metadata_path is None:
+            return None
+        version_dir = os.path.dirname(metadata_path)
+
+        # 检查是否有 manifest.yaml（M6 包）
+        manifest_path = os.path.join(version_dir, "manifest.yaml")
+        if not os.path.exists(manifest_path):
+            # 旧格式，转换为 ModelPackage
+            return self._legacy_to_package(version_dir, version_id)
+
+        pkg = ModelPackage.load(version_dir, load_model=load_model)
+        pkg.version_id = version_id
+        return pkg
+
+    def load_package_by_family_version(
+        self,
+        family: str,
+        version_number: int,
+        load_model: bool = True,
+    ) -> Optional["ModelPackage"]:
+        """根据 family + version_number 加载 ModelPackage"""
+        from .package import ModelPackage
+
+        version_dir = self._version_dir(family, version_number)
+        manifest_path = os.path.join(version_dir, "manifest.yaml")
+        if not os.path.exists(manifest_path):
+            return None
+        pkg = ModelPackage.load(version_dir, load_model=load_model)
+        # 从 metadata.json 获取 version_id
+        metadata_path = os.path.join(version_dir, "metadata.json")
+        if os.path.exists(metadata_path):
+            with open(metadata_path, "r", encoding="utf-8") as f:
+                meta = json.load(f)
+            pkg.version_id = meta.get("version_id", "")
+        return pkg
+
+    def _legacy_to_package(
+        self,
+        version_dir: str,
+        version_id: str,
+    ) -> Optional["ModelPackage"]:
+        """将旧格式（只有 metadata.json + model.pkl）转换为 ModelPackage"""
+        from .package import ModelPackage, ModelManifest
+
+        metadata_path = os.path.join(version_dir, "metadata.json")
+        if not os.path.exists(metadata_path):
+            return None
+        with open(metadata_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        manifest = ModelManifest(
+            id=data.get("name", ""),
+            version=data.get("version_number", 1),
+            family=data.get("family", ""),
+            created_at=data.get("created_at", ""),
+            dataset_id=data.get("dataset_id", ""),
+            model_type=data.get("model_type", ""),
+            is_classifier=data.get("is_classifier", False),
+            params=data.get("params", {}),
+            status=data.get("lifecycle", "TRAINING"),
+            promoted_at=data.get("promoted_at", ""),
+        )
+
+        # 加载模型
+        model = None
+        model_path = os.path.join(version_dir, "model.pkl")
+        if os.path.exists(model_path):
+            try:
+                with open(model_path, "rb") as f:
+                    model = pickle.load(f)
+            except Exception as e:
+                logger.error(f"Failed to load model: {e}")
+
+        return ModelPackage(
+            manifest=manifest,
+            model=model,
+            metrics=data.get("metrics", {}),
+            version_id=version_id,
+        )
+
+    # ------------------------------------------------------------------
+    # M6 新增：Champion Pointer 支持
+    # ------------------------------------------------------------------
+
+    def _champion_pointer_path(self, family: str) -> str:
+        """Champion 指针文件路径：{family}/champion.yaml"""
+        return os.path.join(self._family_dir(family), "champion.yaml")
+
+    def save_champion_pointer(self, pointer: "ChampionPointer") -> str:
+        """保存 Champion 指针"""
+        path = self._champion_pointer_path(pointer.family)
+        pointer.save(path)
+        return path
+
+    def load_champion_pointer(self, family: str) -> "ChampionPointer":
+        """加载 Champion 指针"""
+        from .champion_pointer import ChampionPointer
+        path = self._champion_pointer_path(family)
+        return ChampionPointer.load(path)
+
+    def load_champion_package(self, family: str) -> Optional["ModelPackage"]:
+        """
+        加载指定族的 Champion ModelPackage
+
+        Runtime 永远调用这个方法：
+          pkg = store.load_champion_package("LGBM_Momentum")
+          model = pkg.model
+        """
+        pointer = self.load_champion_pointer(family)
+        if not pointer.champion_version_id:
+            return None
+        return self.load_package_by_family_version(
+            family, pointer.champion_version
+        )
+
 
 # ------------------------------------------------------------------
 # 模块级单例

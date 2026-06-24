@@ -71,3 +71,7 @@ frontend/.vite/
 
 # Storage (runtime data)
 storage/
+
+# Market data (kept out of repo)
+*.csv
+!tests/*.csv

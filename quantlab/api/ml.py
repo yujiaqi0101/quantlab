@@ -1606,3 +1606,237 @@ async def compare_experiments_api(req: ExperimentCompareRequest):
 # ==================================================================
 # L15: Feature Importance — 特征重要性
 # ==================================================================
+
+# ==================================================================
+# L16: Validation Pipeline — 质量控制中心
+# ==================================================================
+
+from quantlab.ml.validation.pipeline import (
+    ValidationPipeline as MLPipeline_,
+    ValidationContext as MLValidationContext,
+    create_default_pipeline,
+    get_gate_registry,
+    ValidationArtifactStore as MLArtifactStore,
+    generate_html_report as generate_validation_html,
+)
+from quantlab.ml.challenge import (
+    ChampionChallenge as MLChampionChallenge,
+    ChallengeDecision as MLChallengeDecision,
+    ComparisonMetric as MLComparisonMetric,
+    get_champion_challenge as get_ml_champion_challenge,
+)
+
+
+class ValidationPipelineRequest(BaseModel):
+    """验证流水线请求"""
+    feature_data: Dict[str, List[float]] = {}
+    label_data: List[float] = []
+    index: List[str] = []
+    model_type: str = "LIGHTGBM"
+    model_params: Dict[str, Any] = {}
+    is_classifier: bool = False
+    predictions: Optional[List[float]] = None
+    # Gate 配置
+    gates_config: Optional[Dict[str, Dict[str, Any]]] = None
+    stop_on_fail: bool = True
+    # Walk Forward 配置
+    n_splits: int = 5
+    train_size: int = 252
+    test_size: int = 63
+    step_size: int = 63
+    gap: int = 0
+    # 元信息
+    dataset_id: str = ""
+    feature_ids: List[str] = []
+    feature_set_id: str = ""
+    label_id: str = ""
+    label_set_id: str = ""
+    name: str = ""
+    experiment_id: str = ""
+
+
+@router.post("/validation/pipeline/run")
+async def run_validation_pipeline(req: ValidationPipelineRequest):
+    """
+    运行完整验证流水线
+
+    Raw Model → Validation Pipeline → PASS/FAIL
+
+    包含 6 级 Gate：
+      L1 Data / L2 Training / L3 Leakage / L3 WalkForward / L4 Trading / L5 Robustness / L6 Benchmark
+    """
+    if not req.feature_data or not req.label_data:
+        raise HTTPException(400, "feature_data and label_data are required")
+
+    try:
+        model_type = ModelType(req.model_type)
+    except ValueError:
+        raise HTTPException(400, f"Unknown model type: {req.model_type}")
+
+    # 构建数据
+    index = pd.to_datetime(req.index) if req.index else None
+    features = pd.DataFrame(req.feature_data, index=index)
+    labels = pd.Series(req.label_data, index=index, name="label")
+
+    # 构建模型
+    from quantlab.ml.model import create_model
+    model = create_model(model_type, req.model_params, is_classifier=req.is_classifier)
+
+    # 训练模型（如果未提供 predictions）
+    predictions = None
+    if req.predictions:
+        predictions = pd.Series(req.predictions, index=index)
+    else:
+        n = len(features)
+        train_end = int(n * 0.7)
+        X_train, y_train = features.iloc[:train_end], labels.iloc[:train_end]
+        model.fit(X_train, y_train)
+        predictions = pd.Series(model.predict(features), index=features.index)
+
+    # 构建 Walk Forward 配置
+    from quantlab.ml.validation import ValidationConfig
+    wf_config = ValidationConfig(
+        n_splits=req.n_splits,
+        train_size=req.train_size,
+        test_size=req.test_size,
+        step_size=req.step_size,
+        gap=req.gap,
+    )
+
+    # 构建验证上下文
+    ctx = MLValidationContext(
+        raw_model=model,
+        model_type=req.model_type,
+        model_params=req.model_params,
+        features=features,
+        labels=labels,
+        predictions=predictions,
+        is_classifier=req.is_classifier,
+        dataset_id=req.dataset_id,
+        feature_ids=req.feature_ids,
+        feature_set_id=req.feature_set_id,
+        label_id=req.label_id,
+        label_set_id=req.label_set_id,
+        walk_forward_config=wf_config,
+        name=req.name,
+        experiment_id=req.experiment_id,
+    )
+
+    # 创建 Pipeline
+    pipeline = create_default_pipeline()
+    pipeline.stop_on_fail = req.stop_on_fail
+
+    # 应用 Gate 配置
+    if req.gates_config:
+        for gate_name, gate_cfg in req.gates_config.items():
+            gate = pipeline.get_gate(gate_name)
+            if gate:
+                if "enabled" in gate_cfg:
+                    gate.enabled = gate_cfg["enabled"]
+                if "weight" in gate_cfg:
+                    gate.weight = gate_cfg["weight"]
+
+    # 运行
+    result = pipeline.run(ctx)
+
+    return result.to_dict()
+
+
+@router.get("/validation/pipeline/config")
+async def get_pipeline_config():
+    """获取验证流水线配置"""
+    pipeline = create_default_pipeline()
+    return pipeline.to_config()
+
+
+@router.put("/validation/pipeline/config")
+async def update_pipeline_config(gates_config: Dict[str, Dict[str, Any]]):
+    """更新 Gate 配置（运行时生效）"""
+    pipeline = create_default_pipeline()
+    for gate_name, gate_cfg in gates_config.items():
+        gate = pipeline.get_gate(gate_name)
+        if gate:
+            if "enabled" in gate_cfg:
+                gate.enabled = gate_cfg["enabled"]
+            if "weight" in gate_cfg:
+                gate.weight = gate_cfg["weight"]
+    return {"status": "ok", "config": pipeline.to_config()}
+
+
+@router.get("/validation/gates")
+async def list_gates():
+    """列出所有可用的 Gate"""
+    registry = get_gate_registry()
+    gates = []
+    for name, cls in registry.list_all().items():
+        gates.append({
+            "name": name,
+            "level": cls.level.value,
+            "default_weight": cls.default_weight,
+            "description": cls.description,
+        })
+    return {"gates": gates}
+
+
+# ==================================================================
+# L17: Champion Challenge — 冠军挑战
+# ==================================================================
+
+
+class ChampionChallengeRequest(BaseModel):
+    """冠军挑战请求"""
+    candidate_id: str
+    family: str = ""
+    candidate_metrics: Dict[str, float] = {}
+    champion_metrics: Optional[Dict[str, float]] = None
+    metrics: Optional[List[str]] = None
+    threshold: float = 0.0
+    win_threshold: float = 0.6
+    auto_promote: bool = False
+
+
+@router.post("/challenge/run")
+async def run_champion_challenge(req: ChampionChallengeRequest):
+    """
+    发起 Champion 挑战
+
+    Candidate vs Champion → PROMOTE / REJECT / INCONCLUSIVE
+    """
+    # 转换 metrics 字符串为枚举
+    metrics = None
+    if req.metrics:
+        metrics = [MLComparisonMetric(m) for m in req.metrics if m in [e.value for e in MLComparisonMetric]]
+
+    cc = get_ml_champion_challenge()
+    result = cc.challenge(
+        candidate_id=req.candidate_id,
+        family=req.family,
+        candidate_metrics=req.candidate_metrics,
+        champion_metrics=req.champion_metrics,
+        metrics=metrics,
+        threshold=req.threshold,
+        win_threshold=req.win_threshold,
+        auto_promote=req.auto_promote,
+    )
+    return result.to_dict()
+
+
+@router.get("/challenge/history")
+async def get_challenge_history(family: str = ""):
+    """获取挑战历史"""
+    cc = get_ml_champion_challenge()
+    history = cc.get_history(family)
+    return {
+        "total": len(history),
+        "challenges": [r.to_dict() for r in history],
+    }
+
+
+@router.get("/challenge/latest")
+async def get_latest_challenge(family: str = ""):
+    """获取最近一次挑战"""
+    cc = get_ml_champion_challenge()
+    result = cc.get_latest_challenge(family)
+    if result is None:
+        raise HTTPException(404, "No challenge found")
+    return result.to_dict()

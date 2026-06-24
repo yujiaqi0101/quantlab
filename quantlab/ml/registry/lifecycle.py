@@ -1,31 +1,43 @@
 """
 Lifecycle Manager — 模型生命周期管理
 
-ML Lab M4 第七部分：状态机管理
+ML Lab M6：完整状态机管理
 
-  状态：
-    TRAINING     训练中
-    VALIDATING   验证中
-    CANDIDATE    候选（通过验证）
-    CHAMPION     冠军（上线）
-    RETIRED      退役
+  状态（M6 完整版）：
+    DRAFT       草稿
+    TRAINING    训练中
+    VALIDATING  验证中
+    VALIDATED   已验证
+    CANDIDATE   候选（通过验证）
+    CHAMPION    冠军（上线）
+    ARCHIVED    归档（Champion 被替换后，可回滚）
+    RETIRED     退役（M4 兼容）
+    DEPRECATED  废弃
 
   合法转换：
-    TRAINING    → VALIDATING
-    VALIDATING  → CANDIDATE / RETIRED
-    CANDIDATE   → CHAMPION / RETIRED
-    CHAMPION    → RETIRED
-    RETIRED     → (终态)
+    DRAFT      → TRAINING
+    TRAINING   → VALIDATING / DEPRECATED
+    VALIDATING → VALIDATED / RETIRED
+    VALIDATED  → CANDIDATE / ARCHIVED
+    CANDIDATE  → CHAMPION / ARCHIVED
+    CHAMPION   → ARCHIVED          （被新 Champion 替换）
+    ARCHIVED   → CHAMPION / DEPRECATED  （可回滚为 Champion）
+    RETIRED    → (终态)
+    DEPRECATED → (终态)
 
   例如：
     LGBM_v4
     VALIDATING
         ↓ 通过验证
+    VALIDATED
+        ↓ 候选
     CANDIDATE
         ↓ 上线
     CHAMPION
-        ↓ 淘汰
-    RETIRED
+        ↓ 被替换
+    ARCHIVED
+        ↓ 不再使用
+    DEPRECATED
 """
 
 from __future__ import annotations
@@ -41,13 +53,17 @@ from .registry import ModelVersion, ModelRegistry, LifecycleStatus
 logger = logging.getLogger("quantlab.ml.registry.lifecycle")
 
 
-# 合法状态转换
+# 合法状态转换（M6 完整版）
 VALID_TRANSITIONS: Dict[LifecycleStatus, List[LifecycleStatus]] = {
-    LifecycleStatus.TRAINING: [LifecycleStatus.VALIDATING, LifecycleStatus.RETIRED],
-    LifecycleStatus.VALIDATING: [LifecycleStatus.CANDIDATE, LifecycleStatus.RETIRED],
-    LifecycleStatus.CANDIDATE: [LifecycleStatus.CHAMPION, LifecycleStatus.RETIRED],
-    LifecycleStatus.CHAMPION: [LifecycleStatus.RETIRED],
+    LifecycleStatus.DRAFT: [LifecycleStatus.TRAINING, LifecycleStatus.DEPRECATED],
+    LifecycleStatus.TRAINING: [LifecycleStatus.VALIDATING, LifecycleStatus.DEPRECATED],
+    LifecycleStatus.VALIDATING: [LifecycleStatus.VALIDATED, LifecycleStatus.RETIRED],
+    LifecycleStatus.VALIDATED: [LifecycleStatus.CANDIDATE, LifecycleStatus.ARCHIVED],
+    LifecycleStatus.CANDIDATE: [LifecycleStatus.CHAMPION, LifecycleStatus.ARCHIVED],
+    LifecycleStatus.CHAMPION: [LifecycleStatus.ARCHIVED],
+    LifecycleStatus.ARCHIVED: [LifecycleStatus.CHAMPION, LifecycleStatus.DEPRECATED],  # 可回滚
     LifecycleStatus.RETIRED: [],  # 终态
+    LifecycleStatus.DEPRECATED: [],  # 终态
 }
 
 

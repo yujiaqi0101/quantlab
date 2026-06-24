@@ -44,12 +44,30 @@ logger = logging.getLogger("quantlab.ml.registry")
 
 
 class LifecycleStatus(str, Enum):
-    """M4 模型生命周期状态"""
+    """
+    M6 模型生命周期状态（完整版）
+
+    Draft → Training → Validated → Candidate → Champion → Archived → Deprecated
+
+    M4 原有状态保留兼容：
+      TRAINING / VALIDATING / CANDIDATE / CHAMPION / RETIRED
+
+    M6 新增状态：
+      DRAFT       草稿（未训练）
+      VALIDATED   已验证（通过验证但未候选）
+      ARCHIVED    归档（Champion 被替换后归档，可回滚）
+      DEPRECATED  废弃（不再使用）
+    """
+    # M6 完整生命周期
+    DRAFT = "DRAFT"                 # 草稿
     TRAINING = "TRAINING"           # 训练中
     VALIDATING = "VALIDATING"       # 验证中
+    VALIDATED = "VALIDATED"         # 已验证（M6 新增）
     CANDIDATE = "CANDIDATE"         # 候选（通过验证）
     CHAMPION = "CHAMPION"           # 冠军（上线）
-    RETIRED = "RETIRED"             # 退役
+    ARCHIVED = "ARCHIVED"           # 归档（M6 新增，Champion 被替换后）
+    RETIRED = "RETIRED"             # 退役（M4 兼容）
+    DEPRECATED = "DEPRECATED"       # 废弃（M6 新增）
 
 
 @dataclass
@@ -252,12 +270,12 @@ class ModelRegistry:
         version = self._versions.get(version_id)
         if version is None or version.family != family:
             return False
-        # 取消旧 Champion
+        # 取消旧 Champion（M6: 改为 ARCHIVED，可回滚）
         old_champion_id = self._champions.get(family)
         if old_champion_id and old_champion_id in self._versions:
             old = self._versions[old_champion_id]
             if old.lifecycle == LifecycleStatus.CHAMPION:
-                old.lifecycle = LifecycleStatus.RETIRED
+                old.lifecycle = LifecycleStatus.ARCHIVED
                 old.retired_at = pd.Timestamp.now().isoformat()
         # 设置新 Champion
         self._champions[family] = version_id
