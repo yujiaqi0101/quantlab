@@ -133,6 +133,75 @@ from quantlab.factors.alpha191.alpha_117 import alpha_117, DIRECTION as ALPHA117
 from quantlab.factors.alpha191.alpha_144 import alpha_144, DIRECTION as ALPHA144_DIRECTION
 from quantlab.factors.alpha191.alpha_160 import alpha_160, DIRECTION as ALPHA160_DIRECTION
 from quantlab.factors.alpha191.alpha_174 import alpha_174, DIRECTION as ALPHA174_DIRECTION
+# Phase 4 批次9: 动量/量价/成交量/相关性/波动率补充
+from quantlab.factors.alpha191.alpha_009 import alpha_009, DIRECTION as ALPHA009_DIRECTION
+from quantlab.factors.alpha191.alpha_059 import alpha_059, DIRECTION as ALPHA059_DIRECTION
+from quantlab.factors.alpha191.alpha_063 import alpha_063, DIRECTION as ALPHA063_DIRECTION
+from quantlab.factors.alpha191.alpha_094 import alpha_094, DIRECTION as ALPHA094_DIRECTION
+from quantlab.factors.alpha191.alpha_105 import alpha_105, DIRECTION as ALPHA105_DIRECTION
+# Phase 4 批次10: 均值回复/动量/量价
+from quantlab.factors.alpha191.alpha_004 import alpha_004, DIRECTION as ALPHA004_DIRECTION
+from quantlab.factors.alpha191.alpha_052 import alpha_052, DIRECTION as ALPHA052_DIRECTION
+from quantlab.factors.alpha191.alpha_055 import alpha_055, DIRECTION as ALPHA055_DIRECTION
+from quantlab.factors.alpha191.alpha_056 import alpha_056, DIRECTION as ALPHA056_DIRECTION
+from quantlab.factors.alpha191.alpha_069 import alpha_069, DIRECTION as ALPHA069_DIRECTION
+from quantlab.factors.alpha191.alpha_101 import alpha_101, DIRECTION as ALPHA101_DIRECTION
+# Phase 4 批次11: 动量/量价/排名相关性
+from quantlab.factors.alpha191.alpha_110 import alpha_110, DIRECTION as ALPHA110_DIRECTION
+from quantlab.factors.alpha191.alpha_113 import alpha_113, DIRECTION as ALPHA113_DIRECTION
+from quantlab.factors.alpha191.alpha_114 import alpha_114, DIRECTION as ALPHA114_DIRECTION
+from quantlab.factors.alpha191.alpha_115 import alpha_115, DIRECTION as ALPHA115_DIRECTION
+from quantlab.factors.alpha191.alpha_119 import alpha_119, DIRECTION as ALPHA119_DIRECTION
+from quantlab.factors.alpha191.alpha_121 import alpha_121, DIRECTION as ALPHA121_DIRECTION
+# Phase 4 批次12: 长期/价格动量/量价
+from quantlab.factors.alpha191.alpha_122 import alpha_122, DIRECTION as ALPHA122_DIRECTION
+from quantlab.factors.alpha191.alpha_123 import alpha_123, DIRECTION as ALPHA123_DIRECTION
+from quantlab.factors.alpha191.alpha_125 import alpha_125, DIRECTION as ALPHA125_DIRECTION
+from quantlab.factors.alpha191.alpha_129 import alpha_129, DIRECTION as ALPHA129_DIRECTION
+from quantlab.factors.alpha191.alpha_130 import alpha_130, DIRECTION as ALPHA130_DIRECTION
+from quantlab.factors.alpha191.alpha_131 import alpha_131, DIRECTION as ALPHA131_DIRECTION
+# Phase 4 批次13: 量价/动量/反转
+from quantlab.factors.alpha191.alpha_133 import alpha_133, DIRECTION as ALPHA133_DIRECTION
+from quantlab.factors.alpha191.alpha_135 import alpha_135, DIRECTION as ALPHA135_DIRECTION
+from quantlab.factors.alpha191.alpha_136 import alpha_136, DIRECTION as ALPHA136_DIRECTION
+from quantlab.factors.alpha191.alpha_138 import alpha_138, DIRECTION as ALPHA138_DIRECTION
+from quantlab.factors.alpha191.alpha_139 import alpha_139, DIRECTION as ALPHA139_DIRECTION
+from quantlab.factors.alpha191.alpha_140 import alpha_140, DIRECTION as ALPHA140_DIRECTION
+# Phase 4 批次14: 量价/动量/反转
+from quantlab.factors.alpha191.alpha_141 import alpha_141, DIRECTION as ALPHA141_DIRECTION
+from quantlab.factors.alpha191.alpha_142 import alpha_142, DIRECTION as ALPHA142_DIRECTION
+from quantlab.factors.alpha191.alpha_146 import alpha_146, DIRECTION as ALPHA146_DIRECTION
+from quantlab.factors.alpha191.alpha_147 import alpha_147, DIRECTION as ALPHA147_DIRECTION
+from quantlab.factors.alpha191.alpha_148 import alpha_148, DIRECTION as ALPHA148_DIRECTION
+from quantlab.factors.alpha191.alpha_151 import alpha_151, DIRECTION as ALPHA151_DIRECTION
+# Phase 4 批次15: 动量/反转/量价
+from quantlab.factors.alpha191.alpha_152 import alpha_152, DIRECTION as ALPHA152_DIRECTION
+from quantlab.factors.alpha191.alpha_153 import alpha_153, DIRECTION as ALPHA153_DIRECTION
+from quantlab.factors.alpha191.alpha_154 import alpha_154, DIRECTION as ALPHA154_DIRECTION
+from quantlab.factors.alpha191.alpha_156 import alpha_156, DIRECTION as ALPHA156_DIRECTION
+from quantlab.factors.alpha191.alpha_157 import alpha_157, DIRECTION as ALPHA157_DIRECTION
+from quantlab.factors.alpha191.alpha_159 import alpha_159, DIRECTION as ALPHA159_DIRECTION
+# Phase 4 批次16: 动量/量价
+from quantlab.factors.alpha191.alpha_162 import alpha_162, DIRECTION as ALPHA162_DIRECTION
+from quantlab.factors.alpha191.alpha_163 import alpha_163, DIRECTION as ALPHA163_DIRECTION
+from quantlab.factors.alpha191.alpha_164 import alpha_164, DIRECTION as ALPHA164_DIRECTION
+from quantlab.factors.alpha191.alpha_166 import alpha_166, DIRECTION as ALPHA166_DIRECTION
+from quantlab.factors.alpha191.alpha_167 import alpha_167, DIRECTION as ALPHA167_DIRECTION
+from quantlab.factors.alpha191.alpha_169 import alpha_169, DIRECTION as ALPHA169_DIRECTION
+# Phase 4 批次17: 均值回复/动量/量价
+from quantlab.factors.alpha191.alpha_171 import alpha_171, DIRECTION as ALPHA171_DIRECTION
+from quantlab.factors.alpha191.alpha_172 import alpha_172, DIRECTION as ALPHA172_DIRECTION
+from quantlab.factors.alpha191.alpha_173 import alpha_173, DIRECTION as ALPHA173_DIRECTION
+from quantlab.factors.alpha191.alpha_176 import alpha_176, DIRECTION as ALPHA176_DIRECTION
+from quantlab.factors.alpha191.alpha_177 import alpha_177, DIRECTION as ALPHA177_DIRECTION
+from quantlab.factors.alpha191.alpha_179 import alpha_179, DIRECTION as ALPHA179_DIRECTION
+# Phase 4 批次18: 量价/反转/动量
+from quantlab.factors.alpha191.alpha_180 import alpha_180, DIRECTION as ALPHA180_DIRECTION
+from quantlab.factors.alpha191.alpha_184 import alpha_184, DIRECTION as ALPHA184_DIRECTION
+from quantlab.factors.alpha191.alpha_185 import alpha_185, DIRECTION as ALPHA185_DIRECTION
+from quantlab.factors.alpha191.alpha_186 import alpha_186, DIRECTION as ALPHA186_DIRECTION
+from quantlab.factors.alpha191.alpha_187 import alpha_187, DIRECTION as ALPHA187_DIRECTION
+from quantlab.factors.alpha191.alpha_190 import alpha_190, DIRECTION as ALPHA190_DIRECTION
 
 __all__ = [
     "alpha_014", "ALPHA014_DIRECTION",
@@ -252,4 +321,73 @@ __all__ = [
     "alpha_144", "ALPHA144_DIRECTION",
     "alpha_160", "ALPHA160_DIRECTION",
     "alpha_174", "ALPHA174_DIRECTION",
+    # Phase 4 批次9
+    "alpha_009", "ALPHA009_DIRECTION",
+    "alpha_059", "ALPHA059_DIRECTION",
+    "alpha_063", "ALPHA063_DIRECTION",
+    "alpha_094", "ALPHA094_DIRECTION",
+    "alpha_105", "ALPHA105_DIRECTION",
+    # Phase 4 批次10
+    "alpha_004", "ALPHA004_DIRECTION",
+    "alpha_052", "ALPHA052_DIRECTION",
+    "alpha_055", "ALPHA055_DIRECTION",
+    "alpha_056", "ALPHA056_DIRECTION",
+    "alpha_069", "ALPHA069_DIRECTION",
+    "alpha_101", "ALPHA101_DIRECTION",
+    # Phase 4 批次11
+    "alpha_110", "ALPHA110_DIRECTION",
+    "alpha_113", "ALPHA113_DIRECTION",
+    "alpha_114", "ALPHA114_DIRECTION",
+    "alpha_115", "ALPHA115_DIRECTION",
+    "alpha_119", "ALPHA119_DIRECTION",
+    "alpha_121", "ALPHA121_DIRECTION",
+    # Phase 4 批次12
+    "alpha_122", "ALPHA122_DIRECTION",
+    "alpha_123", "ALPHA123_DIRECTION",
+    "alpha_125", "ALPHA125_DIRECTION",
+    "alpha_129", "ALPHA129_DIRECTION",
+    "alpha_130", "ALPHA130_DIRECTION",
+    "alpha_131", "ALPHA131_DIRECTION",
+    # Phase 4 批次13
+    "alpha_133", "ALPHA133_DIRECTION",
+    "alpha_135", "ALPHA135_DIRECTION",
+    "alpha_136", "ALPHA136_DIRECTION",
+    "alpha_138", "ALPHA138_DIRECTION",
+    "alpha_139", "ALPHA139_DIRECTION",
+    "alpha_140", "ALPHA140_DIRECTION",
+    # Phase 4 批次14
+    "alpha_141", "ALPHA141_DIRECTION",
+    "alpha_142", "ALPHA142_DIRECTION",
+    "alpha_146", "ALPHA146_DIRECTION",
+    "alpha_147", "ALPHA147_DIRECTION",
+    "alpha_148", "ALPHA148_DIRECTION",
+    "alpha_151", "ALPHA151_DIRECTION",
+    # Phase 4 批次15
+    "alpha_152", "ALPHA152_DIRECTION",
+    "alpha_153", "ALPHA153_DIRECTION",
+    "alpha_154", "ALPHA154_DIRECTION",
+    "alpha_156", "ALPHA156_DIRECTION",
+    "alpha_157", "ALPHA157_DIRECTION",
+    "alpha_159", "ALPHA159_DIRECTION",
+    # Phase 4 批次16
+    "alpha_162", "ALPHA162_DIRECTION",
+    "alpha_163", "ALPHA163_DIRECTION",
+    "alpha_164", "ALPHA164_DIRECTION",
+    "alpha_166", "ALPHA166_DIRECTION",
+    "alpha_167", "ALPHA167_DIRECTION",
+    "alpha_169", "ALPHA169_DIRECTION",
+    # Phase 4 批次17
+    "alpha_171", "ALPHA171_DIRECTION",
+    "alpha_172", "ALPHA172_DIRECTION",
+    "alpha_173", "ALPHA173_DIRECTION",
+    "alpha_176", "ALPHA176_DIRECTION",
+    "alpha_177", "ALPHA177_DIRECTION",
+    "alpha_179", "ALPHA179_DIRECTION",
+    # Phase 4 批次18
+    "alpha_180", "ALPHA180_DIRECTION",
+    "alpha_184", "ALPHA184_DIRECTION",
+    "alpha_185", "ALPHA185_DIRECTION",
+    "alpha_186", "ALPHA186_DIRECTION",
+    "alpha_187", "ALPHA187_DIRECTION",
+    "alpha_190", "ALPHA190_DIRECTION",
 ]
