@@ -13,7 +13,9 @@ QuantLab Research OS — 研究操作系统
 """
 
 from .context import ExecutionContext, FrameStore
+from .executor import ExecutionResult, ResearchExecutor
 from .frame import ResearchFrame
+from .graph import CompiledGraph, DAGView, Edge, GraphError, ResearchGraph
 from .node import (
     NodeCategory,
     NodeManifest,
@@ -35,4 +37,11 @@ __all__ = [
     "PortType",
     "ExecutionContext",
     "FrameStore",
+    "Edge",
+    "ResearchGraph",
+    "CompiledGraph",
+    "DAGView",
+    "GraphError",
+    "ResearchExecutor",
+    "ExecutionResult",
 ]

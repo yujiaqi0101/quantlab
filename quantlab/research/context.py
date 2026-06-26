@@ -43,6 +43,7 @@ class ExecutionContext:
     ) -> None:
         self._frame_store = frame_store or FrameStore()
         self._params = params or {}
+        self._cached_outputs: Dict[str, "ResearchFrame"] = {}  # L1 Execution Cache
 
     @property
     def frame_store(self) -> FrameStore:
