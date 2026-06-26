@@ -12,6 +12,7 @@ QuantLab Research OS — 研究操作系统
 后续模块 (graph/executor/cache/materializer/incremental) 分阶段实现。
 """
 
+from .context import ExecutionContext, FrameStore
 from .frame import ResearchFrame
 from .node import (
     NodeCategory,
@@ -32,4 +33,6 @@ __all__ = [
     "NodeCategory",
     "Port",
     "PortType",
+    "ExecutionContext",
+    "FrameStore",
 ]
