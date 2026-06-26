@@ -1,35 +1,62 @@
-# 研究模块配置
-research:
-  # 项目存储
-  projects_dir: storage/projects
-  # 实验存储
-  experiments_dir: storage/experiments
-  # 候选管理
-  candidates_dir: storage/candidates
-  # 知识库
-  knowledge_dir: storage/knowledge
-  # 时间线
-  tracker_dir: storage/tracker
+# Research OS 配置
+# ==================
+# Feature Flags 控制新旧体系切换。生产环境建议先 dry_run 一段时间再全量启用。
 
-# Alpha Factory
-alpha:
-  # Alpha 数据库
-  db_path: storage/alpha.db
-  # Alpha 池大小
-  pool_size: 1000
-  # 自动评估
-  auto_evaluate: true
-  # 相关性阈值（去重）
-  correlation_threshold: 0.7
+# 主开关：是否启用 Research Graph 体系（false 时降级到旧 Feature/Factor 体系）
+use_research_graph: true
 
-# 实验
-experiment:
-  # 自动入库
-  auto_save: true
-  # 实验对比默认指标
-  compare_metrics:
-    - sharpe
-    - total_return
-    - max_drawdown
-    - trade_count
-    - win_rate
+# 子系统开关
+features:
+  # Research Graph 执行引擎
+  graph_executor: true
+  # 5 级缓存（Memory/Parquet/FeatureStore/Artifact/Redis）
+  cache_manager: true
+  # 增量计算框架
+  incremental: true
+  # Materializer 训练数据集生成
+  materializer: true
+  # TrainingJob Graph 模式
+  training_graph_mode: true
+  # Research API（/api/v1/research/*）
+  research_api: true
+  # 旧 Feature/Factor 体系是否保留（仅读，不再写入新数据）
+  legacy_factor_readonly: true
+
+# 缓存配置
+cache:
+  # 5 级缓存启用开关
+  levels:
+    memory: true
+    parquet: true
+    featurestore: false      # 需额外部署
+    artifact: false          # 需额外部署
+    redis: false             # 需额外部署
+  # 内存缓存上限（条）
+  memory_max_items: 10000
+  # Parquet 缓存目录
+  parquet_dir: storage/cache/parquet
+
+# 增量计算配置
+incremental:
+  # 默认策略：append_only / recompute_subgraph / full
+  default_strategy: append_only
+  # StateStore 持久化路径
+  state_store_path: storage/research/state.json
+
+# Materializer 配置
+materializer:
+  # 默认时序切分比例
+  default_train_ratio: 0.7
+  default_val_ratio: 0.15
+  default_test_ratio: 0.15
+  # 默认归一化
+  default_normalize: true
+
+# 迁移配置
+migration:
+  # 数据库路径
+  db_path: storage/ml_lab.db
+  # 是否在启动时自动执行迁移（生产建议 false，手动执行 scripts/migrate_research_os.py）
+  auto_migrate: false
+  # 是否保留旧表（feature_sets_deprecated / label_sets_deprecated）
+  keep_deprecated_tables: true
