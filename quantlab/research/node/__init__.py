@@ -7,6 +7,7 @@ ResearchNode 是 QuantLab 唯一的数据计算语言，统一替代旧 Feature 
 from .ports import Port, PortType
 from .manifest import NodeCategory, NodeManifest, NodeMetadata
 from .base import ResearchNode
+from .registry import NodeRegistry, get_registry
 
 __all__ = [
     "Port",
@@ -15,4 +16,6 @@ __all__ = [
     "NodeManifest",
     "NodeMetadata",
     "ResearchNode",
+    "NodeRegistry",
+    "get_registry",
 ]
