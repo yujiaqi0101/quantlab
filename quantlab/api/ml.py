@@ -119,6 +119,10 @@ class TrainRequest(BaseModel):
     # 模式2（集合，推荐）：与 Model Arena 一致
     feature_set_id: str = ""
     label_set_id: str = ""
+    # 模式3（Graph，新体系）：传 graph_id 时优先使用 Graph 模式
+    graph_id: str = ""
+    label_node_id: str = ""
+    feature_node_ids: List[str] = []
     model_type: str = "LINEAR_REGRESSION"
     model_params: Dict[str, Any] = {}
     is_classifier: bool = False
@@ -636,11 +640,20 @@ async def list_models():
 
 @router.post("/training/jobs")
 async def submit_training(req: TrainRequest):
-    """提交训练任务"""
+    """提交训练任务（支持三种模式：传统/集合/Graph）"""
     try:
         model_type = ModelType(req.model_type)
     except ValueError:
         raise HTTPException(400, f"Unknown model type: {req.model_type}")
+
+    # 模式3：Graph（新体系，优先级最高）
+    research_graph = None
+    if req.graph_id:
+        from .research import _GRAPHS
+        g = _GRAPHS.get(req.graph_id)
+        if g is None:
+            raise HTTPException(404, f"Graph not found: {req.graph_id}")
+        research_graph = g
 
     job = TrainingJob(
         dataset_id=req.dataset_id,
@@ -648,6 +661,15 @@ async def submit_training(req: TrainRequest):
         label_id=req.label_id,
         feature_set_id=req.feature_set_id,
         label_set_id=req.label_set_id,
+        research_graph=research_graph,
+        label_node_id=req.label_node_id,
+        feature_node_ids=req.feature_node_ids,
+        materialize_config={
+            "normalize": True,
+            "train_ratio": req.train_ratio,
+            "val_ratio": req.val_ratio,
+            "test_ratio": 1.0 - req.train_ratio - req.val_ratio,
+        },
         model_type=model_type,
         model_params=req.model_params,
         is_classifier=req.is_classifier,
