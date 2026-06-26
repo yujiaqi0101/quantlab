@@ -119,6 +119,28 @@ class ResearchGraph:
     def edges(self) -> List[Edge]:
         return list(self._edges)
 
+    def downstream(self, node_id: str) -> List[str]:
+        """直接下游节点 id 列表。"""
+        return [e.target_node for e in self._adj_out.get(node_id, [])]
+
+    def upstream(self, node_id: str) -> List[str]:
+        """直接上游节点 id 列表。"""
+        return [e.source_node for e in self._adj_in.get(node_id, [])]
+
+    def all_downstream(self, node_id: str) -> List[str]:
+        """所有下游节点 (含间接)。"""
+        result = []
+        visited = {node_id}
+        queue = [node_id]
+        while queue:
+            current = queue.pop(0)
+            for d in self.downstream(current):
+                if d not in visited:
+                    visited.add(d)
+                    result.append(d)
+                    queue.append(d)
+        return result
+
     # ---- 编译 ----
     def compile(self) -> CompiledGraph:
         """编译图：1) 无环校验 2) 端口类型匹配 3) 拓扑排序 4) 同层并行分组。"""
