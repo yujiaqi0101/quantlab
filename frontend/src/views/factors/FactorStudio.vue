@@ -45,9 +45,10 @@
           <!-- Visualization Tab -->
           <el-tab-pane label="可视化 Visualization" name="visualize">
             <div class="tab-toolbar">
-              <el-button type="primary" size="small" :loading="vizLoading" @click="loadVisualization">
+              <el-button type="primary" size="small" :loading="vizLoading" :disabled="!selectedDatasetHasData" @click="loadVisualization">
                 加载图表 Load Chart
               </el-button>
+              <span v-if="!selectedDatasetHasData" class="no-data-tip">数据集无数据，请先加载数据</span>
             </div>
             <div v-if="vizData" class="chart-container">
               <div ref="priceChartRef" class="chart-box"></div>
@@ -65,9 +66,10 @@
                 <el-option :value="10" label="Forward 10 bars" />
                 <el-option :value="20" label="Forward 20 bars" />
               </el-select>
-              <el-button type="primary" size="small" :loading="icLoading" @click="loadIC">
+              <el-button type="primary" size="small" :loading="icLoading" :disabled="!selectedDatasetHasData" @click="loadIC">
                 Run IC Analysis
               </el-button>
+              <span v-if="!selectedDatasetHasData" class="no-data-tip">数据集无数据，请先加载数据</span>
             </div>
             <div v-if="icData" class="ic-results">
               <div class="ic-stats-grid">
@@ -115,9 +117,10 @@
               <el-select v-model="corrFactors" multiple placeholder="Select factors" class="corr-select" size="small">
                 <el-option v-for="f in factors" :key="f.name" :label="f.name" :value="f.name" />
               </el-select>
-              <el-button type="primary" size="small" :loading="corrLoading" @click="loadCorrelation" :disabled="corrFactors.length < 2">
+              <el-button type="primary" size="small" :loading="corrLoading" @click="loadCorrelation" :disabled="corrFactors.length < 2 || !selectedDatasetHasData">
                 Compute Correlation
               </el-button>
+              <span v-if="!selectedDatasetHasData" class="no-data-tip">数据集无数据，请先加载数据</span>
             </div>
             <div v-if="corrData" class="corr-container">
               <div ref="corrChartRef" class="chart-box corr-chart"></div>
@@ -136,7 +139,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 import {
@@ -165,6 +168,13 @@ const datasets = ref<any[]>([])
 const selectedDataset = ref('')
 const symbols = ref<string[]>([])
 const selectedSymbol = ref('')
+
+// 当前选中的数据集是否有数据（无数据时禁用分析类按钮，避免触发 400）
+const selectedDatasetHasData = computed(() => {
+  if (!selectedDataset.value) return false
+  const ds = datasets.value.find(d => d.dataset_id === selectedDataset.value)
+  return !!(ds && ds.has_data)
+})
 
 // Visualization
 const vizLoading = ref(false)
@@ -582,6 +592,11 @@ window.addEventListener('resize', () => {
   align-items: center;
   gap: 8px;
   margin-bottom: 16px;
+}
+
+.no-data-tip {
+  color: #f85149;
+  font-size: 12px;
 }
 
 .tab-empty {

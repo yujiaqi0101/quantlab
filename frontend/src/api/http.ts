@@ -8,7 +8,7 @@ export const http = axios.create({
 http.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error('[API Error]', error.response?.status, error.message)
+    // 不在此处打印日志，避免与各业务调用方 catch 块重复输出
     return Promise.reject(error)
   },
 )

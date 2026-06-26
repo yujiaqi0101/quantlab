@@ -265,14 +265,18 @@ async def factor_ic(req: ICRequest):
         raise HTTPException(500, f"Factor compute failed: {e}")
 
     f = _extract_symbol_series(factor_df, symbol).dropna()
-    close = ctx.close[symbol] if symbol in ctx.close.columns else ctx.close.iloc[:, 0]
-    # forward return
-    forward_ret = close.shift(-req.forward_period) / close - 1
+    n_symbols = factor_df.shape[1]
+
+    # forward return：多标的用全截面 close，单标的取单列
+    if n_symbols > 1:
+        forward_ret = ctx.close.shift(-req.forward_period) / ctx.close - 1
+    else:
+        close = ctx.close[symbol] if symbol in ctx.close.columns else ctx.close.iloc[:, 0]
+        forward_ret = close.shift(-req.forward_period) / close - 1
 
     # 截面IC：对每一期计算因子值与forward return的相关；
     # 单标的场景下用滚动窗口（窗口内因子值与收益相关）近似。
     # 多标的则做截面 IC。
-    n_symbols = factor_df.shape[1]
     ic_list: List[float] = []
     ric_list: List[float] = []
     ic_dates: List[str] = []
@@ -350,7 +354,7 @@ async def factor_ic(req: ICRequest):
         "ic_series": ic_series,
         "rank_ic_series": ric_series,
         "turnover": float(sign_change),
-        "coverage": float(len(f.dropna()) / len(close) if len(close) > 0 else 0),
+        "coverage": float(len(f.dropna()) / len(ctx.close) if len(ctx.close) > 0 else 0),
     }
 
 
