@@ -19,12 +19,6 @@ from ..signal.base import Signal, MultiFactorSignal
 from ..signal.threshold import ThresholdSignal
 from ..signal.crossover import CrossoverSignal, ZeroCrossoverSignal
 from ..signal.composite import AndSignal, OrSignal, MajoritySignal
-from ..factor.registry import FactorRegistry
-from ..factor.cache import FactorCache
-from ..factor.technical import (
-    MAFactor, RSIFactor, MomentumFactor, ATRFactor,
-    BOLLUpperFactor, BOLLLowerFactor, VOLFactor,
-)
 
 logger = logging.getLogger("quantlab.services.signal")
 
@@ -50,10 +44,11 @@ class SignalService:
         self._builder = SignalBuilder(self._engine)
         self._register_default_signals()
 
-        # 因子相关（用于信号计算）
-        self._factor_registry = FactorRegistry()
-        self._register_builtin_factors()
-        self._factor_cache = FactorCache(self._factor_registry)
+        # 因子相关（复用全局因子注册表，已在 quantlab.factor 初始化时自动注册所有因子）
+        from ..factor import get_registry
+        from ..factor.cache import get_factor_cache
+        self._factor_registry = get_registry()
+        self._factor_cache = get_factor_cache()
 
     def _register_default_signals(self) -> None:
         """注册默认信号"""
@@ -61,19 +56,6 @@ class SignalService:
         self._engine.register(ThresholdSignal("RSI6", 20, 80, "RSI6_Extreme"))
         self._engine.register(ZeroCrossoverSignal("MOM20", "MOM20_ZeroCross"))
         self._engine.register(CrossoverSignal("MA5", "MA20", "MA_Cross_5_20"))
-
-    def _register_builtin_factors(self) -> None:
-        """注册内置因子"""
-        for period in [5, 10, 20, 60]:
-            self._factor_registry.register(lambda p=period: MAFactor(p))
-        for period in [6, 14, 28]:
-            self._factor_registry.register(lambda p=period: RSIFactor(p))
-        for period in [5, 10, 20, 60]:
-            self._factor_registry.register(lambda p=period: MomentumFactor(p))
-        for period in [14, 28]:
-            self._factor_registry.register(lambda p=period: ATRFactor(p))
-        for period in [5, 20]:
-            self._factor_registry.register(lambda p=period: VOLFactor(p))
 
     # ---- 查询 ----
 
@@ -155,9 +137,27 @@ class SignalService:
     # ---- 因子计算 ----
 
     def compute_factor_values(self, df: pd.DataFrame, dataset_id: str = "", symbol: str = "") -> Dict[str, pd.Series]:
-        """计算所有注册因子的值"""
-        factor_names = self._factor_registry.list()
-        return self._factor_cache.compute_batch(factor_names, df, dataset_id=dataset_id, symbol=symbol)
+        """计算所有注册因子的值（简单实现，按因子名逐个计算）。"""
+        from ..factors.context import FactorContext as FC
+        infos = self._factor_registry.list_factors()
+        # 尝试从 df 构建单标的 FactorContext
+        try:
+            df2 = df.copy()
+            df2.columns = [c.lower() for c in df2.columns]
+            if "symbol" in df2.columns:
+                df2 = df2[df2["symbol"] == (symbol or df2["symbol"].iloc[0])].drop(columns=["symbol"], errors="ignore")
+            ctx = FC.from_dict({symbol or "SYM": df2})
+        except Exception:
+            return {}
+        out: Dict[str, pd.Series] = {}
+        for info in infos:
+            try:
+                panel = info.compute(ctx)
+                col = symbol if (symbol and symbol in panel.columns) else panel.columns[0]
+                out[info.name] = panel[col]
+            except Exception:
+                continue
+        return out
 
     # ---- 信号生成 ----
 

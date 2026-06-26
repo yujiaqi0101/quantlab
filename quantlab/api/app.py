@@ -28,6 +28,7 @@ from .datasets import router as datasets_router
 from .strategies import router as strategies_router
 from .asset import router as asset_router
 from .strategy_studio import router as strategy_studio_router
+from .factors import router as factors_router
 
 
 # ---- App 创建 ----
@@ -58,6 +59,7 @@ app.include_router(datasets_router)
 app.include_router(strategies_router)
 app.include_router(asset_router)
 app.include_router(strategy_studio_router)
+app.include_router(factors_router)
 
 
 # ---- WebSocket 任务推送 ----
