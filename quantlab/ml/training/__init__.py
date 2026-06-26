@@ -19,6 +19,7 @@ ML Lab 第六部分：TrainingJob 记录与执行
 from .job import TrainingJob, TrainingResult, TrainingStatus
 from .manager import TrainingManager, get_training_manager
 from .queue import TrainingQueue, QueueEntry, get_training_queue
+from .validation import TrainingValidator, ValidationReport, ValidationIssue
 
 __all__ = [
     "TrainingJob",
@@ -29,4 +30,7 @@ __all__ = [
     "TrainingQueue",
     "QueueEntry",
     "get_training_queue",
+    "TrainingValidator",
+    "ValidationReport",
+    "ValidationIssue",
 ]

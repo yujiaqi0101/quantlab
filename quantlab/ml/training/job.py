@@ -101,6 +101,16 @@ class TrainingJob:
             model_params={"n_estimators": 200},
         )
         result = job.run()
+
+    模式3（Graph，新体系推荐）：
+        job = TrainingJob(
+            dataset_id="DS-xxx",
+            research_graph=g,                 # ResearchGraph 实例
+            label_node_id="future_return",    # LabelNode id
+            materialize_config={"normalize": True, "train_ratio": 0.7},
+            model_type=ModelType.LIGHTGBM,
+        )
+        result = job.run()
     """
     job_id: str = field(default_factory=lambda: f"JOB-{uuid.uuid4().hex[:8]}")
     dataset_id: str = ""
@@ -112,6 +122,12 @@ class TrainingJob:
     # 模式2：集合（推荐）
     feature_set_id: str = ""
     label_set_id: str = ""
+
+    # 模式3：Graph（新体系，推荐）
+    research_graph: Optional[Any] = None  # ResearchGraph 实例
+    label_node_id: str = ""
+    materialize_config: Dict[str, Any] = field(default_factory=dict)
+    feature_node_ids: List[str] = field(default_factory=list)  # 为空=自动选图内非 label 节点
 
     # 模型
     model_type: ModelType = ModelType.LIGHTGBM
@@ -166,6 +182,10 @@ class TrainingJob:
 
     def _build_training_dataset(self) -> TrainingDataset:
         """构建 TrainingDataset"""
+        # 模式3: Graph (新体系)
+        if self.research_graph is not None:
+            return self._build_from_graph()
+
         pipeline = self._pipeline or get_pipeline()
 
         if self.feature_set_id and self.label_set_id:
@@ -185,8 +205,113 @@ class TrainingJob:
         else:
             raise ValueError(
                 "Must specify either (feature_set_id + label_set_id) "
-                "or (feature_ids + label_id)"
+                "or (feature_ids + label_id) "
+                "or (research_graph + label_node_id)"
             )
+
+    def _build_from_graph(self) -> TrainingDataset:
+        """模式3: 用 ResearchGraph + Materializer 构建训练数据集。"""
+        import pandas as pd
+        from ...research.context import ExecutionContext
+        from ...research.executor import ResearchExecutor
+        from ...research.materializer import Materializer, SplitConfig
+        from ...research import ResearchFrame
+
+        # 1. 加载原始数据
+        ds_mgr = get_dataset_manager()
+        ds = ds_mgr.get_dataset(self.dataset_id)
+        if not ds:
+            raise ValueError(f"Dataset not found: {self.dataset_id}")
+        df = ds.get_data()
+        if df is None:
+            raise ValueError(f"Dataset has no data: {self.dataset_id}")
+
+        # 2. 执行图
+        ex_ctx = ExecutionContext()
+        ex_ctx.set("frame", ResearchFrame.from_panel(df))
+        ex = ResearchExecutor()
+        result = ex.execute(self.research_graph, initial_store=ex_ctx.frame_store)
+
+        # 3. 提取特征 + 标签
+        feature_frames = {}
+        all_node_ids = self.research_graph.node_ids()
+        for nid in all_node_ids:
+            if nid == self.label_node_id:
+                continue
+            if self.feature_node_ids and nid not in self.feature_node_ids:
+                continue
+            rf = result.get(nid)
+            if rf is not None:
+                feature_frames[nid] = rf
+
+        if self.label_node_id not in all_node_ids:
+            raise ValueError(
+                f"label_node_id '{self.label_node_id}' not in graph"
+            )
+        label_frame = result.get(self.label_node_id)
+        if label_frame is None:
+            raise ValueError(
+                f"label node '{self.label_node_id}' produced no output"
+            )
+
+        # 4. Materializer 实体化
+        mat = Materializer()
+        config = self.materialize_config or {}
+        split_config = SplitConfig(
+            train_ratio=config.get("train_ratio", self.train_ratio),
+            val_ratio=config.get("val_ratio", self.val_ratio),
+            test_ratio=config.get("test_ratio", 1.0 - self.train_ratio - self.val_ratio),
+            method="time",
+        )
+        normalize = config.get("normalize", True)
+        gtds = mat.materialize(
+            feature_frames=feature_frames,
+            label_frame=label_frame,
+            split_config=split_config,
+            normalize=normalize,
+        )
+
+        # 5. 转换为旧 TrainingDataset 接口 (兼容下游 model.fit)
+        return self._convert_graph_td_to_legacy(gtds)
+
+    def _convert_graph_td_to_legacy(self, gtds):
+        """把 Graph 体系的 TrainingDataset 转换为旧 MLPipeline 的 TrainingDataset。
+
+        旧 TD 只有 X/y/metadata，且 split() 自己再切。
+        新 Graph TD 已经切好，所以把 train+val+test 拼回一个 TD，
+        再用 split() 切一次会得到错误结果。
+        策略: 直接返回合并后的 TD (train+val 合并为 train，test 独立)，
+        并把已切分的 X_test/y_test 挂到 metadata 供 run() 直接取用。
+        """
+        from ..pipeline import TrainingDataset as LegacyTD
+        import pandas as pd
+
+        # 合并 X_train + X_val 作为新的 X (供 LegacyTD.split 再切)
+        if gtds.X_val is not None and len(gtds.X_val):
+            X_merged = pd.concat([gtds.X_train, gtds.X_val])
+            y_merged = pd.concat([gtds.y_train, gtds.y_val])
+            # 排序保证时序
+            if isinstance(X_merged.index, pd.MultiIndex):
+                X_merged = X_merged.sort_index()
+                y_merged = y_merged.loc[X_merged.index]
+        else:
+            X_merged = gtds.X_train
+            y_merged = gtds.y_train
+
+        legacy = LegacyTD(
+            X=X_merged,
+            y=y_merged,
+            metadata={
+                "dataset_id": self.dataset_id,
+                "feature_names": gtds.feature_names,
+                "label_name": gtds.label_name,
+                "mode": "graph",
+                "normalize_params": gtds.normalize_params,
+                "_graph_test_X": gtds.X_test,
+                "_graph_test_y": gtds.y_test,
+            },
+        )
+        return legacy
 
     def _load_raw_df(self) -> pd.DataFrame:
         """加载原始数据（模式1用）"""
@@ -210,11 +335,19 @@ class TrainingJob:
             if len(tds) == 0:
                 raise ValueError("TrainingDataset is empty after dropna")
 
-            # 2. 切分
-            splits = tds.split(train_ratio=self.train_ratio, val_ratio=self.val_ratio)
-            X_train, y_train = splits["train"].X, splits["train"].y
-            X_val, y_val = splits["val"].X, splits["val"].y
-            X_test, y_test = splits["test"].X, splits["test"].y
+            # 2. 切分 (Graph 模式已切分，直接取用)
+            if self.research_graph is not None:
+                X_train = tds.X
+                y_train = tds.y
+                X_val = X_train.iloc[:0]  # Graph 模式 val 已合并到 train
+                y_val = y_train.iloc[:0]
+                X_test = tds.metadata.get("_graph_test_X")
+                y_test = tds.metadata.get("_graph_test_y")
+            else:
+                splits = tds.split(train_ratio=self.train_ratio, val_ratio=self.val_ratio)
+                X_train, y_train = splits["train"].X, splits["train"].y
+                X_val, y_val = splits["val"].X, splits["val"].y
+                X_test, y_test = splits["test"].X, splits["test"].y
 
             # 3. 创建并训练模型
             model = create_model(
