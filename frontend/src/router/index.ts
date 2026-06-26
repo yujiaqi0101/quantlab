@@ -193,6 +193,12 @@ const routes = [
         component: () => import('@/views/ml_lab/MLLab.vue'),
         meta: { title: 'ML Lab', icon: 'Cpu' },
       },
+      {
+        path: 'research-graph',
+        name: 'ResearchGraph',
+        component: () => import('@/views/research_graph/ResearchGraphStudio.vue'),
+        meta: { title: 'Research Graph Studio', icon: 'Share' },
+      },
     ],
   },
 ]

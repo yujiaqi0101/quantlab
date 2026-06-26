@@ -1,9 +1,28 @@
 <template>
   <div class="page-container">
+    <el-alert
+      type="warning"
+      :closable="false"
+      class="deprecated-banner"
+      title="此页面已迁移至 Research Graph Studio"
+      description="Factor Studio 已被 Research OS 替代。请使用新的 Research Graph Studio 进行因子研究、编译与执行。"
+      show-icon
+    >
+      <template #default>
+        <div class="deprecated-content">
+          <div class="deprecated-text">
+            <strong>Factor Studio 已迁移</strong> · 此页面为只读兼容模式，新功能请使用 Research Graph Studio。
+          </div>
+          <el-button type="primary" size="small" @click="$router.push('/research-graph')">
+            前往 Research Graph Studio →
+          </el-button>
+        </div>
+      </template>
+    </el-alert>
     <div class="page-header">
       <div class="page-header-row">
         <div>
-          <h1 class="page-title">因子工作室 Factor Studio</h1>
+          <h1 class="page-title">因子工作室 Factor Studio <span class="deprecated-tag">DEPRECATED</span></h1>
           <p class="page-desc">研究、可视化和分析因子 Research, visualize, and analyze factors</p>
         </div>
         <div class="page-actions">
@@ -493,6 +512,32 @@ window.addEventListener('resize', () => {
 </script>
 
 <style scoped>
+.deprecated-banner {
+  margin-bottom: 16px;
+}
+
+.deprecated-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.deprecated-text { flex: 1; }
+
+.deprecated-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #e6a23c;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  border-radius: 2px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
 .page-container {
   height: 100%;
   display: flex;

@@ -1,7 +1,22 @@
 <template>
   <div class="feature-lab">
+    <el-alert
+      type="warning"
+      :closable="false"
+      class="deprecated-banner"
+      show-icon
+    >
+      <template #default>
+        <div class="deprecated-content">
+          <span><strong>Feature Lab 已迁移</strong> · 推荐使用 Research Graph Studio 进行可视化研究。</span>
+          <el-button type="primary" size="small" @click="$router.push('/research-graph')">
+            前往 →
+          </el-button>
+        </div>
+      </template>
+    </el-alert>
     <div class="panel-header">
-      <h2>特征实验室 Feature Lab</h2>
+      <h2>特征实验室 Feature Lab <span class="deprecated-tag">DEPRECATED</span></h2>
       <el-select v-model="selectedCategory" placeholder="按类别筛选 Filter by category" clearable style="width: 200px">
         <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
       </el-select>
@@ -64,6 +79,25 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.deprecated-banner { margin-bottom: 12px; }
+.deprecated-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+.deprecated-tag {
+  display: inline-block;
+  padding: 2px 6px;
+  background: #e6a23c;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  border-radius: 2px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
 .panel-header {
   display: flex;
   justify-content: space-between;

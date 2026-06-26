@@ -44,6 +44,11 @@
       <template #title>ML实验室 ML Lab</template>
     </el-menu-item>
 
+    <el-menu-item index="/research-graph">
+      <el-icon><Share /></el-icon>
+      <template #title>研究图 Research Graph</template>
+    </el-menu-item>
+
     <el-menu-item index="/production">
       <el-icon><Monitor /></el-icon>
       <template #title>生产 Production</template>
@@ -164,7 +169,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'
-import { Odometer, Coin, DataLine, Files, Fold, Expand, TrendCharts, Trophy, Histogram, Switch, Cpu, SetUp, Monitor, Aim, DataAnalysis, View, Wallet, List, Tickets, Warning, Bell, Timer, VideoPlay, Notebook, VideoCamera } from '@element-plus/icons-vue'
+import { Odometer, Coin, DataLine, Files, Fold, Expand, TrendCharts, Trophy, Histogram, Switch, Cpu, SetUp, Monitor, Aim, DataAnalysis, View, Wallet, List, Tickets, Warning, Bell, Timer, VideoPlay, Notebook, VideoCamera, Share } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const appStore = useAppStore()
@@ -174,6 +179,7 @@ const activeRoute = computed(() => {
   if (route.path.startsWith('/experiments')) return '/experiments'
   if (route.path.startsWith('/factors')) return '/factors'
   if (route.path.startsWith('/signals')) return '/signals'
+  if (route.path.startsWith('/research-graph')) return '/research-graph'
   if (route.path.startsWith('/research')) return '/research'
   if (route.path.startsWith('/ml-lab')) return '/ml-lab'
   if (route.path.startsWith('/production')) return '/production'
