@@ -1,53 +1,38 @@
 """
-Strategy Runtime — 策略运行时解释器
+StrategyRuntime — 策略运行时（支持单标的时间序列和多标的截面回测）
 
-职责：
-  1. 加载 StrategyPackage
-  2. 解析所有 ref → 加载对应 Package
-  3. 按 bar 驱动执行：predict → signal → position → risk → execution → observe
-  4. 输出交易记录、净值曲线、观察指标
-
-执行流程（每个 bar）：
-  1. Model.predict(features) → predictions
-  2. Signal.generate(predictions) → signals
-  3. Position.size(signals, capital) → target_positions
-  4. Risk.apply(target_positions, portfolio_state) → adjusted_positions
-  5. Execution.execute(adjusted_positions, market_data) → orders/fills
-  6. Observe.update(portfolio_state, orders) → metrics
-
-注意：
-  - Runtime 是解释器，不修改 Package 内容
-  - Model 的 predict() 由 ModelPackage 提供（P6 用占位接口，等 Model Package 完整实现后接入）
+P6 阶段 MVP，支持：
+  1. 单标的时间序列回测（List[Bar] 或 DataFrame 单 symbol）
+  2. 多标的截面回测（DataFrame with symbol column，按日期横截面处理）
+  3. 调用 Signal Package 生成信号
+  4. 调用 Position Package 计算仓位
+  5. 简化模拟执行（收盘价成交 / 次日开盘成交）
 """
 
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
 
 from ..asset_package.base import PackageType
-from ..asset_package.registry import PackageRegistry, get_package_registry
+from ..asset_package.registry import PackageRegistry
 from ..asset_package.types import (
-    StrategyPackage,
     SignalPackage, PositionPackage, RiskPackage,
-    ExecutionProfile, ObserveProfile,
+    ExecutionProfile, ObserveProfile, ModelPackage, StrategyPackage,
+    ThresholdSignal, RankingSignal,
+    FixedSizing, KellySizing,
 )
-from .resolver import DependencyResolver
 
 logger = logging.getLogger("quantlab.strategy_studio.runtime")
 
 
-# ==================================================================
-# 数据结构
-# ==================================================================
-
 @dataclass
 class Bar:
-    """单根 K 线"""
+    """K线数据"""
     timestamp: str
     open: float
     high: float
@@ -58,27 +43,44 @@ class Bar:
 
 
 @dataclass
+class Signal:
+    """交易信号"""
+    symbol: str
+    direction: int      # 1=多, -1=空, 0=平仓
+    strength: float     # 信号强度 0-1
+    price: float
+    timestamp: str
+
+
+@dataclass
 class Order:
     """订单"""
     timestamp: str
     symbol: str
-    side: str          # BUY / SELL / HOLD
+    side: str           # BUY / SELL
     quantity: float
     price: float
-    order_type: str = "MARKET"
 
 
 @dataclass
 class BarResult:
-    """单 bar 执行结果"""
+    """单时间点结果"""
     timestamp: str
-    predictions: Dict[str, float] = field(default_factory=dict)
-    signals: List[Dict[str, Any]] = field(default_factory=list)
-    target_positions: Dict[str, float] = field(default_factory=dict)
-    adjusted_positions: Dict[str, float] = field(default_factory=dict)
+    signals: List[Signal] = field(default_factory=list)
     orders: List[Order] = field(default_factory=list)
-    portfolio_value: float = 0.0
     cash: float = 0.0
+    portfolio_value: float = 0.0
+    positions: Dict[str, float] = field(default_factory=dict)
+
+
+@dataclass
+class Position:
+    """持仓信息"""
+    symbol: str
+    quantity: float
+    avg_cost: float
+    market_value: float
+    unrealized_pnl: float
 
 
 @dataclass
@@ -86,257 +88,501 @@ class RunResult:
     """运行结果"""
     strategy_id: str
     bars_processed: int = 0
+    symbols_traded: int = 0
     bar_results: List[BarResult] = field(default_factory=list)
     final_portfolio_value: float = 0.0
     total_return: float = 0.0
     metrics: Dict[str, Any] = field(default_factory=dict)
     errors: List[str] = field(default_factory=list)
+    equity_curve: List[Dict[str, Any]] = field(default_factory=list)
+    orders: List[Dict[str, Any]] = field(default_factory=list)
+    positions_history: List[Dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "strategy_id": self.strategy_id,
             "bars_processed": self.bars_processed,
+            "symbols_traded": self.symbols_traded,
             "final_portfolio_value": self.final_portfolio_value,
             "total_return": self.total_return,
             "metrics": self.metrics,
             "errors": self.errors,
-            "bar_results_count": len(self.bar_results),
+            "equity_curve": self.equity_curve,
+            "orders": self.orders[-100:] if len(self.orders) > 100 else self.orders,
+            "total_orders": len(self.orders),
+            "positions_history": self.positions_history[-50:] if len(self.positions_history) > 50 else self.positions_history,
         }
 
 
-# ==================================================================
-# StrategyRuntime
-# ==================================================================
-
 class StrategyRuntime:
-    """
-    策略运行时解释器
+    """策略运行时
 
-    用法：
-        runtime = StrategyRuntime(strategy)
-        result = runtime.run(bars, initial_capital=100000)
+    支持两种模式：
+    1. 单标的模式：传入 List[Bar]
+    2. 多标的截面模式：传入 pd.DataFrame（含 symbol 列，DatetimeIndex）
     """
 
-    def __init__(self, strategy: StrategyPackage,
-                 registry: Optional[PackageRegistry] = None) -> None:
+    def __init__(self, strategy: StrategyPackage, registry: Optional[PackageRegistry] = None):
         self.strategy = strategy
-        self.registry = registry or get_package_registry()
-        self.resolver = DependencyResolver(registry=self.registry)
+        self.registry = registry or PackageRegistry()
+        self.cash = 0.0
+        self.positions: Dict[str, Dict[str, float]] = {}  # symbol -> {qty, avg_cost}
 
-        # 加载组件
-        self.signal_pkg: Optional[SignalPackage] = None
-        self.position_pkg: Optional[PositionPackage] = None
-        self.risk_pkg: Optional[RiskPackage] = None
-        self.execution_pkg: Optional[ExecutionProfile] = None
-        self.observe_pkg: Optional[ObserveProfile] = None
-        self._loaded = False
+    def run(self, data: Union[List[Bar], pd.DataFrame],
+            initial_capital: float = 100000.0) -> RunResult:
+        strategy_id = f"{self.strategy.name}@{self.strategy.version}"
+        result = RunResult(strategy_id=strategy_id)
+        self.cash = initial_capital
+        self.positions = {}
 
-    def load_components(self) -> List[str]:
-        """加载所有组件 Package，返回错误列表"""
-        errors: List[str] = []
+        # 收集策略配置引用
+        self._sig_ref = self.strategy.signal_ref
+        self._pos_ref = self.strategy.position_ref
+        self._risk_ref = self.strategy.risk_ref
 
-        if not self._loaded:
-            # 验证依赖
-            graph = self.resolver.resolve(self.strategy)
-            if not graph.is_complete:
-                errors.extend([f"Missing: {r}" for r in graph.missing_refs])
-                return errors
-
-            # 加载组件
-            self.signal_pkg = self._load(self.strategy.signal_ref, PackageType.SIGNAL)
-            self.position_pkg = self._load(self.strategy.position_ref, PackageType.POSITION)
-            self.risk_pkg = self._load(self.strategy.risk_ref, PackageType.RISK)
-            self.execution_pkg = self._load(self.strategy.execution_ref, PackageType.EXECUTION)
-            self.observe_pkg = self._load(self.strategy.observe_ref, PackageType.OBSERVE)
-
-            for name, pkg in [
-                ("signal", self.signal_pkg),
-                ("position", self.position_pkg),
-                ("risk", self.risk_pkg),
-                ("execution", self.execution_pkg),
-                ("observe", self.observe_pkg),
-            ]:
-                if pkg is None:
-                    errors.append(f"Failed to load {name} package")
-
-            self._loaded = len(errors) == 0
-
-        return errors
-
-    def _load(self, ref_str: str, pkg_type: PackageType):
-        """通过 ref 加载 Package"""
-        if not ref_str:
-            return None
         try:
-            return self.registry.get_by_ref(pkg_type, ref_str)
+            if isinstance(data, pd.DataFrame):
+                self._run_dataframe(data, initial_capital, result)
+            else:
+                self._run_bars(data, initial_capital, result)
         except Exception as e:
-            logger.error(f"Failed to load {ref_str}: {e}")
-            return None
+            logger.exception(f"Strategy runtime error: {e}")
+            result.errors.append(str(e))
 
-    def run(self, bars: List[Bar], initial_capital: float = 100000.0) -> RunResult:
-        """
-        运行策略
+        if result.bar_results:
+            result.final_portfolio_value = result.bar_results[-1].portfolio_value
+            result.total_return = (result.final_portfolio_value - initial_capital) / initial_capital
+            result.metrics = self._compute_metrics(result.bar_results, initial_capital)
 
-        Args:
-            bars: K 线列表
-            initial_capital: 初始资金
+        return result
 
-        Returns:
-            RunResult
-        """
-        result = RunResult(strategy_id=self.strategy.id)
+    # ------------------------------------------------------------------
+    # 单标的模式
+    # ------------------------------------------------------------------
 
-        # 加载组件
-        load_errors = self.load_components()
-        if load_errors:
-            result.errors.extend(load_errors)
-            return result
-
-        cash = initial_capital
-        positions: Dict[str, float] = {}       # symbol → quantity
-        portfolio_state: Dict[str, Any] = {"cash": cash, "positions": positions}
-
-        logger.info(f"Running strategy {self.strategy.id} on {len(bars)} bars")
+    def _run_bars(self, bars: List[Bar], initial_capital: float, result: RunResult):
+        signal_pkg = self._resolve_package(SignalPackage, self._sig_ref)
+        position_pkg = self._resolve_package(PositionPackage, self._pos_ref)
+        risk_pkg = self._resolve_package(RiskPackage, self._risk_ref)
+        symbols_seen = set()
 
         for bar in bars:
-            bar_result = self._run_bar(bar, portfolio_state)
-            bar_result.cash = cash
-            bar_result.portfolio_value = self._compute_portfolio_value(positions, cash, bar)
+            if not bar.symbol:
+                bar.symbol = "UNKNOWN"
+            symbols_seen.add(bar.symbol)
+            prediction = self._predict(bar)
+            signals = self._generate_signals_single(
+                signal_pkg, bar.symbol, prediction.get(bar.symbol, 0.0), bar.close, bar.timestamp
+            )
+            orders = self._generate_orders(position_pkg, signals, {bar.symbol: bar.close}, bar.timestamp)
+            self._execute_orders(orders, {bar.symbol: bar.close})
 
-            # 更新持仓
-            for order in bar_result.orders:
-                if order.side == "BUY":
-                    positions[order.symbol] = positions.get(order.symbol, 0) + order.quantity
-                    cash -= order.quantity * order.price
-                elif order.side == "SELL":
-                    positions[order.symbol] = positions.get(order.symbol, 0) - order.quantity
-                    cash += order.quantity * order.price
-
-            portfolio_state["cash"] = cash
-            portfolio_state["positions"] = positions
-            bar_result.cash = cash
-
-            result.bar_results.append(bar_result)
+            pv = self._portfolio_value({bar.symbol: bar.close})
+            br = BarResult(
+                timestamp=bar.timestamp, signals=signals, orders=orders,
+                cash=self.cash, portfolio_value=pv,
+                positions={s: p["qty"] for s, p in self.positions.items()},
+            )
+            result.bar_results.append(br)
             result.bars_processed += 1
+            self._record_curve(br, result, orders)
 
-        # 计算最终结果
-        if bars:
-            last_bar = bars[-1]
-            result.final_portfolio_value = self._compute_portfolio_value(positions, cash, last_bar)
-            result.total_return = (result.final_portfolio_value - initial_capital) / initial_capital
+        result.symbols_traded = len(symbols_seen)
 
-        # 计算指标
-        result.metrics = self._compute_metrics(result.bar_results, initial_capital)
+    # ------------------------------------------------------------------
+    # 多标的截面模式
+    # ------------------------------------------------------------------
 
-        logger.info(f"Strategy run complete: {result.bars_processed} bars, "
-                    f"final_value={result.final_portfolio_value:.2f}, "
-                    f"return={result.total_return:.4f}")
+    def _run_dataframe(self, df: pd.DataFrame, initial_capital: float, result: RunResult):
+        signal_pkg = self._resolve_package(SignalPackage, self._sig_ref)
+        position_pkg = self._resolve_package(PositionPackage, self._pos_ref)
+        risk_pkg = self._resolve_package(RiskPackage, self._risk_ref)
 
-        return result
+        required_cols = {"open", "high", "low", "close", "volume"}
+        if not required_cols.issubset(set(df.columns)):
+            raise ValueError(f"DataFrame missing required columns: {required_cols - set(df.columns)}")
 
-    def _run_bar(self, bar: Bar, portfolio_state: Dict[str, Any]) -> BarResult:
-        """运行单 bar"""
-        result = BarResult(timestamp=bar.timestamp)
+        has_symbol = "symbol" in df.columns
+        if not has_symbol:
+            raise ValueError("Multi-symbol DataFrame must have a 'symbol' column")
 
-        # 1. Model.predict（P6 用占位：用 close 涨跌幅作为 prediction）
-        predictions = self._mock_predict(bar)
-        result.predictions = predictions
+        # 计算每只股票的历史价格用于预测
+        price_history: Dict[str, List[float]] = {}
+        prev_close: Dict[str, float] = {}
 
-        # 2. Signal.generate
+        # 按日期分组
+        dates = sorted(df.index.unique())
+        all_symbols = set(df["symbol"].unique())
+        symbols_traded = set()
+
+        for date in dates:
+            day_data = df.loc[date]
+            if isinstance(day_data, pd.Series):
+                day_data = day_data.to_frame().T
+
+            prices: Dict[str, float] = {}
+            bar_signals: List[Signal] = []
+            predictions: Dict[str, float] = {}
+
+            # 1. 对每个标的计算预测分数
+            for _, row in day_data.iterrows():
+                sym = row["symbol"]
+                close = float(row["close"])
+                prices[sym] = close
+                symbols_traded.add(sym)
+
+                # 更新价格历史
+                if sym not in price_history:
+                    price_history[sym] = []
+                price_history[sym].append(close)
+                if len(price_history[sym]) > 60:
+                    price_history[sym] = price_history[sym][-60:]
+
+                # 计算动量预测分数
+                score = self._compute_score(sym, close, price_history.get(sym, []), prev_close.get(sym))
+                predictions[sym] = score
+                prev_close[sym] = close
+
+            # 2. 生成信号（支持截面排序）
+            bar_signals = self._generate_signals_cross_section(
+                signal_pkg, predictions, prices, str(date)[:10]
+            )
+
+            # 3. 计算仓位
+            orders = self._generate_orders(position_pkg, bar_signals, prices, str(date)[:10])
+
+            # 4. 执行订单（用当日收盘价成交，简化模型）
+            self._execute_orders(orders, prices)
+
+            # 5. 风控检查
+            self._apply_risk_checks(risk_pkg, prices, str(date)[:10])
+
+            pv = self._portfolio_value(prices)
+            br = BarResult(
+                timestamp=str(date)[:10], signals=bar_signals, orders=orders,
+                cash=self.cash, portfolio_value=pv,
+                positions={s: p["qty"] for s, p in self.positions.items()},
+            )
+            result.bar_results.append(br)
+            result.bars_processed += 1
+            self._record_curve(br, result, orders)
+
+            if len(result.bar_results) % 50 == 0:
+                result.positions_history.append({
+                    "timestamp": str(date)[:10],
+                    "cash": round(self.cash, 2),
+                    "total_value": round(pv, 2),
+                    "n_positions": len(self.positions),
+                    "top_positions": sorted(
+                        [{"symbol": s, "qty": p["qty"], "value": p["qty"] * prices.get(s, 0)}
+                         for s, p in self.positions.items()],
+                        key=lambda x: abs(x["value"]), reverse=True
+                    )[:10],
+                })
+
+        result.symbols_traded = len(symbols_traded)
+
+    # ------------------------------------------------------------------
+    # 信号生成
+    # ------------------------------------------------------------------
+
+    def _generate_signals_single(self, signal_pkg, symbol: str, pred: float,
+                                  price: float, ts: str) -> List[Signal]:
         signals = []
-        if self.signal_pkg:
-            try:
-                pred_series = pd.Series(predictions)
-                signals = self.signal_pkg.generate(pred_series, metadata={"timestamp": bar.timestamp})
-                result.signals = [
-                    {"symbol": s.symbol, "side": s.side.value if hasattr(s.side, 'value') else str(s.side),
-                     "score": s.score}
-                    for s in signals
-                ]
-            except Exception as e:
-                logger.error(f"Signal generation failed: {e}")
+        if signal_pkg is None or not isinstance(signal_pkg, ThresholdSignal):
+            direction = 1 if pred > 0 else (-1 if pred < 0 else 0)
+            strength = min(abs(pred) / 0.05, 1.0)
+            signals.append(Signal(symbol, direction, strength, price, ts))
+            return signals
 
-        # 3. Position.size → Dict[str, float]
-        target_positions: Dict[str, float] = {}
-        if self.position_pkg and signals:
-            try:
-                target_positions = self.position_pkg.size(signals, capital=portfolio_state.get("cash", 100000))
-                result.target_positions = dict(target_positions)
-            except Exception as e:
-                logger.error(f"Position sizing failed: {e}")
+        # ThresholdSignal
+        if isinstance(signal_pkg, ThresholdSignal):
+            if pred > signal_pkg.long_threshold:
+                signals.append(Signal(symbol, 1, min(pred / 0.05, 1.0), price, ts))
+            elif pred < signal_pkg.short_threshold and signal_pkg.use_short:
+                signals.append(Signal(symbol, -1, min(abs(pred) / 0.05, 1.0), price, ts))
+            else:
+                # 平仓信号
+                if symbol in self.positions:
+                    signals.append(Signal(symbol, 0, 0, price, ts))
 
-        # 4. Risk.apply → Dict[str, float]
-        adjusted_positions: Dict[str, float] = dict(target_positions)
-        if self.risk_pkg:
-            try:
-                adjusted_positions = self.risk_pkg.apply(target_positions, portfolio_state=portfolio_state)
-                result.adjusted_positions = dict(adjusted_positions)
-            except Exception as e:
-                logger.error(f"Risk application failed: {e}")
-                result.adjusted_positions = dict(target_positions)
+        return signals
 
-        # 5. Execution.execute
-        if self.execution_pkg:
-            try:
-                orders = self._generate_orders(bar, adjusted_positions, portfolio_state)
-                result.orders = orders
-            except Exception as e:
-                logger.error(f"Execution failed: {e}")
+    def _generate_signals_cross_section(self, signal_pkg, predictions: Dict[str, float],
+                                         prices: Dict[str, float], ts: str) -> List[Signal]:
+        signals: List[Signal] = []
+        if not predictions:
+            return signals
 
-        return result
+        # 截面排序信号（RankingSignal）
+        if isinstance(signal_pkg, RankingSignal):
+            sorted_syms = sorted(predictions.keys(), key=lambda s: predictions[s], reverse=True)
+            n = len(sorted_syms)
+            top_n = max(1, int(n * signal_pkg.top_pct))
+            bottom_n = max(1, int(n * signal_pkg.bottom_pct)) if signal_pkg.use_short else 0
 
-    def _mock_predict(self, bar: Bar) -> Dict[str, float]:
-        """占位 predict：用 close 涨跌幅作为 prediction"""
-        # P6 阶段 Model Package 还未完整实现，用简单逻辑代替
-        return {bar.symbol: 0.01}  # 默认轻微看多
+            top_set = set(sorted_syms[:top_n])
+            bottom_set = set(sorted_syms[-bottom_n:]) if bottom_n > 0 else set()
 
-    def _generate_orders(self, bar: Bar, target_positions: Dict[str, float],
-                         portfolio_state: Dict[str, Any]) -> List[Order]:
-        """根据目标持仓生成订单"""
+            for sym, score in predictions.items():
+                if sym in top_set:
+                    rank = sorted_syms.index(sym)
+                    strength = 1.0 - (rank / max(top_n, 1)) * 0.3
+                    signals.append(Signal(sym, 1, strength, prices[sym], ts))
+                elif sym in bottom_set:
+                    rank = sorted_syms.index(sym)
+                    strength = 1.0 - ((n - 1 - rank) / max(bottom_n, 1)) * 0.3
+                    signals.append(Signal(sym, -1, strength, prices[sym], ts))
+                elif sym in self.positions:
+                    signals.append(Signal(sym, 0, 0, prices[sym], ts))
+
+        # 阈值信号（ThresholdSignal）—— 逐个标的独立判断
+        elif isinstance(signal_pkg, ThresholdSignal):
+            for sym, score in predictions.items():
+                if score > signal_pkg.long_threshold:
+                    signals.append(Signal(sym, 1, min(score / 0.05, 1.0), prices[sym], ts))
+                elif score < signal_pkg.short_threshold and signal_pkg.use_short:
+                    signals.append(Signal(sym, -1, min(abs(score) / 0.05, 1.0), prices[sym], ts))
+                elif sym in self.positions:
+                    signals.append(Signal(sym, 0, 0, prices[sym], ts))
+
+        # 默认：用分数做简单阈值
+        else:
+            for sym, score in predictions.items():
+                if score > 0.01:
+                    signals.append(Signal(sym, 1, min(abs(score) / 0.05, 1.0), prices[sym], ts))
+                elif score < -0.01:
+                    signals.append(Signal(sym, -1, min(abs(score) / 0.05, 1.0), prices[sym], ts))
+                elif sym in self.positions:
+                    signals.append(Signal(sym, 0, 0, prices[sym], ts))
+
+        return signals
+
+    # ------------------------------------------------------------------
+    # 订单生成 + 执行
+    # ------------------------------------------------------------------
+
+    def _generate_orders(self, position_pkg, signals: List[Signal],
+                          prices: Dict[str, float], ts: str) -> List[Order]:
         orders: List[Order] = []
-        current_positions = portfolio_state.get("positions", {})
-        cash = portfolio_state.get("cash", 100000)
+        if not signals:
+            return orders
 
-        for symbol, target_weight in target_positions.items():
-            target_value = target_weight * cash
-            target_qty = target_value / bar.close if bar.close > 0 else 0
-            current_qty = current_positions.get(symbol, 0)
-            diff = target_qty - current_qty
+        active_signals = [s for s in signals if s.direction != 0]
+        if not active_signals:
+            # 全平
+            for sym in list(self.positions.keys()):
+                if sym in prices:
+                    pos = self.positions[sym]
+                    qty = pos["qty"]
+                    if qty > 0:
+                        orders.append(Order(ts, sym, "SELL", qty, prices[sym]))
+                    elif qty < 0:
+                        orders.append(Order(ts, sym, "BUY", abs(qty), prices[sym]))
+            return orders
 
-            if abs(diff) < 1e-6:
+        total_equity = self._portfolio_value(prices)
+        n_active = len(active_signals)
+
+        # 计算目标仓位
+        if isinstance(position_pkg, FixedSizing):
+            weight_per_signal = min(position_pkg.base_size, 1.0 / max(n_active, 1))
+            target_weights: Dict[str, float] = {}
+            for sig in active_signals:
+                w = weight_per_signal * sig.strength
+                target_weights[sig.symbol] = w * sig.direction  # 正数做多，负数做空
+        elif isinstance(position_pkg, KellySizing):
+            kelly_f = position_pkg.kelly_fraction
+            f_star = (position_pkg.win_rate * position_pkg.win_loss_ratio -
+                      (1 - position_pkg.win_rate)) / position_pkg.win_loss_ratio
+            f = max(0, f_star * kelly_f)
+            weight_per_signal = min(f, position_pkg.max_size / max(n_active, 1))
+            target_weights = {}
+            for sig in active_signals:
+                target_weights[sig.symbol] = weight_per_signal * sig.strength * sig.direction
+        else:
+            weight_per_signal = 0.95 / max(n_active, 1)
+            target_weights = {}
+            for sig in active_signals:
+                target_weights[sig.symbol] = weight_per_signal * sig.strength * sig.direction
+
+        # 归一化权重（总绝对值不超过1）
+        total_abs = sum(abs(w) for w in target_weights.values())
+        if total_abs > 0.95:
+            scale = 0.95 / total_abs
+            target_weights = {s: w * scale for s, w in target_weights.items()}
+
+        # 生成再平衡订单
+        current_symbols = set(self.positions.keys())
+        target_symbols = set(target_weights.keys())
+
+        # 平仓不再持有的
+        for sym in current_symbols - target_symbols:
+            if sym in prices:
+                pos = self.positions[sym]
+                qty = pos["qty"]
+                if qty > 0:
+                    orders.append(Order(ts, sym, "SELL", qty, prices[sym]))
+                elif qty < 0:
+                    orders.append(Order(ts, sym, "BUY", abs(qty), prices[sym]))
+
+        # 开仓/调仓
+        for sym, target_w in target_weights.items():
+            if sym not in prices:
                 continue
+            target_value = total_equity * target_w
+            target_qty = target_value / prices[sym] if prices[sym] > 0 else 0
+            current_qty = self.positions.get(sym, {}).get("qty", 0.0)
+            diff_qty = target_qty - current_qty
 
-            side = "BUY" if diff > 0 else "SELL"
-            orders.append(Order(
-                timestamp=bar.timestamp,
-                symbol=symbol,
-                side=side,
-                quantity=abs(diff),
-                price=bar.close,
-                order_type="MARKET",
-            ))
+            if abs(diff_qty * prices[sym]) < total_equity * 0.001:
+                continue  # 差异太小，不交易
+
+            if diff_qty > 0:
+                orders.append(Order(ts, sym, "BUY", diff_qty, prices[sym]))
+            elif diff_qty < 0:
+                orders.append(Order(ts, sym, "SELL", abs(diff_qty), prices[sym]))
 
         return orders
 
-    def _compute_portfolio_value(self, positions: Dict[str, float], cash: float, bar: Bar) -> float:
-        """计算组合价值"""
-        # 简化：只计算现金 + 当前 bar 的持仓价值
-        position_value = positions.get(bar.symbol, 0) * bar.close
-        return cash + position_value
+    def _execute_orders(self, orders: List[Order], prices: Dict[str, float]):
+        for order in orders:
+            if order.side == "BUY":
+                cost = order.quantity * order.price
+                if cost <= self.cash + 1e-6:
+                    self.cash -= cost
+                    if order.symbol in self.positions:
+                        pos = self.positions[order.symbol]
+                        total_qty = pos["qty"] + order.quantity
+                        if abs(total_qty) < 1e-8:
+                            pos["avg_cost"] = 0
+                        else:
+                            pos["avg_cost"] = (pos["qty"] * pos["avg_cost"] + cost) / total_qty
+                        pos["qty"] = total_qty
+                    else:
+                        self.positions[order.symbol] = {
+                            "qty": order.quantity,
+                            "avg_cost": order.price,
+                        }
+                else:
+                    affordable_qty = self.cash / order.price if order.price > 0 else 0
+                    if affordable_qty > 0:
+                        self.cash -= affordable_qty * order.price
+                        self.positions[order.symbol] = {
+                            "qty": affordable_qty,
+                            "avg_cost": order.price,
+                        }
+            elif order.side == "SELL":
+                if order.symbol in self.positions:
+                    pos = self.positions[order.symbol]
+                    sell_qty = min(order.quantity, abs(pos["qty"]))
+                    if pos["qty"] > 0:
+                        self.cash += sell_qty * order.price
+                        pos["qty"] -= sell_qty
+                    elif pos["qty"] < 0:
+                        self.cash -= sell_qty * order.price
+                        pos["qty"] += sell_qty
+                    if abs(pos["qty"]) < 1e-8:
+                        del self.positions[order.symbol]
+
+    def _apply_risk_checks(self, risk_pkg, prices: Dict[str, float], ts: str):
+        if risk_pkg is None:
+            return
+        pv = self._portfolio_value(prices)
+        if pv <= 0:
+            return
+        for sym in list(self.positions.keys()):
+            if sym not in prices:
+                continue
+            pos = self.positions[sym]
+            if abs(pos["qty"] * prices[sym]) > pv * 0.25:
+                pass  # TODO: 单标的集中度风控
+
+    # ------------------------------------------------------------------
+    # 预测与评分
+    # ------------------------------------------------------------------
+
+    def _predict(self, bar: Bar) -> Dict[str, float]:
+        if not hasattr(self, '_price_history'):
+            self._price_history: Dict[str, List[float]] = {}
+            self._prev_close: Dict[str, float] = {}
+        sym = bar.symbol
+        if sym not in self._price_history:
+            self._price_history[sym] = []
+        self._price_history[sym].append(bar.close)
+        if len(self._price_history[sym]) > 60:
+            self._price_history[sym] = self._price_history[sym][-60:]
+        score = self._compute_score(sym, bar.close, self._price_history[sym], self._prev_close.get(sym))
+        self._prev_close[sym] = bar.close
+        return {sym: score}
+
+    def _compute_score(self, symbol: str, close: float, history: List[float],
+                        prev_close: Optional[float]) -> float:
+        if prev_close is None or len(history) < 5:
+            return 0.0
+        ret_1 = (close - prev_close) / prev_close if prev_close > 0 else 0
+        ma5 = sum(history[-5:]) / 5
+        ma_lookback = min(20, len(history))
+        ma20 = sum(history[-ma_lookback:]) / ma_lookback
+        mom = (close - history[-5]) / history[-5] if len(history) >= 5 and history[-5] > 0 else 0
+        # 简单波动率：用最近10天日收益率标准差
+        recent = history[-min(20, len(history)):]
+        if len(recent) > 2:
+            rets = [(recent[i] - recent[i-1]) / recent[i-1] for i in range(1, len(recent)) if recent[i-1] > 0]
+            vol = float(np.std(rets)) if rets else 0.02
+        else:
+            vol = 0.02
+        vol = max(vol, 0.005)
+        score = (0.3 * ret_1 + 0.4 * (close - ma20) / ma20 + 0.3 * mom) / (vol * 5)
+        return max(min(score, 0.05), -0.05)
+
+    # ------------------------------------------------------------------
+    # 辅助
+    # ------------------------------------------------------------------
+
+    def _portfolio_value(self, prices: Dict[str, float]) -> float:
+        value = self.cash
+        for sym, pos in self.positions.items():
+            if sym in prices:
+                value += pos["qty"] * prices[sym]
+        return value
+
+    def _resolve_package(self, pkg_cls, ref: Optional[str]):
+        if not ref or not self.registry:
+            return None
+        try:
+            if ref.startswith("ref://"):
+                ref = ref[6:]
+            name, version = ref.split("@")
+            pkg_type = pkg_cls.package_type
+            return self.registry.get(pkg_type, name, version)
+        except Exception:
+            return None
+
+    def _record_curve(self, br: BarResult, result: RunResult, orders: List[Order]):
+        result.equity_curve.append({
+            "timestamp": br.timestamp,
+            "value": br.portfolio_value,
+            "cash": br.cash,
+            "n_positions": len(self.positions),
+        })
+        for order in orders:
+            result.orders.append({
+                "timestamp": order.timestamp,
+                "symbol": order.symbol,
+                "side": order.side,
+                "quantity": round(order.quantity, 4),
+                "price": round(order.price, 4),
+            })
 
     def _compute_metrics(self, bar_results: List[BarResult], initial_capital: float) -> Dict[str, Any]:
-        """计算策略指标"""
         if not bar_results:
             return {}
-
         portfolio_values = [r.portfolio_value for r in bar_results if r.portfolio_value > 0]
         if not portfolio_values:
             return {}
-
         final_value = portfolio_values[-1]
         total_return = (final_value - initial_capital) / initial_capital
-
-        # 最大回撤
         peak = portfolio_values[0]
         max_dd = 0.0
         for v in portfolio_values:
@@ -345,14 +591,30 @@ class StrategyRuntime:
             dd = (peak - v) / peak
             if dd > max_dd:
                 max_dd = dd
-
-        # 总订单数
+        returns = []
+        for i in range(1, len(portfolio_values)):
+            if portfolio_values[i - 1] > 0:
+                returns.append((portfolio_values[i] - portfolio_values[i - 1]) / portfolio_values[i - 1])
+        sharpe = 0.0
+        if returns and np.std(returns) > 0:
+            sharpe = float(np.mean(returns) / np.std(returns) * np.sqrt(252))
+        vol = float(np.std(returns) * np.sqrt(252)) if returns else 0.0
         total_orders = sum(len(r.orders) for r in bar_results)
-
+        buy_orders = sum(1 for r in bar_results for o in r.orders if o.side == "BUY")
+        sell_orders = sum(1 for r in bar_results for o in r.orders if o.side == "SELL")
+        max_positions = max((len(r.positions) for r in bar_results), default=0)
+        n_bars = len(portfolio_values)
         return {
-            "final_value": final_value,
-            "total_return": total_return,
-            "max_drawdown": max_dd,
-            "total_orders": total_orders,
-            "bars": len(bar_results),
+            "total_return": float(total_return),
+            "annual_return": float(total_return * (252 / max(n_bars, 1))),
+            "max_drawdown": float(max_dd),
+            "sharpe_ratio": float(sharpe),
+            "volatility": float(vol),
+            "total_orders": int(total_orders),
+            "buy_orders": int(buy_orders),
+            "sell_orders": int(sell_orders),
+            "bars": int(n_bars),
+            "final_value": float(final_value),
+            "max_positions": int(max_positions),
+            "avg_positions": float(np.mean([len(r.positions) for r in bar_results])) if bar_results else 0.0,
         }

@@ -132,42 +132,45 @@
       </template>
 
       <el-table :data="strategies" v-loading="loadingStrategies" border>
-        <el-table-column prop="name" label="名称 Name" width="200" />
-        <el-table-column prop="version" label="版本 Version" width="100" />
-        <el-table-column label="状态 Status" width="120">
+        <el-table-column prop="name" label="名称 Name" width="160" />
+        <el-table-column prop="version" label="版本 Version" width="80" />
+        <el-table-column label="状态 Status" width="100">
           <template #default="{ row }">
             <el-tag :type="strategyStatusType(row.config?.strategy_status)" size="small">
               {{ row.config?.strategy_status || 'candidate' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="验证 Validation" width="120">
+        <el-table-column label="验证 Validation" width="100">
           <template #default="{ row }">
             <el-tag :type="validationType(row.config?.validation)" size="small">
               {{ row.config?.validation || 'PENDING' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="Model" width="180">
+        <el-table-column label="Model" width="150">
           <template #default="{ row }">
             <span class="ref-text">{{ row.config?.model || '-' }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="Signal" width="180">
+        <el-table-column label="Signal" width="150">
           <template #default="{ row }">
             <span class="ref-text">{{ row.config?.signal || '-' }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="Position" width="180">
+        <el-table-column label="Position" width="150">
           <template #default="{ row }">
             <span class="ref-text">{{ row.config?.position || '-' }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作 Actions" width="200">
+        <el-table-column label="操作 Actions" width="260">
           <template #default="{ row }">
             <el-button size="small" @click="viewDependencies(row)">依赖图</el-button>
             <el-button size="small" type="primary" @click="validateStrategy(row)" :loading="validatingId === row.id">
               验证
+            </el-button>
+            <el-button size="small" type="success" @click="openBacktestDialog(row)" :loading="backtestingId === row.id">
+              回测
             </el-button>
           </template>
         </el-table-column>
@@ -211,16 +214,199 @@
         </el-alert>
       </div>
     </el-dialog>
+
+    <!-- 回测参数对话框 -->
+    <el-dialog v-model="backtestDialogVisible" title="回测参数 Backtest Parameters" width="560px" :close-on-click-modal="false">
+      <el-form :model="backtestForm" label-width="110px" v-if="!backtestResult">
+        <el-form-item label="策略 Strategy">
+          <el-input :value="backtestTargetName" disabled />
+        </el-form-item>
+
+        <el-form-item label="数据源 Source">
+          <el-radio-group v-model="backtestForm.data_source_mode" @change="onDataSourceChange">
+            <el-radio value="dataset">真实数据集 Dataset</el-radio>
+            <el-radio value="synthetic">合成数据 Synthetic</el-radio>
+          </el-radio-group>
+        </el-form-item>
+
+        <!-- 数据集选择 -->
+        <template v-if="backtestForm.data_source_mode === 'dataset'">
+          <el-form-item label="数据集 Dataset">
+            <el-select v-model="backtestForm.dataset_id" placeholder="选择数据集" style="width: 100%" @change="onDatasetChange">
+              <el-option v-for="ds in datasets" :key="ds.dataset_id" :value="ds.dataset_id"
+                :label="`${ds.name} (${ds.symbols_count}标的, ${ds.rows}行, ${ds.frequency})`">
+                <span>{{ ds.name }}</span>
+                <el-tag size="small" type="info" style="margin-left: 8px">{{ ds.frequency }}</el-tag>
+                <el-tag v-if="ds.is_multi_symbol" size="small" type="warning" style="margin-left: 4px">多标的</el-tag>
+                <div style="font-size: 12px; color: #999; margin-top: 2px">
+                  {{ ds.symbols_count }} symbols | {{ ds.start_date?.slice(0,10) }} ~ {{ ds.end_date?.slice(0,10) }}
+                </div>
+              </el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item label="最大标的数" v-if="selectedDataset?.is_multi_symbol">
+            <el-input-number v-model="backtestForm.max_symbols" :min="5" :max="200" :step="5" style="width: 100%" />
+          </el-form-item>
+          <el-form-item label="日期范围">
+            <el-date-picker
+              v-model="backtestDateRange"
+              type="daterange"
+              range-separator="至"
+              start-placeholder="开始日期"
+              end-placeholder="结束日期"
+              value-format="YYYY-MM-DD"
+              style="width: 100%"
+              :disabled-date="(d: Date) => !isDateInDatasetRange(d)"
+            />
+          </el-form-item>
+        </template>
+
+        <!-- 合成数据参数 -->
+        <template v-else>
+          <el-form-item label="标的 Symbol">
+            <el-input v-model="backtestForm.symbol" placeholder="如 BTCUSDT" />
+          </el-form-item>
+          <el-form-item label="K线数量 Bars">
+            <el-input-number v-model="backtestForm.bars" :min="50" :max="2000" :step="50" style="width: 100%" />
+          </el-form-item>
+          <el-form-item label="随机种子 Seed">
+            <el-input-number v-model="backtestForm.seed" :min="1" :max="99999" style="width: 100%" />
+          </el-form-item>
+        </template>
+
+        <el-form-item label="初始资金 Capital">
+          <el-input-number v-model="backtestForm.initial_capital" :min="10000" :max="100000000" :step="10000" style="width: 100%" />
+        </el-form-item>
+
+        <el-alert v-if="backtestForm.data_source_mode === 'synthetic'" type="info" :closable="false" show-icon style="margin-top: 8px">
+          合成数据用于快速验证回测链路，使用几何布朗运动+趋势切换模型生成。
+        </el-alert>
+        <el-alert v-else-if="!backtestForm.dataset_id" type="warning" :closable="false" show-icon style="margin-top: 8px">
+          请选择一个数据集。HS300 为沪深300成分股日线数据，支持多标的截面回测。
+        </el-alert>
+      </el-form>
+      <template #footer>
+        <el-button @click="backtestDialogVisible = false" :disabled="backtestRunning">取消</el-button>
+        <el-button type="primary" @click="runBacktest" :loading="backtestRunning"
+          :disabled="backtestForm.data_source_mode === 'dataset' && !backtestForm.dataset_id">
+          开始回测 Run Backtest
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 回测结果对话框 -->
+    <el-dialog v-model="backtestResultVisible" title="回测结果 Backtest Result" width="950px" top="4vh" destroy-on-close>
+      <div v-if="backtestResult">
+        <el-alert v-if="backtestResult.ok" type="success" :closable="false" show-icon style="margin-bottom: 16px">
+          <template #title>
+            回测完成！{{ backtestResult.symbol }} | {{ backtestResult.bars }} bars
+            <span v-if="backtestResult.symbols_traded > 1">（{{ backtestResult.symbols_traded }}只标的）</span>
+            | 数据源: {{ backtestResult.data_source }}
+          </template>
+        </el-alert>
+        <el-alert v-else type="error" :closable="false" show-icon style="margin-bottom: 16px">
+          回测失败: {{ backtestResult.errors.join(', ') }}
+        </el-alert>
+
+        <!-- 指标卡片 -->
+        <el-row :gutter="12" style="margin-bottom: 12px">
+          <el-col :span="6">
+            <div class="metric-card positive">
+              <div class="metric-value">{{ formatPct(backtestResult.metrics.total_return) }}</div>
+              <div class="metric-label">总收益 Total Return</div>
+            </div>
+          </el-col>
+          <el-col :span="6">
+            <div class="metric-card" :class="backtestResult.metrics.sharpe_ratio >= 1 ? 'positive' : ''">
+              <div class="metric-value">{{ backtestResult.metrics.sharpe_ratio?.toFixed(2) }}</div>
+              <div class="metric-label">Sharpe Ratio</div>
+            </div>
+          </el-col>
+          <el-col :span="6">
+            <div class="metric-card negative">
+              <div class="metric-value">{{ formatPct(backtestResult.metrics.max_drawdown) }}</div>
+              <div class="metric-label">最大回撤 Max DD</div>
+            </div>
+          </el-col>
+          <el-col :span="6">
+            <div class="metric-card">
+              <div class="metric-value">{{ backtestResult.total_orders }}</div>
+              <div class="metric-label">交易笔数 Trades</div>
+            </div>
+          </el-col>
+        </el-row>
+
+        <el-row :gutter="12" style="margin-bottom: 12px">
+          <el-col :span="6">
+            <div class="metric-card">
+              <div class="metric-value">{{ formatMoney(backtestResult.metrics.final_value) }}</div>
+              <div class="metric-label">最终权益 Final Value</div>
+            </div>
+          </el-col>
+          <el-col :span="6">
+            <div class="metric-card">
+              <div class="metric-value">{{ formatPct(backtestResult.metrics.annual_return) }}</div>
+              <div class="metric-label">年化收益 Annual</div>
+            </div>
+          </el-col>
+          <el-col :span="6">
+            <div class="metric-card">
+              <div class="metric-value">{{ formatPct(backtestResult.metrics.volatility) }}</div>
+              <div class="metric-label">年化波动 Vol</div>
+            </div>
+          </el-col>
+          <el-col :span="6">
+            <div class="metric-card" v-if="backtestResult.symbols_traded > 1">
+              <div class="metric-value">{{ backtestResult.metrics.max_positions }} / {{ backtestResult.metrics.avg_positions?.toFixed(1) }}</div>
+              <div class="metric-label">最大/平均持仓 Positions</div>
+            </div>
+            <div class="metric-card" v-else>
+              <div class="metric-value">{{ backtestResult.metrics.buy_orders }} / {{ backtestResult.metrics.sell_orders }}</div>
+              <div class="metric-label">买入/卖出 Buy/Sell</div>
+            </div>
+          </el-col>
+        </el-row>
+
+        <!-- 净值曲线图 -->
+        <div class="chart-container">
+          <div ref="equityChartRef" class="equity-chart"></div>
+        </div>
+
+        <!-- 订单列表 -->
+        <el-divider>最近交易 Recent Orders（共 {{ backtestResult.total_orders }} 笔，显示最近 {{ backtestResult.orders.length }} 笔）</el-divider>
+        <el-table :data="backtestResult.orders" border size="small" max-height="280">
+          <el-table-column prop="timestamp" label="时间 Date" width="120" />
+          <el-table-column prop="symbol" label="标的 Symbol" width="100" />
+          <el-table-column label="方向 Side" width="80">
+            <template #default="{ row }">
+              <el-tag :type="row.side === 'BUY' ? 'success' : 'danger'" size="small">{{ row.side }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="quantity" label="数量 Qty" width="120">
+            <template #default="{ row }">{{ typeof row.quantity === 'number' ? row.quantity.toFixed(2) : row.quantity }}</template>
+          </el-table-column>
+          <el-table-column prop="price" label="价格 Price" width="120">
+            <template #default="{ row }">{{ typeof row.price === 'number' ? row.price.toFixed(2) : row.price }}</template>
+          </el-table-column>
+        </el-table>
+      </div>
+      <template #footer>
+        <el-button @click="closeBacktestResult">关闭</el-button>
+        <el-button type="primary" @click="reRunBacktest" :loading="backtestRunning">重新回测</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
+import * as echarts from 'echarts'
 import {
   composeStrategy as composeStrategyApi, getStrategies, getPackages, validateStrategy as validateApi,
-  getDependencies,
+  getDependencies, runBacktest as runBacktestApi, getDatasets,
   type PackageManifest, type ComposeResult, type ValidationReport, type DependencyGraph,
+  type BacktestResult, type DatasetInfo,
 } from '@/api/strategyStudio'
 
 // ==================================================================
@@ -395,6 +581,282 @@ async function validateStrategy(row: PackageManifest) {
 }
 
 // ==================================================================
+// 回测
+// ==================================================================
+
+const backtestDialogVisible = ref(false)
+const backtestResultVisible = ref(false)
+const backtestRunning = ref(false)
+const backtestingId = ref('')
+const backtestTarget = ref<PackageManifest | null>(null)
+const datasets = ref<DatasetInfo[]>([])
+const backtestDateRange = ref<[string, string] | null>(null)
+
+interface BacktestFormData {
+  data_source_mode: 'dataset' | 'synthetic'
+  dataset_id: string
+  max_symbols: number
+  start_date: string
+  end_date: string
+  symbol: string
+  bars: number
+  initial_capital: number
+  seed: number
+}
+
+const backtestForm = ref<BacktestFormData>({
+  data_source_mode: 'dataset',
+  dataset_id: '',
+  max_symbols: 30,
+  start_date: '',
+  end_date: '',
+  symbol: 'BTCUSDT',
+  bars: 500,
+  initial_capital: 1000000,
+  seed: 42,
+})
+
+const selectedDataset = computed<DatasetInfo | null>(() => {
+  if (!backtestForm.value.dataset_id) return null
+  return datasets.value.find(d => d.dataset_id === backtestForm.value.dataset_id) || null
+})
+
+const backtestResult = ref<BacktestResult | null>(null)
+const equityChartRef = ref<HTMLElement | null>(null)
+let equityChart: echarts.ECharts | null = null
+
+const backtestTargetName = computed(() => {
+  if (!backtestTarget.value) return ''
+  return `${backtestTarget.value.name}@${backtestTarget.value.version}`
+})
+
+async function loadDatasets() {
+  try {
+    const resp = await getDatasets()
+    datasets.value = resp.datasets
+    // 默认选择第一个多标的数据集（如HS300）
+    const multi = resp.datasets.find(d => d.is_multi_symbol)
+    if (multi && !backtestForm.value.dataset_id) {
+      backtestForm.value.dataset_id = multi.dataset_id
+      backtestForm.value.start_date = multi.end_date
+        ? new Date(new Date(multi.end_date).getTime() - 365 * 24 * 3600 * 1000).toISOString().slice(0, 10)
+        : ''
+      backtestForm.value.end_date = multi.end_date?.slice(0, 10) || ''
+      backtestDateRange.value = backtestForm.value.start_date && backtestForm.value.end_date
+        ? [backtestForm.value.start_date, backtestForm.value.end_date]
+        : null
+    }
+  } catch (e: any) {
+    console.warn('Failed to load datasets:', e)
+  }
+}
+
+function onDataSourceChange() {
+  if (backtestForm.value.data_source_mode === 'synthetic') {
+    backtestForm.value.initial_capital = 100000
+  } else {
+    backtestForm.value.initial_capital = 1000000
+  }
+}
+
+function onDatasetChange() {
+  const ds = selectedDataset.value
+  if (ds) {
+    backtestForm.value.start_date = ds.start_date?.slice(0, 10) || ''
+    backtestForm.value.end_date = ds.end_date?.slice(0, 10) || ''
+    backtestDateRange.value = [backtestForm.value.start_date, backtestForm.value.end_date]
+  }
+}
+
+function isDateInDatasetRange(d: Date): boolean {
+  const ds = selectedDataset.value
+  if (!ds) return true
+  const ts = d.getTime()
+  if (ds.start_date) {
+    const start = new Date(ds.start_date).getTime()
+    if (ts < start) return true // disable dates before start
+  }
+  return false
+}
+
+function openBacktestDialog(row: PackageManifest) {
+  backtestTarget.value = row
+  backtestForm.value = {
+    data_source_mode: 'dataset',
+    dataset_id: backtestForm.value.dataset_id || '',
+    max_symbols: 30,
+    start_date: backtestForm.value.start_date || '',
+    end_date: backtestForm.value.end_date || '',
+    symbol: 'BTCUSDT',
+    bars: 500,
+    initial_capital: 1000000,
+    seed: 42,
+  }
+  if (backtestForm.value.dataset_id) {
+    onDatasetChange()
+  }
+  backtestResult.value = null
+  backtestDialogVisible.value = true
+  loadDatasets()
+}
+
+async function runBacktest() {
+  if (!backtestTarget.value) return
+  backtestRunning.value = true
+  backtestingId.value = backtestTarget.value.id
+  try {
+    let startDate = ''
+    let endDate = ''
+    if (backtestDateRange.value) {
+      startDate = backtestDateRange.value[0]
+      endDate = backtestDateRange.value[1]
+    }
+
+    let reqParams: any
+    if (backtestForm.value.data_source_mode === 'dataset') {
+      reqParams = {
+        name: backtestTarget.value.name,
+        version: backtestTarget.value.version,
+        dataset_id: backtestForm.value.dataset_id,
+        max_symbols: backtestForm.value.max_symbols,
+        start_date: startDate,
+        end_date: endDate,
+        initial_capital: backtestForm.value.initial_capital,
+      }
+    } else {
+      reqParams = {
+        name: backtestTarget.value.name,
+        version: backtestTarget.value.version,
+        symbol: backtestForm.value.symbol,
+        bars: backtestForm.value.bars,
+        seed: backtestForm.value.seed,
+        initial_capital: backtestForm.value.initial_capital,
+      }
+    }
+
+    backtestResult.value = await runBacktestApi(reqParams)
+    backtestDialogVisible.value = false
+    backtestResultVisible.value = true
+    ElMessage.success(backtestResult.value.ok ? '回测完成 Backtest complete' : '回测有错误 Backtest with errors')
+    await nextTick()
+    renderEquityChart()
+  } catch (e: any) {
+    ElMessage.error(e.response?.data?.detail || '回测失败 Backtest failed')
+  } finally {
+    backtestRunning.value = false
+    backtestingId.value = ''
+  }
+}
+
+function reRunBacktest() {
+  backtestResultVisible.value = false
+  backtestResult.value = null
+  backtestDialogVisible.value = true
+  if (equityChart) {
+    equityChart.dispose()
+    equityChart = null
+  }
+}
+
+function closeBacktestResult() {
+  backtestResultVisible.value = false
+  if (equityChart) {
+    equityChart.dispose()
+    equityChart = null
+  }
+}
+
+function renderEquityChart() {
+  if (!equityChartRef.value || !backtestResult.value) return
+  if (equityChart) equityChart.dispose()
+  equityChart = echarts.init(equityChartRef.value)
+
+  const curve = backtestResult.value.equity_curve
+  const dates = curve.map(p => p.timestamp)
+  const values = curve.map(p => p.value)
+  const positions = curve.map(p => p.n_positions || 0)
+  const initialCapital = backtestResult.value.initial_capital
+  const baseline = curve.map(() => initialCapital)
+  const isMulti = backtestResult.value.symbols_traded > 1
+
+  const series: any[] = [
+    {
+      name: '策略净值',
+      type: 'line',
+      data: values,
+      smooth: true,
+      showSymbol: false,
+      lineStyle: { width: 2, color: '#409EFF' },
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(64,158,255,0.3)' },
+          { offset: 1, color: 'rgba(64,158,255,0.02)' },
+        ]),
+      },
+    },
+    {
+      name: '初始资金',
+      type: 'line',
+      data: baseline,
+      showSymbol: false,
+      lineStyle: { width: 1, color: '#E6A23C', type: 'dashed' },
+    },
+  ]
+
+  const legendData = ['策略净值', '初始资金']
+  const yAxisConfig: any[] = [
+    {
+      type: 'value',
+      scale: true,
+      name: '净值',
+      axisLabel: { formatter: (v: number) => formatMoney(v) },
+    },
+  ]
+
+  if (isMulti && positions.some(p => p > 0)) {
+    series.push({
+      name: '持仓数',
+      type: 'line',
+      data: positions,
+      yAxisIndex: 1,
+      showSymbol: false,
+      lineStyle: { width: 1, color: '#67C23A', type: 'dotted' },
+    })
+    legendData.push('持仓数')
+    yAxisConfig.push({
+      type: 'value',
+      name: '持仓',
+      position: 'right',
+      axisLabel: { formatter: (v: number) => v.toFixed(0) },
+      splitLine: { show: false },
+    })
+  }
+
+  equityChart.setOption({
+    title: { text: `净值曲线 Equity Curve (${backtestResult.value.symbols_traded} symbols)`, left: 'center', textStyle: { fontSize: 14 } },
+    tooltip: {
+      trigger: 'axis',
+      formatter: (params: any) => {
+        const date = params[0]?.axisValue || ''
+        let html = `<b>${date}</b><br/>`
+        params.forEach((p: any) => {
+          const val = p.seriesName === '持仓数' ? p.value.toFixed(0) : formatMoney(p.value)
+          html += `${p.marker} ${p.seriesName}: ${val}<br/>`
+        })
+        return html
+      },
+    },
+    legend: { data: legendData, bottom: 0 },
+    grid: { left: 60, right: isMulti ? 50 : 20, top: 40, bottom: 40 },
+    xAxis: { type: 'category', data: dates, axisLabel: { rotate: 30, fontSize: 10 } },
+    yAxis: yAxisConfig,
+    series,
+  })
+
+  setTimeout(() => equityChart?.resize(), 100)
+}
+
+// ==================================================================
 // 工具
 // ==================================================================
 
@@ -411,6 +873,18 @@ function validationType(v: string): string {
   return 'warning'
 }
 
+function formatPct(v: number | undefined): string {
+  if (v === undefined || v === null) return 'N/A'
+  return (v * 100).toFixed(2) + '%'
+}
+
+function formatMoney(v: number | undefined): string {
+  if (v === undefined || v === null) return 'N/A'
+  if (v >= 1000000) return (v / 1000000).toFixed(2) + 'M'
+  if (v >= 1000) return (v / 1000).toFixed(1) + 'K'
+  return v.toFixed(2)
+}
+
 // ==================================================================
 // 初始化
 // ==================================================================
@@ -418,6 +892,7 @@ function validationType(v: string): string {
 onMounted(() => {
   loadAllPackages()
   loadStrategies()
+  loadDatasets()
 })
 </script>
 
@@ -446,5 +921,48 @@ onMounted(() => {
   font-family: monospace;
   font-size: 12px;
   color: #606266;
+}
+
+.metric-card {
+  background: #f5f7fa;
+  border-radius: 8px;
+  padding: 16px 12px;
+  text-align: center;
+}
+
+.metric-card.positive {
+  background: linear-gradient(135deg, #f0f9eb 0%, #e1f3d8 100%);
+}
+
+.metric-card.negative {
+  background: linear-gradient(135deg, #fef0f0 0%, #fde2e2 100%);
+}
+
+.metric-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #303133;
+  margin-bottom: 4px;
+}
+
+.metric-label {
+  font-size: 12px;
+  color: #909399;
+}
+
+.chart-container {
+  margin: 16px 0;
+}
+
+.equity-chart {
+  width: 100%;
+  height: 350px;
+}
+
+.order-hint {
+  text-align: center;
+  color: #909399;
+  font-size: 12px;
+  margin-top: 8px;
 }
 </style>

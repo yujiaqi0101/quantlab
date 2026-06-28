@@ -1,4 +1,15 @@
 """
+⚠️ DEPRECATED: 请使用 quantlab.ml.signal_engine
+
+本模块已被新的 Signal Engine 替换（quantlab/ml/signal_engine/）。
+新引擎提供完整的 11 模块流水线：Prediction Adapter → Calibrator → Generator
+→ Filter → Ranker → Scorer → Position Allocator → Validator → Registry
+→ Templates → Explainability。
+
+本文件保留仅为向后兼容，请逐步迁移到新引擎：
+    from quantlab.ml.signal_engine import run_pipeline, PipelineConfig
+
+---
 Signal Generator — 信号生成器
 
 ML Lab M5 第二部分：Prediction → Signal

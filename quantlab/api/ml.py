@@ -2003,3 +2003,125 @@ async def get_latest_challenge(family: str = ""):
     if result is None:
         raise HTTPException(404, "No challenge found")
     return result.to_dict()
+
+
+# ==================================================================
+# 预置示例模型版本（首次启动时自动注册，方便开发测试）
+# ==================================================================
+
+def _seed_default_model_versions() -> None:
+    """首次启动时预置示例模型版本到 ModelRegistry"""
+    from quantlab.ml.registry import get_model_registry, LifecycleStatus
+    reg = get_model_registry()
+    if reg.list_versions():
+        return
+
+    defaults = [
+        ModelVersion(
+            version_id="MV-demo-lgbm-mom-001",
+            name="LGBM_Momentum_v1",
+            family="LGBM_Momentum",
+            version_number=1,
+            model_type=ModelType.LIGHTGBM,
+            params={
+                "n_estimators": 200, "max_depth": 6, "learning_rate": 0.05,
+                "num_leaves": 31, "subsample": 0.8, "colsample_bytree": 0.8,
+            },
+            metrics={"ic": 0.0523, "rank_ic": 0.0612, "sharpe": 1.42, "annual_return": 0.18, "max_drawdown": 0.08},
+            dataset_id="DS-demo-001",
+            feature_ids=["rsi_14", "macd", "mom_5", "mom_20", "vol_ratio", "atr_14"],
+            label_id="future_return_5d",
+            is_classifier=False,
+            description="LightGBM 动量因子模型 v1（示例）",
+            tags=["lightgbm", "momentum", "demo"],
+            lifecycle=LifecycleStatus.CHAMPION,
+        ),
+        ModelVersion(
+            version_id="MV-demo-xgb-trend-001",
+            name="XGB_Trend_v1",
+            family="XGB_Trend",
+            version_number=1,
+            model_type=ModelType.XGBOOST,
+            params={
+                "n_estimators": 300, "max_depth": 5, "learning_rate": 0.03,
+                "subsample": 0.8, "colsample_bytree": 0.7,
+            },
+            metrics={"ic": 0.0456, "rank_ic": 0.0501, "sharpe": 1.28, "annual_return": 0.15, "max_drawdown": 0.10},
+            dataset_id="DS-demo-001",
+            feature_ids=["sma_cross", "adx", "bb_position", "vol_regime", "trend_strength"],
+            label_id="trend_label",
+            is_classifier=True,
+            description="XGBoost 趋势分类模型 v1（示例）",
+            tags=["xgboost", "trend", "classification", "demo"],
+            lifecycle=LifecycleStatus.CANDIDATE,
+        ),
+        ModelVersion(
+            version_id="MV-demo-rf-multi-001",
+            name="RF_MultiFactor_v1",
+            family="RF_MultiFactor",
+            version_number=1,
+            model_type=ModelType.RANDOM_FOREST,
+            params={"n_estimators": 150, "max_depth": 8, "min_samples_leaf": 20},
+            metrics={"ic": 0.0389, "rank_ic": 0.0421, "sharpe": 1.15, "annual_return": 0.12, "max_drawdown": 0.12},
+            dataset_id="DS-demo-002",
+            feature_ids=["pe_ratio", "pb_ratio", "roe", "momentum_1m", "volatility_20d"],
+            label_id="future_return_10d",
+            is_classifier=False,
+            description="随机森林多因子模型 v1（示例）",
+            tags=["random_forest", "multi-factor", "demo"],
+            lifecycle=LifecycleStatus.CANDIDATE,
+        ),
+        ModelVersion(
+            version_id="MV-demo-lr-base-001",
+            name="Linear_Baseline_v1",
+            family="Linear_Baseline",
+            version_number=1,
+            model_type=ModelType.LINEAR_REGRESSION,
+            params={"alpha": 1.0, "fit_intercept": True, "normalize": False},
+            metrics={"ic": 0.0298, "rank_ic": 0.0310, "sharpe": 0.85, "annual_return": 0.08, "max_drawdown": 0.15},
+            dataset_id="DS-demo-001",
+            feature_ids=["rsi_14", "macd", "vol_ratio"],
+            label_id="future_return_5d",
+            is_classifier=False,
+            description="Ridge 回归基线模型 v1（示例）",
+            tags=["linear", "baseline", "demo"],
+            lifecycle=LifecycleStatus.VALIDATED,
+        ),
+        ModelVersion(
+            version_id="MV-demo-lgbm-mom-002",
+            name="LGBM_Momentum_v2",
+            family="LGBM_Momentum",
+            version_number=2,
+            model_type=ModelType.LIGHTGBM,
+            params={
+                "n_estimators": 300, "max_depth": 7, "learning_rate": 0.03,
+                "num_leaves": 45, "subsample": 0.75, "colsample_bytree": 0.75,
+                "reg_alpha": 0.1, "reg_lambda": 0.1,
+            },
+            metrics={"ic": 0.0589, "rank_ic": 0.0678, "sharpe": 1.58, "annual_return": 0.21, "max_drawdown": 0.07},
+            dataset_id="DS-demo-001",
+            feature_ids=["rsi_14", "macd", "mom_5", "mom_20", "vol_ratio", "atr_14", "bb_width", "kdj_k"],
+            label_id="future_return_5d",
+            is_classifier=False,
+            description="LightGBM 动量因子模型 v2（增加KDJ/BB特征+正则化，示例）",
+            tags=["lightgbm", "momentum", "v2", "demo"],
+            lifecycle=LifecycleStatus.ARCHIVED,
+            parent_version_id="MV-demo-lgbm-mom-001",
+            lineage_note="v1 基础上增加 KDJ/BB 宽度特征，添加 L1/L2 正则化",
+            retired_at="2026-06-20T10:00:00",
+        ),
+    ]
+
+    for v in defaults:
+        try:
+            reg.register(v)
+            if v.lifecycle == LifecycleStatus.CHAMPION:
+                reg._champions[v.family] = v.version_id
+                v.promoted_at = v.created_at
+        except Exception as e:
+            logger.debug(f"Skip seeding model version {v.version_id}: {e}")
+
+    logger.info(f"Seeded {len(defaults)} default model versions to registry")
+
+
+_seed_default_model_versions()

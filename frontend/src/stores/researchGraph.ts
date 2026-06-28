@@ -131,11 +131,24 @@ export const useResearchGraphStore = defineStore('researchGraph', () => {
   }
 
   async function refreshCache(graphId?: string): Promise<void> {
-    cacheStats.value = await api.getCacheStats(graphId)
+    try {
+      cacheStats.value = await api.getCacheStats(graphId)
+    } catch (e: any) {
+      cacheStats.value = {
+        total_entries: 0,
+        total_size_bytes: 0,
+        hit_rate: 0,
+        by_level: { memory: { count: 0, size_bytes: 0 } },
+      }
+    }
   }
 
   async function invalidate(nodeId?: string): Promise<void> {
-    await api.invalidateCache(nodeId)
+    try {
+      await api.invalidateCache(nodeId)
+    } catch (e: any) {
+      error.value = `Invalidate cache failed: ${e.message}`
+    }
     if (currentGraph.value) await refreshCache(currentGraph.value.graph_id)
   }
 

@@ -150,5 +150,10 @@ class CacheManager:
         self.manifest.clear()
         self.invalidator.clear()
 
+    def invalidate_all(self) -> int:
+        n = len(self.manifest.list_all())
+        self.clear()
+        return n
+
 
 __all__ = ["CacheManager"]

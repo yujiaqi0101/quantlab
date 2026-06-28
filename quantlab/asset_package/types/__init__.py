@@ -1,9 +1,13 @@
 """
 Package 类型实现
 
-Signal / Position / Risk / Execution / Observe / Strategy
+Model / Signal / Position / Risk / Execution / Observe / Strategy
 """
 
+from .model import (
+    ModelPackage, TrainedModel, LinearModel, TreeModel, EnsembleModel,
+    ModelFramework, ModelTask,
+)
 from .signal import (
     SignalPackage, ThresholdSignal, ProbabilitySignal, TrendSignal, RankingSignal,
     SignalSide, Signal,
@@ -15,6 +19,9 @@ from .observe import ObserveProfile, StandardObserve, HFObserveProfile
 from .strategy import StrategyPackage, StrategyStatus, ValidationState
 
 __all__ = [
+    # Model
+    "ModelPackage", "TrainedModel", "LinearModel", "TreeModel", "EnsembleModel",
+    "ModelFramework", "ModelTask",
     # Signal
     "SignalPackage", "ThresholdSignal", "ProbabilitySignal", "TrendSignal", "RankingSignal",
     "SignalSide", "Signal",

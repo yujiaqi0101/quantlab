@@ -16,6 +16,16 @@ from .parquet import ParquetCache
 from .planner import CacheDecision, CachePlanner
 from .window import WindowCache
 
+_cache_manager: CacheManager | None = None
+
+
+def get_cache_manager() -> CacheManager:
+    global _cache_manager
+    if _cache_manager is None:
+        _cache_manager = CacheManager(parquet_cache=ParquetCache())
+    return _cache_manager
+
+
 __all__ = [
     "CacheKey",
     "CacheEntry",
@@ -29,4 +39,5 @@ __all__ = [
     "CachePlanner",
     "CacheDecision",
     "CacheManager",
+    "get_cache_manager",
 ]

@@ -119,6 +119,60 @@ class ResearchGraph:
     def edges(self) -> List[Edge]:
         return list(self._edges)
 
+    def remove_node(self, node_id: str) -> None:
+        if node_id not in self._nodes:
+            raise GraphError(f"node not found: {node_id}")
+        del self._nodes[node_id]
+        self._edges = [
+            e for e in self._edges
+            if e.source_node != node_id and e.target_node != node_id
+        ]
+        self._adj_in.pop(node_id, None)
+        self._adj_out.pop(node_id, None)
+        for nid in list(self._adj_in.keys()):
+            self._adj_in[nid] = [e for e in self._adj_in[nid] if e.source_node != node_id]
+        for nid in list(self._adj_out.keys()):
+            self._adj_out[nid] = [e for e in self._adj_out[nid] if e.target_node != node_id]
+
+    def remove_edge(
+        self,
+        source_node: str,
+        source_port: str,
+        target_node: str,
+        target_port: str,
+    ) -> None:
+        before = len(self._edges)
+        self._edges = [
+            e for e in self._edges
+            if not (
+                e.source_node == source_node
+                and e.source_port == source_port
+                and e.target_node == target_node
+                and e.target_port == target_port
+            )
+        ]
+        removed = before - len(self._edges)
+        if removed == 0:
+            raise GraphError(
+                f"edge not found: {source_node}:{source_port} -> {target_node}:{target_port}"
+            )
+        self._adj_out[source_node] = [
+            e for e in self._adj_out.get(source_node, [])
+            if not (
+                e.source_port == source_port
+                and e.target_node == target_node
+                and e.target_port == target_port
+            )
+        ]
+        self._adj_in[target_node] = [
+            e for e in self._adj_in.get(target_node, [])
+            if not (
+                e.source_node == source_node
+                and e.source_port == source_port
+                and e.target_port == target_port
+            )
+        ]
+
     def downstream(self, node_id: str) -> List[str]:
         """直接下游节点 id 列表。"""
         return [e.target_node for e in self._adj_out.get(node_id, [])]

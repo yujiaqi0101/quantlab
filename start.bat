@@ -4,7 +4,7 @@ setlocal
 
 REM ============================================================
 REM  QuantLab 一键启动脚本（Windows）
-REM  - 后端：FastAPI (uvicorn)  http://localhost:8000
+REM  - 后端：FastAPI (uvicorn)  http://localhost:8001
 REM  - 前端：Vite Dev Server    http://localhost:5173
 REM  使用：双击运行，或在 PowerShell 中执行  .\start.bat
 REM ============================================================
@@ -22,9 +22,9 @@ REM ---------- 检查后端依赖 ----------
 where uvicorn >nul 2>nul
 if errorlevel 1 (
     echo [WARN] 未检测到 uvicorn，将使用 python -m uvicorn 启动后端
-    set BACKEND_CMD=python -m uvicorn quantlab.api.app:app --host 0.0.0.0 --port 8000
+    set BACKEND_CMD=python -m uvicorn quantlab.api.app:app --host 0.0.0.0 --port 8001
 ) else (
-    set BACKEND_CMD=uvicorn quantlab.api.app:app --host 0.0.0.0 --port 8000
+    set BACKEND_CMD=uvicorn quantlab.api.app:app --host 0.0.0.0 --port 8001
 )
 
 REM ---------- 检查前端依赖 ----------
@@ -53,7 +53,7 @@ popd
 echo.
 echo ============================================================
 echo  启动完成！
-echo  - 后端地址: http://localhost:8000
+echo  - 后端地址: http://localhost:8001
 echo  - 前端地址: http://localhost:5173
 echo  - 停止服务: 直接关闭对应的命令行窗口
 echo ============================================================

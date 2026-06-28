@@ -128,7 +128,7 @@ import ExecutionView from './panels/ExecutionView.vue'
 import CacheView from './panels/CacheView.vue'
 import ValidationView from './panels/ValidationView.vue'
 import ConsolePanel from './panels/ConsolePanel.vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const store = useResearchGraphStore()
 
@@ -160,8 +160,16 @@ const tabs = computed(() => [
 
 // ---- 生命周期 ----
 onMounted(async () => {
-  await store.fetchNodes()
-  await store.fetchGraphs()
+  try {
+    await store.fetchNodes()
+  } catch (e: any) {
+    ElMessage.error(`Failed to load nodes: ${e.message}`)
+  }
+  try {
+    await store.fetchGraphs()
+  } catch (e: any) {
+    ElMessage.error(`Failed to load graphs: ${e.message}`)
+  }
   await store.refreshCache()
 })
 
@@ -221,12 +229,46 @@ async function doExecute() {
   }
 }
 
-function loadGraphPicker() {
-  store.fetchGraphs()
-  // 简化：直接弹一个 prompt
-  const names = store.graphList.map((g) => `${g.name} (${g.graph_id.slice(0, 6)})`).join('\n')
-  const choice = window.prompt(`Open Graph:\n${names}\n\nPaste graph_id:`)
-  if (choice) store.loadGraph(choice.trim())
+async function loadGraphPicker() {
+  try {
+    await store.fetchGraphs()
+  } catch (e: any) {
+    ElMessage.error(`Failed to fetch graphs: ${e.message}`)
+    return
+  }
+  if (!store.graphList.length) {
+    ElMessage.info('No saved graphs yet. Create one first.')
+    return
+  }
+  const options = store.graphList.map((g, i) => `${i + 1}. ${g.name} (${g.graph_id.slice(0, 8)})`).join('\n')
+  try {
+    const { value } = await ElMessageBox.prompt(
+      `Select a graph to open:\n\n${options}\n\nEnter graph ID or number:`,
+      'Open Graph',
+      {
+        confirmButtonText: 'Open',
+        cancelButtonText: 'Cancel',
+        inputPlaceholder: 'e.g. graph-abc123 or 1',
+        customClass: 'rgs-messagebox',
+      },
+    )
+    const choice = (value || '').trim()
+    if (!choice) return
+    let graphId = choice
+    const numMatch = choice.match(/^(\d+)$/)
+    if (numMatch) {
+      const idx = parseInt(numMatch[1], 10) - 1
+      if (idx >= 0 && idx < store.graphList.length) {
+        graphId = store.graphList[idx].graph_id
+      }
+    }
+    await store.loadGraph(graphId)
+    if (store.currentGraph) {
+      ElMessage.success(`Loaded: ${store.currentGraph.name}`)
+    }
+  } catch {
+    // 用户取消
+  }
 }
 
 async function doCreateGraph() {

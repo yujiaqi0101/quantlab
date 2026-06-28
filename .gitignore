@@ -75,3 +75,11 @@ storage/
 # Market data (kept out of repo)
 *.csv
 !tests/*.csv
+
+# Databases & backups (never commit binary DB / backup files)
+*.db
+*.backup
+*.bak
+
+# Temp test artifacts
+tests/a.html

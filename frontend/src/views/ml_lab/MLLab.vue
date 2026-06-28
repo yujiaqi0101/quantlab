@@ -32,8 +32,13 @@
         <span class="step-name">Model Registry</span>
       </div>
       <div class="pipeline-arrow">→</div>
-      <div class="pipeline-step" :class="{ active: activeStage === 'strategy' }" @click="activeStage = 'strategy'">
+      <div class="pipeline-step highlight" :class="{ active: activeStage === 'signal-engine' }" @click="activeStage = 'signal-engine'">
         <span class="step-num">7</span>
+        <span class="step-name">★ Signal Engine</span>
+      </div>
+      <div class="pipeline-arrow">→</div>
+      <div class="pipeline-step" :class="{ active: activeStage === 'strategy' }" @click="activeStage = 'strategy'">
+        <span class="step-num">8</span>
         <span class="step-name">Strategy Builder</span>
       </div>
     </div>
@@ -115,7 +120,20 @@
         </el-tab-pane>
       </template>
 
-      <!-- Stage 7: Strategy Builder -->
+      <!-- Stage 7: Signal Engine -->
+      <template v-else-if="activeStage === 'signal-engine'">
+        <el-tab-pane label="★ Signal Engine" name="signal-engine" lazy>
+          <SignalEngine />
+        </el-tab-pane>
+        <el-tab-pane label="信号仓库 Signal Registry" name="signal-registry" lazy>
+          <SignalRegistry />
+        </el-tab-pane>
+        <el-tab-pane label="信号解释 Explainability" name="signal-explain" lazy>
+          <SignalExplainability />
+        </el-tab-pane>
+      </template>
+
+      <!-- Stage 8: Strategy Builder -->
       <template v-else-if="activeStage === 'strategy'">
         <el-tab-pane label="策略构建 Strategy Builder" name="strategy" lazy>
           <StrategyBuilder />
@@ -145,9 +163,12 @@ import LeakageDetector from './panels/LeakageDetector.vue'
 import ModelRegistry from './panels/ModelRegistry.vue'
 import StrategyBuilder from './panels/StrategyBuilder.vue'
 import AssetExplorer from './panels/AssetExplorer.vue'
+import SignalEngine from './panels/SignalEngine.vue'
+import SignalRegistry from './panels/SignalRegistry.vue'
+import SignalExplainability from './panels/SignalExplainability.vue'
 import { useMlTrainingStore } from '@/stores/mlTraining'
 
-const activeStage = ref<'dataset' | 'feature' | 'label' | 'training' | 'validation' | 'registry' | 'strategy'>('dataset')
+const activeStage = ref<'dataset' | 'feature' | 'label' | 'training' | 'validation' | 'registry' | 'signal-engine' | 'strategy'>('dataset')
 const activeSubTab = ref('datasets')
 
 const mlTrainingStore = useMlTrainingStore()
@@ -160,6 +181,7 @@ const stageFirstTab: Record<string, string> = {
   training: 'arena',
   validation: 'validation',
   registry: 'explorer',
+  'signal-engine': 'signal-engine',
   strategy: 'strategy',
 }
 

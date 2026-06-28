@@ -30,6 +30,7 @@ from .asset import router as asset_router
 from .strategy_studio import router as strategy_studio_router
 from .factors import router as factors_router
 from .research import router as research_router
+from .signal_engine import router as signal_engine_router
 
 
 # ---- App 创建 ----
@@ -62,6 +63,7 @@ app.include_router(asset_router)
 app.include_router(strategy_studio_router)
 app.include_router(factors_router)
 app.include_router(research_router)
+app.include_router(signal_engine_router)
 
 
 # ---- WebSocket 任务推送 ----
