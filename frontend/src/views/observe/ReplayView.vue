@@ -133,7 +133,7 @@
               :key="event.event_id"
               class="event-item"
               :class="{
-                'event-current': idx === snapshot?.position - 1,
+                'event-current': idx === (snapshot?.position || 0) - 1,
                 'event-past': idx < (snapshot?.position || 0) - 1,
               }"
               @click="onSelectEvent(event)"

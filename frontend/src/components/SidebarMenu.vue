@@ -115,16 +115,10 @@
       </el-menu-item>
     </el-sub-menu>
 
-    <el-sub-menu index="/live">
-      <template #title>
-        <el-icon><VideoCamera /></el-icon>
-        <span>实盘 Live Studio</span>
-      </template>
-      <el-menu-item index="/live">
-        <el-icon><DataLine /></el-icon>
-        <template #title>策略 Strategies</template>
-      </el-menu-item>
-    </el-sub-menu>
+    <el-menu-item index="/trading">
+      <el-icon><VideoCamera /></el-icon>
+      <template #title>Trading Studio</template>
+    </el-menu-item>
 
     <el-menu-item index="/compare">
       <el-icon><TrendCharts /></el-icon>
@@ -186,7 +180,7 @@ const activeRoute = computed(() => {
   if (route.path.startsWith('/fidelity')) return '/fidelity'
   if (route.path.startsWith('/alpha-aware')) return '/alpha-aware'
   if (route.path.startsWith('/observe')) return '/observe/overview'
-  if (route.path.startsWith('/live')) return '/live'
+  if (route.path.startsWith('/trading')) return '/trading'
   if (route.path.startsWith('/strategy-builder')) return '/strategy-builder'
   if (route.path.startsWith('/backtests')) return '/backtests'
   return route.path

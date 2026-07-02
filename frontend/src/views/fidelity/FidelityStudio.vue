@@ -129,7 +129,7 @@
         <el-card v-if="splitResult" style="margin-top: 16px">
           <template #header>Split Suggestion ({{ splitResult.num_slices }} slices)</template>
           <el-tag v-for="(s, i) in splitResult.splits" :key="i" class="split-tag">
-            #{{ i + 1 }}: {{ s.toFixed(4) }}
+            #{{ Number(i) + 1 }}: {{ Number(s).toFixed(4) }}
           </el-tag>
         </el-card>
       </el-tab-pane>

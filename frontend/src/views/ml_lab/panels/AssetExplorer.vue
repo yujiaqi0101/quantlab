@@ -73,7 +73,7 @@
             default-expand-all
             @node-click="handleNodeClick"
           >
-            <template #default="{ node, data }">
+            <template #default="{ data }">
               <span class="tree-node">
                 <span class="node-icon" :class="typeColor(data.asset_type)">
                   {{ typeIcon(data.asset_type) }}
@@ -254,8 +254,8 @@ const championIds = computed(() => new Set(Object.values(champions.value).map((a
 
 const championList = computed(() =>
   Object.entries(champions.value).map(([family, asset]) => ({
-    family,
     ...asset,
+    family,
   })),
 )
 

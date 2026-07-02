@@ -21,7 +21,7 @@ from .fidelity import router as fidelity_router
 from .alpha_aware import router as alpha_aware_router
 from .production import router as production_router
 from .observe import router as observe_router
-from .live import router as live_router
+from .trading import router as trading_router
 from .ml import router as ml_router
 from .experiments import router as experiments_router
 from .datasets import router as datasets_router
@@ -54,7 +54,7 @@ app.include_router(fidelity_router)
 app.include_router(alpha_aware_router)
 app.include_router(production_router)
 app.include_router(observe_router)
-app.include_router(live_router)
+app.include_router(trading_router)
 app.include_router(ml_router)
 app.include_router(experiments_router)
 app.include_router(datasets_router)

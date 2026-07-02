@@ -118,20 +118,23 @@ class UpgradedPaperBroker:
         if not ask:
             ask = market_price
 
-        # 计算滑点
-        slippage = self.slippage_model.calculate(
-            order=order,
-            market_price=market_price,
-            bid=bid,
-            ask=ask,
+        # 计算滑点后的成交价
+        # SlippageModel.apply(price, side, quantity, volume) 返回含滑点的实际成交价
+        # BUY 以 ask 为基准价，SELL 以 bid 为基准价（与原 base_price 语义一致）
+        if order.side == OrderSide.BUY:
+            reference_price = ask
+        else:
+            reference_price = bid
+
+        base_price = self.slippage_model.apply(
+            price=reference_price,
+            side=order.side.value,
+            quantity=order.quantity,
             volume=volume,
         )
-
-        # 基础成交价
-        if order.side == OrderSide.BUY:
-            base_price = ask + slippage
-        else:
-            base_price = bid - slippage
+        # 记录滑点量（成交价相对基准价的偏移；BUY 为正，SELL 为负，
+        # 与原 base_price = ask + slippage / bid - slippage 语义保持一致）
+        slippage = base_price - reference_price
 
         # 限价单检查
         if order.order_type == OrderType.LIMIT and order.price:

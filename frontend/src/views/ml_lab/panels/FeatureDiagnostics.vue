@@ -187,8 +187,6 @@ import {
   getFeatureSets,
   getMLLabels,
   getMLDatasetStats,
-  computeMLFeatures,
-  runFeatureDiagnostics,
   type MLDataset,
   type MLFeatureSet,
   type MLLabel,

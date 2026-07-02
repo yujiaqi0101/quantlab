@@ -1,0 +1,3127 @@
+首先，这个东西本质是什么？
+
+你说的方法，本质上就是：
+
+初始因子
+
+↓
+
+变异（Mutation）
+
+↓
+
+生成新因子
+
+↓
+
+计算IC
+
+↓
+
+计算RankIC
+
+↓
+
+计算Sharpe
+
+↓
+
+计算稳定性
+
+↓
+
+保留优秀因子
+
+↓
+
+继续变异
+
+↓
+
+继续筛选
+
+↓
+
+...
+
+这实际上就是：
+
+Automated Alpha Discovery（自动 Alpha 发现）
+
+国际上一般叫：
+
+Genetic Programming for Alpha Discovery
+Evolutionary Factor Discovery
+Alpha Mining
+Symbolic Alpha Discovery
+Evolutionary Feature Engineering
+
+它不是机器学习训练。
+
+它也不是超参数优化。
+
+它是在搜索因子表达式空间。
+
+它属于 ML Lab 吗？
+
+我认为：
+
+属于。
+
+但是：
+
+不是：
+
+Training
+
+而是：
+
+Research
+
+所以我建议：
+
+ML Lab 以后应该拆成三个层级：
+
+ML Lab
+
+├── Feature Lab
+│
+├── Model Lab
+│
+└── Alpha Lab
+
+其中：
+
+Feature Lab
+
+负责：
+
+数据
+
+↓
+
+Feature
+
+↓
+
+Feature Selection
+Model Lab
+
+负责：
+
+Feature
+
+↓
+
+Training
+
+↓
+
+Validation
+
+↓
+
+Signal
+Alpha Lab（新增）
+
+负责：
+
+自动发现Alpha
+
+自动组合Alpha
+
+自动评价Alpha
+
+自动筛选Alpha
+
+你说的遗传算法。
+
+就在这里。
+
+为什么不要放 Alpha Factory？
+
+因为我们之前定义的 Alpha Factory 是：
+
+Alpha 管理中心。
+
+它负责：
+
+Alpha Registry
+
+↓
+
+Version
+
+↓
+
+Metadata
+
+↓
+
+Package
+
+而不是：
+
+发现Alpha
+
+发现 Alpha：
+
+应该属于：
+
+Research。
+
+Alpha Lab 的完整职责
+
+我建议：
+
+ML Lab
+
+↓
+
+Alpha Lab
+
+↓
+
+Seed Alpha
+
+↓
+
+Evolution
+
+↓
+
+Evaluation
+
+↓
+
+Selection
+
+↓
+
+Registry
+Alpha Lab 的模块
+
+建议：
+
+alpha_lab/
+
+├── expression_engine/
+├── operator_library/
+├── factor_generator/
+├── genetic_engine/
+├── mutation_engine/
+├── crossover_engine/
+├── evaluator/
+├── selector/
+├── optimizer/
+├── diversity/
+├── registry/
+└── visualizer/
+它到底怎么工作？
+
+例如：
+
+初始：
+
+close
+
+Operator：
+
+Rank
+
+Delay
+
+Correlation
+
+Delta
+
+Mean
+
+Std
+
+Decay
+
+TsRank
+
+Scale
+
+随机组合：
+
+例如：
+
+Rank(close)
+
+再：
+
+Rank(Delta(close,5))
+
+再：
+
+TsRank(Rank(close),20)
+
+这就是：
+
+Expression。
+
+然后：
+
+计算：
+
+IC
+
+Rank IC
+
+Sharpe
+
+Turnover
+
+Coverage
+
+Stability
+
+得到：
+
+Fitness。
+
+然后：
+
+遗传。
+
+继续。
+
+我建议支持多种搜索算法
+
+不要只支持：
+
+GA。
+
+建议：
+
+统一：
+
+Search Engine。
+
+例如：
+
+Search Engine
+
+├── Genetic Algorithm
+├── Genetic Programming
+├── Random Search
+├── Beam Search
+├── Bayesian Optimization
+├── MCTS
+├── Reinforcement Learning
+├── LLM Guided Search（以后）
+
+全部：
+
+插件化。
+
+Expression Engine（核心）
+
+这里：
+
+我建议：
+
+不要：
+
+字符串。
+
+例如：
+
+不要：
+
+Rank(Delta(close,5))
+
+而是：
+
+AST。
+
+例如：
+
+Rank
+ │
+Delta
+ │
+Close
+
+以后：
+
+Mutation。
+
+非常容易。
+
+Mutation
+
+例如：
+
+EMA(close)
+
+随机：
+
+变：
+
+EMA(volume)
+
+或者：
+
+EMA20
+
+↓
+
+EMA30
+
+或者：
+
+Rank
+
+↓
+
+Scale
+Crossover
+
+例如：
+
+父亲：
+
+Rank(close)
+
+母亲：
+
+Delta(volume)
+
+组合：
+
+Rank(Delta(volume))
+Evaluator
+
+这里：
+
+就是：
+
+Fitness。
+
+建议：
+
+不是：
+
+一个。
+
+而是：
+
+多个。
+
+例如：
+
+IC
+
+Rank IC
+
+Sharpe
+
+Turnover
+
+Capacity
+
+Stability
+
+Correlation
+
+Coverage
+
+全部：
+
+综合。
+
+Diversity Engine
+
+这是很多平台没有的。
+
+例如：
+
+已经：
+
+有：
+
+EMA20
+
+再：
+
+找到：
+
+EMA21
+
+其实：
+
+没意义。
+
+所以：
+
+需要：
+
+Correlation Penalty
+
+保持：
+
+多样性。
+
+Registry
+
+好的：
+
+Alpha：
+
+直接：
+
+进入：
+
+Alpha Registry。
+
+以后：
+
+ML：
+
+直接：
+
+使用。
+
+可视化（我认为必须做）
+
+建议：
+
+前端：
+
+增加：
+
+Evolution。
+
+例如：
+
+Generation 1
+
+↓
+
+Generation 2
+
+↓
+
+Generation 3
+
+↓
+
+Generation 4
+
+每一代：
+
+显示：
+
+Best IC
+
+Best Sharpe
+
+Population Diversity
+
+Fitness Curve
+
+非常直观。
+
+它和 Feature Engineering 的关系
+
+建议：
+
+以后：
+
+Feature：
+
+来源：
+
+有三种：
+
+Manual
+
+↓
+
+Auto Feature
+
+↓
+
+Alpha Discovery
+
+最后：
+
+全部：
+
+进入：
+
+Feature Pipeline。
+
+我建议再升级一步（这是我认为整个 ML Lab 最大的升级）
+
+其实：
+
+Alpha Discovery 不应该只搜索因子。
+
+而应该搜索：
+
+Research Object。
+
+例如：
+
+不仅：
+
+Feature
+
+还能：
+
+搜索：
+
+Label
+
+Feature Combination
+
+Signal Rule
+
+Portfolio Rule
+
+例如：
+
+以后：
+
+甚至：
+
+Signal：
+
+都可以：
+
+遗传。
+
+我建议最终升级成 Alpha Research Center
+
+所以：
+
+我建议：
+
+ML Lab：
+
+未来：
+
+变成：
+
+ML Lab
+
+├── Feature Lab
+│
+├── Model Lab
+│
+├── Signal Lab
+│
+└── Alpha Research Center
+
+Alpha Research Center：
+
+里面：
+
+Expression Engine
+
+↓
+
+Factor Generator
+
+↓
+
+Evolution Engine
+
+↓
+
+Fitness Engine
+
+↓
+
+Selection Engine
+
+↓
+
+Alpha Registry
+
+全部：
+
+自动。
+
+我的建议（结合你的 QuantLab）
+
+根据我们之前几个月规划的整个架构，我不建议现在新开一个项目。
+
+因为这个能力和：
+
+Feature Engineering
+Validation
+Model Registry
+Signal Engine
+Alpha Factory
+
+都有非常强的耦合关系。
+
+我更推荐把 ML Lab 扩展成四大实验室：
+
+ML Lab
+├── Feature Lab（特征工程）
+├── Model Lab（模型训练）
+├── Signal Lab（信号生成）
+└── Alpha Lab（自动 Alpha 发现）
+
+然后在 Alpha Lab 中提供多种 Alpha 搜索算法：
+
+遗传算法（GA）
+遗传编程（GP，推荐作为核心）
+随机搜索（Baseline）
+贝叶斯优化（参数型搜索）
+强化学习（长期规划）
+LLM 辅助 Alpha 生成（未来版本）
+不过，我建议对"遗传算法发现因子"再提升一个层级
+
+如果只是做一个 GA Alpha Generator，它的价值会受到限制，因为它只能搜索一种方法。
+
+我建议把整个模块定义为：
+
+Alpha Discovery Engine（Alpha 发现引擎）
+
+遗传算法只是其中的一个插件。
+
+
+
+
+我建议先统一一个目标
+
+很多人理解 Alpha Discovery 是：
+
+一个因子
+
+↓
+
+GA
+
+↓
+
+很多因子
+
+我认为这是错误的。
+
+我们真正要解决的问题应该是：
+
+自动发现能够产生 Alpha 的数学表达式。
+
+也就是说，我们搜索的不是：
+
+EMA20
+
+而是：
+
+Rank(
+    TsMean(
+        Correlation(
+            Delta(close,5),
+            volume,
+            20
+        )
+    )
+)
+
+所以我们搜索的是：
+
+Expression（表达式）
+
+而不是：
+
+Factor（因子）
+
+这是整个系统的第一原则。
+
+我建议整个 Alpha Discovery Engine 分成六层
+
+整个架构：
+
+Seed Manager
+
+↓
+
+Expression Engine
+
+↓
+
+Evolution Engine
+
+↓
+
+Evaluation Engine
+
+↓
+
+Selection Engine
+
+↓
+
+Registry
+
+我们一层一层来看。
+
+第一层：Seed Manager（种子管理）
+
+这一层决定：
+
+最开始从哪里开始搜索。
+
+例如：
+
+最简单：
+
+close
+
+或者：
+
+volume
+
+或者：
+
+high-low
+
+甚至：
+
+Alpha101_001
+
+都可以作为 Seed。
+
+所以：
+
+Seed 不一定是原始数据。
+
+也可以是：
+
+已有 Alpha。
+
+例如：
+
+Alpha001
+
+↓
+
+Mutation
+
+↓
+
+AlphaNew
+
+这样搜索效率会高很多。
+
+所以：
+
+Seed Manager：
+
+负责管理：
+
+Raw Feature
+
+↓
+
+Derived Feature
+
+↓
+
+Existing Alpha
+
+↓
+
+User Factor
+第二层：Expression Engine（整个系统最核心）
+
+我认为：
+
+整个 Alpha Discovery 最重要的模块。
+
+千万不要：
+
+这样保存：
+
+"Rank(Delta(close,5))"
+
+以后：
+
+Mutation：
+
+非常难。
+
+而应该：
+
+保存：
+
+Expression Tree。
+
+例如：
+
+Rank
+ │
+Delta
+ │
+Close
+
+或者：
+
+Mean
+├────EMA
+│      │
+│    Close
+└────Volume
+
+以后：
+
+Mutation：
+
+就是：
+
+改树。
+
+不是：
+
+改字符串。
+
+这一层以后还能直接复用于：
+
+Alpha 编辑器
+Signal Builder
+Feature Builder
+
+价值非常大。
+
+第三层：Operator Library
+
+这里决定：
+
+Expression 能长成什么样。
+
+例如：
+
+基础算子：
+
+Add
+
+Sub
+
+Mul
+
+Div
+
+统计：
+
+Mean
+
+Std
+
+Median
+
+Rank
+
+时间序列：
+
+Delay
+
+Delta
+
+RollingMean
+
+RollingStd
+
+TsRank
+
+Decay
+
+横截面：
+
+CSRank
+
+IndustryRank
+
+Neutralize
+
+数学：
+
+Log
+
+Exp
+
+Sqrt
+
+Abs
+
+Sign
+
+以后：
+
+Operator Library：
+
+越来越丰富。
+
+整个系统越来越聪明。
+
+第四层：Evolution Engine
+
+这里就是：
+
+真正：
+
+遗传算法。
+
+但是：
+
+我建议：
+
+不要：
+
+直接：
+
+写：
+
+GA。
+
+而是：
+
+设计：
+
+Evolution Framework。
+
+例如：
+
+Evolution Engine
+
+├── Mutation
+
+├── Crossover
+
+├── Selection
+
+├── Population
+
+├── Elitism
+
+└── Diversity
+
+以后：
+
+GA。
+
+GP。
+
+ES。
+
+全部：
+
+可以放这里。
+
+例如：
+
+Mutation：
+
+EMA20
+
+↓
+
+EMA30
+
+或者：
+
+Close
+
+↓
+
+Volume
+
+甚至：
+
+Rank
+
+↓
+
+Scale
+
+都属于：
+
+Mutation。
+
+第五层：Evaluation Engine（价值非常高）
+
+这里：
+
+不是：
+
+简单：
+
+IC。
+
+我建议：
+
+Evaluation：
+
+应该支持：
+
+多个维度。
+
+例如：
+
+收益：
+
+IC
+
+RankIC
+
+Sharpe
+
+Return
+
+稳定：
+
+ICIR
+
+Rolling IC
+
+Decay
+
+风险：
+
+Turnover
+
+Capacity
+
+Drawdown
+
+结构：
+
+Correlation
+
+Coverage
+
+Missing Ratio
+
+最后：
+
+得到：
+
+一个：
+
+Fitness。
+
+我建议：
+
+Fitness：
+
+不是：
+
+一个公式。
+
+而是：
+
+可以配置。
+
+例如：
+
+Fitness
+
+=
+
+0.3*IC
+
++
+
+0.2*Sharpe
+
++
+
+0.2*ICIR
+
+-
+
+0.1*Turnover
+
+-
+
+0.2*CorrelationPenalty
+
+以后：
+
+不同市场。
+
+不同策略。
+
+不同配置。
+
+第六层：Selection Engine
+
+很多人：
+
+只保留：
+
+最好。
+
+其实：
+
+这是错误的。
+
+例如：
+
+已经：
+
+有：
+
+EMA20
+
+又：
+
+发现：
+
+EMA21
+
+其实：
+
+价值：
+
+几乎：
+
+一样。
+
+所以：
+
+Selection：
+
+应该：
+
+保留：
+
+多样性。
+
+例如：
+
+IC
+
+很好
+
+但是：
+
+Correlation
+
+0.99
+
+↓
+
+淘汰
+
+这是专业平台一定要做的。
+
+然后进入 Alpha Registry
+
+好的：
+
+Alpha：
+
+自动：
+
+保存。
+
+例如：
+
+Expression
+
+↓
+
+Metadata
+
+↓
+
+Fitness
+
+↓
+
+Version
+
+↓
+
+Registry
+
+以后：
+
+Feature Pipeline：
+
+直接：
+
+使用。
+
+我认为还应该增加三个模块
+第一：Constraint Engine（约束引擎）
+
+不能：
+
+无限组合。
+
+例如：
+
+限制：
+
+最大深度
+
+最大节点数
+
+最大Rolling Window
+
+禁止未来函数
+
+禁止LookAhead
+
+否则：
+
+很快：
+
+表达式：
+
+变成：
+
+几十层。
+
+毫无意义。
+
+第二：Simplifier（表达式简化）
+
+例如：
+
+发现：
+
+Rank(Rank(close))
+
+其实：
+
+等价。
+
+自动：
+
+简化。
+
+或者：
+
+Add(x,0)
+
+↓
+
+x
+
+这个模块非常重要。
+
+第三：Canonicalizer（标准化）
+
+例如：
+
+A+B
+
+和：
+
+B+A
+
+其实：
+
+一样。
+
+统一：
+
+变成：
+
+一个。
+
+避免：
+
+重复搜索。
+
+我建议整个目录最终变成这样
+alpha_lab/
+
+├── seed/
+├── expression/
+├── operators/
+├── evolution/
+├── evaluator/
+├── constraints/
+├── simplifier/
+├── canonicalizer/
+├── selector/
+├── registry/
+├── visualizer/
+└── experiments/
+但是，我认为还有一个比 GA 更重要的问题
+
+这也是我最想和你讨论的。
+
+Alpha Discovery 到底搜索什么？
+
+目前业内主要有三种路线：
+
+第一种：搜索数学表达式（最经典）
+
+例如：
+
+Rank(
+    Delta(
+        Close,
+        5
+    )
+)
+
+这是 WorldQuant、Alpha101、遗传编程最经典的路线。
+
+优点：
+
+可解释性强
+容易验证
+容易进入因子库
+
+缺点：
+
+搜索空间巨大。
+第二种：搜索 Feature Pipeline
+
+例如：
+
+Close
+
+↓
+
+EMA20
+
+↓
+
+Standardize
+
+↓
+
+Neutralize
+
+↓
+
+RollingRank
+
+↓
+
+Feature
+
+这里搜索的是：
+
+整个特征生成流程。
+
+更接近 AutoML。
+
+第三种：搜索 Signal
+
+例如：
+
+不是：
+
+搜索：
+
+因子。
+
+而是：
+
+直接搜索：
+
+IF
+
+RankIC>0.05
+
+AND
+
+Volatility<0.3
+
+↓
+
+BUY
+
+这是：
+
+Signal Discovery。
+
+我的建议（也是我认为最适合 QuantLab 的路线）
+
+我建议 第一阶段（V1）只做"表达式搜索"。
+
+原因有三个：
+
+它与我们已经设计好的 ML Lab 完全契合。 输出直接就是一个 Feature，可以进入 Feature Engineering、Validation、Model Training、Signal Engine。
+它的可解释性最好。 每个 Alpha 都是一个明确的数学表达式，便于查看、优化、版本管理和复现。
+它为后续升级预留了空间。 当 Expression Engine 成熟后，我们可以很自然地扩展到：
+搜索整个 Feature Pipeline（Auto Feature Engineering）
+搜索 Signal Rules（Auto Signal Discovery）
+最终搜索完整的 Research Workflow
+
+所以，我建议我们不要急着讨论遗传算法参数（种群大小、交叉率、变异率等）。
+
+
+
+【Expression Engine】
+我建议首先重新定义 Expression Engine
+
+以前：
+
+Expression Engine = Alpha Discovery 的计算模块
+
+现在：
+
+我建议正式升级成：
+
+Quant Expression Engine（QEE）
+
+它是整个 QuantLab 的 DSL（Domain Specific Language）核心。
+
+以后：
+
+整个 QuantLab 里面：
+
+Feature Builder
+
+Label Builder
+
+Signal Builder
+
+Alpha Discovery
+
+Validation Rule
+
+Portfolio Rule
+
+Research Graph（以后）
+
+全部共享
+
+都使用同一个 Expression Engine。
+
+所以：
+
+Expression Engine 不属于 Alpha Lab。
+
+它属于：
+
+Core
+│
+├── Data Engine
+├── Expression Engine   ←这里
+├── Compute Engine
+├── Cache Engine
+└── Storage Engine
+
+这是整个 QuantLab 的基础设施。
+
+我建议 Expression Engine 的目标重新定义
+
+不是：
+
+能计算公式。
+
+而应该是：
+
+管理整个 QuantLab 的数学知识。
+
+所以：
+
+它应该负责：
+
+表示（Representation）
+
+↓
+
+分析（Analysis）
+
+↓
+
+优化（Optimization）
+
+↓
+
+编译（Compilation）
+
+↓
+
+执行（Execution）
+
+↓
+
+缓存（Caching）
+
+↓
+
+版本（Version）
+
+以后：
+
+所有计算：
+
+都经过这里。
+
+整体架构
+
+我建议：
+
+expression_engine/
+
+├── language/
+│
+├── ast/
+│
+├── operators/
+│
+├── types/
+│
+├── parser/
+│
+├── analyzer/
+│
+├── optimizer/
+│
+├── compiler/
+│
+├── executor/
+│
+├── serializer/
+│
+├── registry/
+│
+├── cache/
+│
+└── runtime/
+
+下面一个一个解释。
+
+第一层：Language（DSL）
+
+这里其实就是：
+
+QuantLab 的语言。
+
+例如：
+
+EMA(close,20)
+
+或者：
+
+Rank(
+    Delta(
+        Close,
+        5
+    )
+)
+
+这里只负责：
+
+语法。
+
+以后：
+
+前端：
+
+Expression Editor
+
+也是：
+
+编辑：
+
+DSL。
+
+第二层：AST
+
+这里只负责：
+
+树。
+
+例如：
+
+Rank
+ │
+Delta
+ │
+Close
+
+这里：
+
+没有：
+
+计算。
+
+只有：
+
+树。
+
+建议：
+
+Expression
+
+↓
+
+AST
+
+↓
+
+Immutable Tree
+
+Immutable（不可变）很重要。
+
+Mutation：
+
+返回：
+
+新树。
+
+不要修改旧树。
+
+第三层：Operator System
+
+这里：
+
+比以前升级很多。
+
+以前：
+
+Operator：
+
+只是：
+
+EMA。
+
+现在：
+
+我建议：
+
+Operator：
+
+应该：
+
+带完整语义。
+
+例如：
+
+EMA
+
+↓
+
+Metadata
+
+↓
+
+Signature
+
+↓
+
+Complexity
+
+↓
+
+Category
+
+↓
+
+Tags
+
+↓
+
+Properties
+
+例如：
+
+name: EMA
+
+inputs:
+
+    - PriceSeries
+
+output:
+
+    - PriceSeries
+
+window: required
+
+category:
+
+    Trend
+
+complexity:
+
+    O(n)
+
+stateful:
+
+    true
+
+lookback:
+
+    yes
+
+以后：
+
+UI：
+
+自动生成。
+
+第四层：Type System
+
+这里：
+
+我建议：
+
+一定要做。
+
+例如：
+
+不是：
+
+Series。
+
+而是：
+
+真正：
+
+金融类型。
+
+例如：
+
+PriceSeries
+
+ReturnSeries
+
+VolumeSeries
+
+FactorSeries
+
+LabelSeries
+
+SignalSeries
+
+WeightSeries
+
+BooleanSeries
+
+CrossSectionSeries
+
+Scalar
+
+以后：
+
+例如：
+
+EMA(Signal)
+
+直接：
+
+报错。
+
+因为：
+
+Signal：
+
+不能：
+
+EMA。
+
+第五层：Analyzer
+
+这是我认为之前漏掉的。
+
+Analyzer：
+
+负责：
+
+理解：
+
+Expression。
+
+例如：
+
+Expression
+
+↓
+
+Dependency
+
+↓
+
+Lookback
+
+↓
+
+Input
+
+↓
+
+Output
+
+↓
+
+Category
+
+↓
+
+Complexity
+
+例如：
+
+Rank(
+    Delta(
+        Close,
+        5
+    )
+)
+
+Analyzer：
+
+自动知道：
+
+Lookback
+
+5
+
+Input
+
+Close
+
+Output
+
+CrossSection
+
+Cost
+
+2
+
+以后：
+
+不用：
+
+人工写。
+
+第六层：Optimizer
+
+这里：
+
+其实：
+
+包含：
+
+多个：
+
+Pass。
+
+例如：
+
+Optimizer
+
+├── Constant Folding
+├── Simplifier
+├── Canonicalizer
+├── Common SubExpression
+├── Dead Node
+├── Window Merge
+└── Cost Optimizer
+
+例如：
+
+EMA20
+
+↓
+
+算一次
+
+↓
+
+所有地方复用
+
+以后：
+
+Feature：
+
+非常快。
+
+第七层：Compiler
+
+Compiler：
+
+不要：
+
+直接：
+
+计算。
+
+而是：
+
+编译。
+
+例如：
+
+Expression
+
+↓
+
+AST
+
+↓
+
+Optimizer
+
+↓
+
+Execution Graph
+
+注意。
+
+这里：
+
+不是：
+
+Research Graph。
+
+这里只是：
+
+Execution Plan。
+
+例如：
+
+Close
+
+↓
+
+EMA20
+
+↓
+
+Delta
+
+↓
+
+Rank
+
+执行计划。
+
+第八层：Executor
+
+真正：
+
+计算。
+
+建议：
+
+后端：
+
+插件。
+
+例如：
+
+Executor
+
+├── NumPy
+├── Polars
+├── DuckDB
+├── VectorBT
+└── QuantLab Engine
+
+以后：
+
+换：
+
+执行器。
+
+不用：
+
+改：
+
+Expression。
+
+第九层：Registry
+
+我建议：
+
+Expression：
+
+不要：
+
+匿名。
+
+全部：
+
+注册。
+
+例如：
+
+Expression
+
+↓
+
+Fingerprint
+
+↓
+
+Registry
+
+以后：
+
+Feature：
+
+直接：
+
+引用。
+
+第十层：Cache
+
+例如：
+
+EMA(close,20)
+
+已经：
+
+计算。
+
+以后：
+
+直接：
+
+Cache。
+
+例如：
+
+Expression Hash
+
+↓
+
+Feature Cache
+
+以后：
+
+Alpha Discovery：
+
+快很多。
+
+第十一层：Runtime
+
+这里：
+
+就是：
+
+运行时。
+
+例如：
+
+管理：
+
+Session
+
+Memory
+
+Execution Context
+
+Universe
+
+Frequency
+
+Calendar
+
+这些：
+
+运行环境。
+
+我建议 Expression Engine 的核心对象也重新升级
+
+以前：
+
+只有：
+
+AST。
+
+现在：
+
+我建议：
+
+Expression：
+
+真正：
+
+应该长这样：
+
+Expression
+├── id
+├── name
+├── ast
+├── type
+├── language
+├── metadata
+├── dependencies
+├── complexity
+├── fingerprint
+├── tags
+├── statistics
+├── execution_plan
+├── cache_key
+└── version
+
+注意：
+
+这里：
+
+已经不是：
+
+数学公式。
+
+而是：
+
+一个：
+
+完整：
+
+Research Asset。
+
+Expression Engine 与 Feature 的关系（最终版）
+
+这是我认为整个设计中最关键的一张图。
+
+                   Raw Data
+                       │
+                       ▼
+                 Operator Library
+                       │
+                       ▼
+                Expression Engine
+                       │
+          （负责表达、分析、优化、编译）
+                       │
+                       ▼
+              Feature Definition
+        （名称、表达式、Universe、频率、元数据）
+                       │
+                       ▼
+              Compute Engine
+                       │
+                       ▼
+              Feature Instance
+          （真正计算出的时间序列数据）
+                       │
+                       ▼
+              Feature Pipeline
+       （组合多个 Feature Definition）
+                       │
+                       ▼
+                 Training Dataset
+                       │
+                       ▼
+                    ML Lab
+
+注意这里有一个重要变化：
+
+Expression Engine 到 Feature Definition 为止。
+
+真正的数据计算（生成 Feature Instance）可以交给 Compute Engine。
+
+这样职责非常清晰：
+
+Expression Engine：负责"是什么、怎么算"（知识层）。
+Compute Engine：负责"什么时候算、在哪里算、算出来"（执行层）。
+
+
+【Feature Pipeline】
+对于个人版 QuantLab，我建议开发顺序应该是：
+
+Expression Engine
+        ↓
+Feature Pipeline
+        ↓
+ML Pipeline
+        ↓
+Signal Engine
+        ↓
+Alpha Discovery
+
+因为 Alpha Discovery 最终发现的东西，就是往 Feature Pipeline 里面放新的 Feature。
+
+所以 Feature Pipeline 必须先成熟。
+
+我们先重新定义 Feature Pipeline
+
+很多机器学习平台认为：
+
+Feature Pipeline 就是：
+
+Raw Data
+
+↓
+
+EMA
+
+↓
+
+RSI
+
+↓
+
+Feature
+
+我认为这个定义太狭隘了。
+
+我建议 QuantLab 里面定义：
+
+Feature Pipeline = 一个管理 Feature 生命周期的 Workflow。
+
+注意。
+
+这里有两个词：
+
+不是：
+
+Feature
+
+而是：
+
+Feature Lifecycle（生命周期）
+
+例如：
+
+一个 Feature：
+
+EMA20
+
+它不是：
+
+写出来就结束。
+
+而是：
+
+经历：
+
+定义
+
+↓
+
+计算
+
+↓
+
+缓存
+
+↓
+
+验证
+
+↓
+
+标准化
+
+↓
+
+版本
+
+↓
+
+输出
+
+这才是：
+
+Feature Pipeline。
+
+Feature Pipeline 在 ML Lab 中的位置
+
+建议：
+
+Dataset Manager
+
+↓
+
+Universe
+
+↓
+
+Raw Data
+
+↓
+
+Feature Pipeline   ← 今天讨论
+
+↓
+
+Feature Matrix
+
+↓
+
+Label Pipeline
+
+↓
+
+Training
+
+所以：
+
+Feature Pipeline：
+
+最终输出：
+
+不是：
+
+一个 Feature。
+
+而是：
+
+Feature Matrix
+
+也就是：
+
+训练数据。
+
+我建议 Feature Pipeline 分成八层
+
+整体：
+
+Feature Definition
+
+↓
+
+Dependency Resolver
+
+↓
+
+Execution Planner
+
+↓
+
+Compute Engine
+
+↓
+
+Post Processor
+
+↓
+
+Validator
+
+↓
+
+Feature Store
+
+↓
+
+Feature Matrix Builder
+
+我们一层一层来看。
+
+第一层：Feature Definition
+
+这里：
+
+不是：
+
+数据。
+
+而是：
+
+定义。
+
+例如：
+
+name:
+
+EMA20
+
+expression:
+
+EMA(close,20)
+
+universe:
+
+CSI300
+
+frequency:
+
+1D
+
+dtype:
+
+float
+
+version:
+
+v1
+
+这里：
+
+只描述：
+
+Feature。
+
+不计算。
+
+以后：
+
+Alpha Discovery：
+
+就是：
+
+往这里：
+
+增加：
+
+Feature。
+
+第二层：Dependency Resolver
+
+例如：
+
+有：
+
+三个 Feature：
+
+EMA20
+
+↓
+
+EMA60
+
+↓
+
+EMA20-EMA60
+
+其实：
+
+第三个：
+
+依赖：
+
+前两个。
+
+Dependency：
+
+自动：
+
+生成：
+
+EMA20
+
+EMA60
+
+↓
+
+EMA_DIFF
+
+以后：
+
+不用：
+
+重复算。
+
+第三层：Execution Planner
+
+这里：
+
+非常重要。
+
+例如：
+
+100个 Feature。
+
+不要：
+
+乱算。
+
+应该：
+
+自动：
+
+排序。
+
+例如：
+
+Close
+
+↓
+
+EMA20
+
+↓
+
+EMA60
+
+↓
+
+Delta
+
+↓
+
+Rank
+
+形成：
+
+DAG。
+
+注意：
+
+这里：
+
+不是：
+
+Research Graph。
+
+这里只是：
+
+Feature Execution Graph。
+
+第四层：Compute Engine
+
+真正：
+
+计算。
+
+例如：
+
+Executor
+
+↓
+
+NumPy
+
+↓
+
+Polars
+
+↓
+
+DuckDB
+
+↓
+
+VectorBT
+
+以后：
+
+切换：
+
+后端。
+
+第五层：Post Processor
+
+这里：
+
+很多平台没有。
+
+其实：
+
+非常重要。
+
+例如：
+
+计算出来：
+
+EMA。
+
+之后：
+
+还需要：
+
+Fill NA
+
+↓
+
+Clip
+
+↓
+
+Normalize
+
+↓
+
+Neutralize
+
+↓
+
+Winsorize
+
+↓
+
+Standardize
+
+这些：
+
+全部：
+
+属于：
+
+Post Processing。
+
+不要：
+
+写：
+
+Expression。
+
+我建议把 Normalize 独立出来
+
+其实：
+
+Normalizer：
+
+应该：
+
+插件。
+
+例如：
+
+ZScore
+
+MinMax
+
+Rank
+
+MAD
+
+Robust
+
+Log
+
+以后：
+
+Feature：
+
+可以：
+
+自由：
+
+配置。
+
+第六层：Validator
+
+这里：
+
+不是：
+
+模型。
+
+而是：
+
+Feature。
+
+例如：
+
+自动：
+
+检查：
+
+Missing Ratio
+
+↓
+
+Constant
+
+↓
+
+Variance
+
+↓
+
+Coverage
+
+↓
+
+Correlation
+
+↓
+
+Stability
+
+例如：
+
+发现：
+
+99%
+
+都是：
+
+0
+
+自动：
+
+标红。
+
+第七层：Feature Store
+
+我建议：
+
+一定要：
+
+做。
+
+因为：
+
+Feature：
+
+以后：
+
+越来越多。
+
+例如：
+
+EMA20
+
+不用：
+
+每天：
+
+重新算。
+
+直接：
+
+Store。
+
+例如：
+
+Feature Store
+
+↓
+
+Expression Hash
+
+↓
+
+Version
+
+↓
+
+Universe
+
+↓
+
+Frequency
+
+以后：
+
+直接：
+
+命中。
+
+第八层：Feature Matrix Builder
+
+这里：
+
+真正：
+
+输出：
+
+训练矩阵。
+
+例如：
+
+Feature1
+
+Feature2
+
+Feature3
+
+↓
+
+Join
+
+↓
+
+Alignment
+
+↓
+
+Feature Matrix
+
+例如：
+
+最后：
+
+得到：
+
+Date
+
+Code
+
+EMA20
+
+Rank
+
+ATR
+
+VolumeRank
+
+...
+
+ML：
+
+直接：
+
+读取。
+
+Feature Pipeline 的核心对象
+
+我建议：
+
+不是：
+
+Feature。
+
+而是：
+
+Pipeline。
+
+例如：
+
+FeaturePipeline
+
+├── Feature Definitions
+├── Dependency Graph
+├── Execution Plan
+├── Compute Backend
+├── Cache
+├── Validators
+├── Post Processors
+└── Output
+
+以后：
+
+整个：
+
+ML：
+
+都是：
+
+Pipeline。
+
+Feature Definition 重新设计
+
+建议：
+
+FeatureDefinition
+
+id
+
+name
+
+expression
+
+input
+
+output
+
+frequency
+
+universe
+
+dtype
+
+version
+
+tags
+
+metadata
+
+注意：
+
+这里：
+
+没有：
+
+Data。
+
+只是：
+
+Definition。
+
+Feature Instance
+
+真正：
+
+计算：
+
+出来：
+
+例如：
+
+FeatureInstance
+
+definition
+
+start
+
+end
+
+dataframe
+
+statistics
+
+cache
+
+status
+
+这个：
+
+才有：
+
+数据。
+
+Feature Store
+
+建议：
+
+目录：
+
+feature_store/
+
+├── definitions/
+
+├── cache/
+
+├── registry/
+
+├── statistics/
+
+└── metadata/
+
+以后：
+
+Feature：
+
+统一。
+
+前端（Feature Builder）
+
+这里：
+
+我建议：
+
+做成：
+
+可视化。
+
+例如：
+
+左边：
+
+Operator。
+
+中间：
+
+Expression。
+
+右边：
+
+Preview。
+
+下面：
+
+Statistics
+
+Coverage
+
+Distribution
+
+Correlation
+
+做到：
+
+拖拽。
+
+Feature Pipeline 与 Alpha Discovery 的关系
+
+这是：
+
+整个：
+
+ML Lab：
+
+最重要的一张图。
+
+Raw Data
+        │
+        ▼
+Expression Engine
+        │
+        ▼
+Feature Definition
+        │
+        ▼
+Feature Pipeline
+        │
+        ├──────────────┐
+        │              │
+        ▼              ▼
+Feature Store     Feature Matrix
+        ▲              │
+        │              ▼
+Alpha Discovery   ML Training
+        │
+发现新的Expression
+        │
+新增Feature Definition
+
+所以：
+
+Alpha Discovery：
+
+不是：
+
+直接：
+
+产生：
+
+训练数据。
+
+而是：
+
+产生：
+
+新的：
+
+Feature Definition。
+
+然后：
+
+交给：
+
+Feature Pipeline。
+
+这也是为什么我们先设计 Feature Pipeline，而不是先写遗传算法。
+
+不过，我想对 Feature Pipeline 再做一个升级（我认为这是整个 ML Lab 最大的优化）
+
+到这里为止，我们还是把 Pipeline 看成：
+
+"计算流程"。
+
+但实际上，它更应该是：
+
+"一个可复现、可版本管理的 Feature 实验流程"。
+
+因此，我建议 Feature Pipeline 不仅保存 Feature，还保存：
+
+Feature Pipeline
+├── 输入数据版本（Data Snapshot）
+├── Universe
+├── Feature Definitions
+├── 后处理配置
+├── 验证规则
+├── 输出矩阵
+├── 统计信息
+└── Pipeline Version
+
+这样，当你半年后重新训练模型时，不需要重新手工配置：
+
+"我当时用了哪些 Feature？用了哪些标准化？用的哪个 Universe？"
+
+而是直接恢复整个 Pipeline。
+
+我认为这才是个人版 QuantLab 中 Feature Pipeline 最合理的定位
+
+它不是一个"计算 Feature 的函数集合"，而是一个可复现的 Feature 工厂（Feature Factory）。
+
+它把：
+
+Expression Engine（负责定义公式）
+Compute Engine（负责计算）
+Feature Store（负责缓存）
+Validation（负责质量）
+ML Training（负责消费）
+
+全部串联起来。
+
+以后无论是人工设计因子，还是 Alpha Discovery 自动发现因子，都走这一条统一的 Feature Pipeline。 这样整个 ML Lab 的架构会非常干净，也能支持你后续继续扩展。

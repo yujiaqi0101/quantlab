@@ -3,7 +3,7 @@
  *
  * 对应后端 /api/v1/signal-engine/*
  */
-import http from './http'
+import { http } from './http'
 
 // ---------- 类型定义 ----------
 

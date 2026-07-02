@@ -62,7 +62,7 @@
               <el-input-number v-model="realizabilityForm.slippage_bps" :step="0.5" />
             </el-form-item>
           </el-form>
-          <el-button type="primary" @click="evalRealizability" :loading="loading.realalizability">
+          <el-button type="primary" @click="evalRealizability" :loading="loading.realazability">
             评估可实现性
           </el-button>
 

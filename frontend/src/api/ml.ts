@@ -790,10 +790,10 @@ export interface PipelineResult {
 }
 
 export async function runValidationPipeline(data: {
-  feature_data: Record<string, number[]>
-  label_data: number[]
+  feature_data?: Record<string, number[]>
+  label_data?: number[]
   index?: string[]
-  model_type: string
+  model_type?: string
   model_params?: Record<string, any>
   is_classifier?: boolean
   predictions?: number[]
